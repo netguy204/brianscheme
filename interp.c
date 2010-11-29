@@ -69,6 +69,15 @@ object *find_variable_value(object *var, object *env,
 }
 
 /**
+ * It turns out that find_variable_value is very useful for
+ * implementing &rest args in userspace
+ */
+DEFUN1(find_variable_proc) {
+  object *val = find_variable_value(FIRST, environment, 0);
+  return val;
+}
+
+/**
  * PRIVATE
  * Handle errors when a symbol is assumed to be bound but isn't
  */
@@ -206,6 +215,59 @@ DEFUN1(list_proc) {
 DEFUN1(macroexpand0_proc) {
   return expand_macro(car(FIRST), cdr(FIRST), environment);
 }
+
+DEFUN1(is_eq_proc) {
+  if(FIRST->type != SECOND->type) {
+    return false;
+  }
+  switch(FIRST->type) {
+  case FIXNUM:
+    return (LONG(FIRST) == LONG(SECOND)) ? true : false;
+  case CHARACTER:
+    return (CHAR(FIRST) == CHAR(SECOND)) ? true : false;
+  case STRING:
+    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ?
+      true : false;
+  default:
+    return (FIRST == SECOND) ? true : false;
+  }
+}
+
+DEFUN1(is_number_equal_proc) {
+  long value = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(value != LONG(FIRST)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+DEFUN1(is_less_than_proc) {
+  long last = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(last < LONG(FIRST)) {
+      last = LONG(FIRST);
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+DEFUN1(is_greater_than_proc) {
+  long last = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(last > LONG(FIRST)) {
+      last = LONG(FIRST);
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
@@ -492,6 +554,9 @@ void init_prim_environment(object *env) {
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
   add_procedure("*", mul_proc);
+  add_procedure("<", is_less_than_proc);
+  add_procedure(">", is_greater_than_proc);
+  add_procedure("=", is_number_equal_proc);
 
   add_procedure("cons", cons_proc);
   add_procedure("car", car_proc);
@@ -500,7 +565,11 @@ void init_prim_environment(object *env) {
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
 
+  add_procedure("eq?", is_eq_proc);
+
   add_procedure("macroexpand0", macroexpand0_proc);
+
+  add_procedure("find-variable", find_variable_proc);
 }
 
 void init() {
@@ -529,4 +598,9 @@ void init() {
   init_prim_environment(the_global_environment);
 }
 
-
+/**
+ * handy for user side debugging */
+void print_obj(object *obj) {
+  write(stdout, obj);
+  printf("\n");
+}

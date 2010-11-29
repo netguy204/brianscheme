@@ -49,6 +49,8 @@ void eat_whitespace(FILE *in) {
       while (((c = getc(in)) != EOF) && (c != '\n')) {
 	continue;
       }
+      eat_whitespace(in);
+      return;
     }
     ungetc(c, in);
     break;

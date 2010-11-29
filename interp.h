@@ -17,6 +17,8 @@ object *cdr(object *pair);
 
 #define AS_BOOL(x) (x ? true : false)
 #define LONG(x) x->data.fixnum.value
+#define CHAR(x) x->data.character.value
+#define STRING(x) x->data.string.value
 
 /* environments */
 object *enclosing_environment(object *env);
@@ -42,5 +44,6 @@ object *expand_macro(object *macro, object *args, object *env);
 object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level);
 void debug_write(char * msg, object *obj, int level);
+void print_obj(object *obj);
 
 #endif

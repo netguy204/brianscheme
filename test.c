@@ -5,11 +5,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-void print_obj(object *obj) {
-  write(stdout, obj);
-  printf("\n");
-}
-
 int main(int argc, char ** argv) {
   object *env;
 
@@ -108,7 +103,7 @@ int main(int argc, char ** argv) {
   print_obj(interp(uqtest, env));
 
   /* now try defining some syntax */
-  object *defun = make_symbol("defun");
+  object *defun = make_symbol("defun0");
   object *defunbody =
     list2(quote_symbol,
 	  list3(set_symbol,
