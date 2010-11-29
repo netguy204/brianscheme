@@ -54,14 +54,14 @@
       #t))
 
 (define-syntax when (pred conseq)
-  (if ,pred
-      ,conseq
-      nil))
+  '(if ,pred
+       ,conseq
+       nil))
 
 (define-syntax unless (pred conseq)
-  (if ,pred
-      nil
-      ,conseq))
+  '(if ,pred
+       nil
+       ,conseq))
 
 (define nth (lst n)
   (begin
@@ -70,9 +70,6 @@
 	  (car rest)
 	  (iter (+ i 1) (cdr rest))))
     (iter 0 lst)))
-
-(define-syntax macroexpand (mac)
-  ',mac)
 
 ;; now building up function definition with &rest
 (define-syntax wrap-rest (vars body)
@@ -84,9 +81,17 @@
 
 (define-syntax define2 (name args body)
   '(set! ,name
-	 ,(wrap-rest args
-		     (lambda args body))))
-			     
+	 (lambda ,args (wrap-rest ,args ,body))))
+
+(define-syntax define3 (name args body)
+  '(set! ,name
+	 ,(let ((idx (index-eq '&rest args)))
+	    (if (null? idx)
+		'(lambda ,args ,body)
+		'(lambda ,args
+		   (let ((,(nth args (+ 1 idx)) (find-variable '&rest)))
+		     ,body))))))
+
 		
 	    
 ;(define-syntax lambda2 (name vars body)
@@ -95,3 +100,9 @@
 ;; is there a rest?
 
 (set! a '(1 2 3 4))
+
+(macroexpand0 '(when pred conseq))
+(macroexpand0 '(unless pred conseq))
+(macroexpand0 '(define3 foo (a &rest b) b))
+;(define3 foo (a &rest b) b)
+;(foo 1 2 3 4 5 6)

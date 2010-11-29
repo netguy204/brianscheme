@@ -68,7 +68,14 @@ object *find_variable_value(object *var, object *env,
     vals = frame_values(frame);
     while(!is_the_empty_list(vars)) {
       if(var == car(vars)) {
+	if(!search_enclosing) {
+	  debug_write("find-variable", vars, 0);
+	  debug_write("find-variable-vals", vals, 0);
+	}
 	return vals;
+      } else if(!search_enclosing) {
+	debug_write("skipping-vars", vars, 0);
+	debug_write("skipping-vals", vals, 0);
       }
       vars = cdr(vars);
       vals = cdr(vals);
@@ -225,7 +232,13 @@ DEFUN1(list_proc) {
 }
 
 DEFUN1(macroexpand0_proc) {
-  return expand_macro(car(FIRST), cdr(FIRST), environment, 0);
+  object *macro = FIRST;
+  object *macrofn = interp(car(macro), environment);
+  object *macroargs = cdr(macro);
+  debug_write("macrofn", macrofn, 0);
+  debug_write("macroargs", macroargs, 0);
+
+  return expand_macro(macrofn, macroargs, environment, 0);
 }
 
 DEFUN1(is_eq_proc) {
@@ -530,6 +543,7 @@ object *interp1(object *exp, object *env, int level) {
 	  last = evald_args;
 	} else {
 	  set_cdr(last, cons(result, the_empty_list));
+	  last = cdr(last);
 	}
 	args = cdr(args);
       }
@@ -545,6 +559,7 @@ object *interp1(object *exp, object *env, int level) {
 	object *new_env;
 	D2("parameters", fn->data.compound_proc.parameters, level);
 	D2("bindings", evald_args, level);
+	D1("eval'd args", evald_args, level);
 	new_env = extend_environment(fn->data.compound_proc.parameters,
 				     evald_args,
 				     fn->data.compound_proc.env);
