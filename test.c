@@ -1,5 +1,6 @@
 #include "interp.h"
 #include "types.h"
+#include "read.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -139,6 +140,12 @@ int main(int argc, char ** argv) {
 			  make_fixnum(10), make_fixnum(15));
   print_obj(testinv);
   print_obj(interp(testinv, env));
+
+  while(true) {
+    object *input = read(stdin);
+    print_obj(input);
+    print_obj(interp(input, env));
+  }
 
   return 0;
 }

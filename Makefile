@@ -2,7 +2,7 @@ TARGETS = main test
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c
+SOURCES = interp.c types.c read.c
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
