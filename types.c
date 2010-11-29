@@ -1,8 +1,10 @@
-#include "types.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "types.h"
+#include "symbols.h"
+
 
 void *MALLOC(long size) {
   void *obj = malloc(size);
@@ -99,7 +101,7 @@ void set_cdr(object *obj, object *value) {
   obj->data.pair.cdr = value;
 }
 
-object *make_primitive_proc(object *(*fn)(struct object *arguments)) {
+object *make_primitive_proc(prim_proc fn) {
   object *obj = alloc_object();
   obj->type = PRIMITIVE_PROC;
   obj->data.primitive_proc.fn = fn;
@@ -125,6 +127,19 @@ char is_compound_proc(object *obj) {
   return obj->type == COMPOUND_PROC;
 }
 
+object *make_syntax_proc(object *parameters, object *body) {
+  object *obj = alloc_object();
+  obj->type = SYNTAX_PROC;
+  obj->data.compound_proc.parameters = parameters;
+  obj->data.compound_proc.body = body;
+  obj->data.compound_proc.env = the_empty_environment;
+
+  return obj;
+}
+
+char is_syntax_proc(object *obj) {
+  return obj->type == SYNTAX_PROC;
+}
 
 object *find_symbol(char *value) {
   object *element;
@@ -162,5 +177,6 @@ char is_atom(object *obj) {
     is_character(obj) ||
     is_string(obj) ||
     is_compound_proc(obj) ||
-    is_primitive_proc(obj);
+    is_primitive_proc(obj) ||
+    is_syntax_proc(obj);
 }

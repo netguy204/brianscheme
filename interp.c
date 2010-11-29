@@ -203,6 +203,10 @@ DEFUN1(list_proc) {
   return arguments;
 }
 
+DEFUN1(macroexpand0_proc) {
+  return expand_macro(car(FIRST), cdr(FIRST), environment);
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -224,6 +228,7 @@ void write_pair(FILE *out, object *pair) {
 void write(FILE *out, object *obj) {
   char c;
   char *str;
+  object *head;
 
   switch(obj->type) {
   case THE_EMPTY_LIST:
@@ -274,15 +279,28 @@ void write(FILE *out, object *obj) {
     putc('"', out);
     break;
   case PAIR:
-    fprintf(out, "(");
-    write_pair(out, obj);
-    fprintf(out, ")");
+    head = car(obj);
+    if(head == quote_symbol) {
+      fprintf(out, "'");
+      write(out, cadr(obj));
+    }
+    else if(head == unquote_symbol) {
+      fprintf(out, ",");
+      write(out, cadr(obj));
+    } else {
+      fprintf(out, "(");
+      write_pair(out, obj);
+      fprintf(out, ")");
+    }
     break;
   case PRIMITIVE_PROC:
     fprintf(out, "#<primitive-procedure>");
     break;
   case COMPOUND_PROC:
     fprintf(out, "#<compound-procedure>");
+    break;
+  case SYNTAX_PROC:
+    fprintf(out, "#<syntax-procedure>");
     break;
   default:
     fprintf(stderr, "cannot write unknown type\n");
@@ -318,6 +336,27 @@ object *interp(object *exp, object *env) {
   return interp1(exp, env, 0);
 }
 
+object *expand_macro(object *macro, object *args, object *env) {
+  object *new_env =
+    extend_environment(macro->data.compound_proc.parameters,
+		       args,
+		       env);
+  object *expanded = interp(macro->data.compound_proc.body, new_env);
+  return expanded;
+}
+
+object *interp_unquote(object *exp, object *env, int level) {
+  if(!is_pair(exp)) return exp;
+
+  object *head = car(exp);
+  if(head == unquote_symbol) {
+    return interp1(second(exp), env, level);
+  } else {
+    return cons(interp_unquote(car(exp), env, level),
+		interp_unquote(cdr(exp), env, level));
+    }
+}
+
 object *interp1(object *exp, object *env, int level) {
   debug_write("interpreting", exp, level);
 
@@ -335,7 +374,7 @@ object *interp1(object *exp, object *env, int level) {
     object *head = car(exp);
     if(head == quote_symbol) {
       debug_write("evaluating quote", exp, level);
-      return cdr(exp);
+      return interp_unquote(second(exp), env, level);
     }
     else if(head == begin_symbol) {
       debug_write("evaluating begin", exp, level);
@@ -371,6 +410,12 @@ object *interp1(object *exp, object *env, int level) {
 				cons(begin_symbol, cdr(args)),
 				env);
     }
+    else if(head == macro_symbol) {
+      debug_write("defining macro", exp, level);
+      object *args = cdr(exp);
+      return make_syntax_proc(first(args),
+			      cons(begin_symbol, cdr(args)));
+    }
     else {
       /* procedure application */
       debug_write("applying. head is", head, level);
@@ -378,9 +423,17 @@ object *interp1(object *exp, object *env, int level) {
       debug_write("now have", fn, level);
 
       object *args = cdr(exp);
+      object *evald_args;
+
+      if(is_syntax_proc(fn)) {
+	/* expand the macro and evaluate that */
+	object *expanded = expand_macro(fn, args, env);
+	debug_write("expanded macro", expanded, level);
+	return interp1(expanded, env, level + 1);
+      }
 
       /* evaluate the arguments */
-      object *evald_args = the_empty_list;
+      evald_args = the_empty_list;
       object *last;
       while(!is_the_empty_list(args)) {
 	object *result = interp1(first(args), env, level + 1);
@@ -392,11 +445,12 @@ object *interp1(object *exp, object *env, int level) {
 	}
 	args = cdr(args);
       }
+    
 
       /* dispatch the call */
       if(is_primitive_proc(fn)) {
 	debug_write("primitive apply", evald_args, level);
-	return fn->data.primitive_proc.fn(evald_args);
+	return fn->data.primitive_proc.fn(evald_args, env);
       } else if(is_compound_proc(fn)) {
 	object *new_env;
 	debug_write("parameters", fn->data.compound_proc.parameters, level);
@@ -445,6 +499,8 @@ void init_prim_environment(object *env) {
   add_procedure("set-car!", set_car_proc);
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
+
+  add_procedure("macroexpand0", macroexpand0_proc);
 }
 
 void init() {
@@ -460,11 +516,13 @@ void init() {
   true->data.boolean.value = 1;
 
   symbol_table = the_empty_list;
+  unquote_symbol = make_symbol("unquote");
   quote_symbol = make_symbol("quote");
   set_symbol = make_symbol("set!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
+  macro_symbol = make_symbol("macro");
 
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();

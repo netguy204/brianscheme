@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
   print_obj(fnres);
 
   /* try defining a symbol */
-  object *defsym = cons(make_symbol("set!"),
+  object *defsym = cons(set_symbol,
 			cons(make_symbol("foo"),
 			     cons(ldef, the_empty_list)));
   print_obj(defsym);
@@ -85,6 +85,60 @@ int main(int argc, char ** argv) {
 			 cons(make_fixnum(10), the_empty_list));
   print_obj(symcall);
   print_obj(interp(symcall, env));
+
+  /* testing quoting and unquoting */		     
+  object *qtest =
+    list2(quote_symbol,
+	  list3(make_symbol("+"),
+		make_fixnum(2),
+		make_fixnum(3)));
+  print_obj(qtest);
+  print_obj(interp(qtest, env));
+
+  object *uqtest =
+    list2(quote_symbol,
+	  list3(make_symbol("+"),
+		make_fixnum(9),
+		list2(unquote_symbol,
+		      list3(make_symbol("+"),
+			    make_fixnum(2),
+			    make_fixnum(3)))));
+  print_obj(uqtest);
+  print_obj(interp(uqtest, env));
+
+  /* now try defining some syntax */
+  object *defun = make_symbol("defun");
+  object *defunbody =
+    list2(quote_symbol,
+	  list3(set_symbol,
+		list2(unquote_symbol, make_symbol("name")),
+		list3(lambda_symbol,
+		      list2(unquote_symbol, make_symbol("vars")),
+		      list2(unquote_symbol, make_symbol("body")))));
+
+  object *mac = list3(macro_symbol,
+		      list3(make_symbol("name"),
+			    make_symbol("vars"),
+			    make_symbol("body")),
+		      defunbody);
+  object *defundef = list3(set_symbol, defun, mac);
+  print_obj(defundef);
+  print_obj(interp(defundef, env));
+
+  /* now use it */
+  object *testdef =
+    list4(defun, make_symbol("test"), list2(make_symbol("x"),
+					    make_symbol("y")),
+	  list3(make_symbol("+"),
+		make_symbol("x"),
+		make_symbol("y")));
+  print_obj(testdef);
+  print_obj(interp(testdef, env));
+  
+  object *testinv = list3(make_symbol("test"),
+			  make_fixnum(10), make_fixnum(15));
+  print_obj(testinv);
+  print_obj(interp(testinv, env));
 
   return 0;
 }

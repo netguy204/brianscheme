@@ -2,13 +2,15 @@
 #define INTERP_H
 
 #include "types.h"
+#include "symbols.h"
 
 /* pre-declarations */
 
 object *cons(object *car, object *cdr);
 object *car(object *pair);
 object *cdr(object *pair);
-#define DEFUN1(name) object* name(object *arguments)
+#define DEFUN1(name) object* name(object *arguments, \
+				  object *environment)
 #define FIRST car(arguments)
 #define SECOND cadr(arguments)
 #define NEXT arguments = cdr(arguments)
@@ -36,6 +38,7 @@ void init_prim_environment(object *env);
 void init();
 
 void write(FILE *out, object *obj);
+object *expand_macro(object *macro, object *args, object *env);
 object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level);
 void debug_write(char * msg, object *obj, int level);
