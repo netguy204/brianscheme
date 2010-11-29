@@ -6,7 +6,7 @@
 #include "types.h"
 #include "interp.h"
 
-#define DEBUG
+static const int DEBUG_LEVEL = 1;
 
 /* dealing with environments */
 object *enclosing_environment(object *env) {
@@ -37,6 +37,18 @@ void add_binding_to_frame(object *var, object *val,
 
 object *extend_environment(object *vars, object *vals,
 			   object *base_env) {
+  /* handle &rest args?
+  object *newvars;
+  object *newvals;
+  object *nextvar;
+  object *nextval;
+
+  object *var = vars;
+  while(!is_the_empty_list(var)) {
+    if(var == rest_symbol) {
+    }
+  }
+  */
   return cons(make_frame(vars, vals), base_env);
 }
 
@@ -213,7 +225,7 @@ DEFUN1(list_proc) {
 }
 
 DEFUN1(macroexpand0_proc) {
-  return expand_macro(car(FIRST), cdr(FIRST), environment);
+  return expand_macro(car(FIRST), cdr(FIRST), environment, 0);
 }
 
 DEFUN1(is_eq_proc) {
@@ -378,8 +390,7 @@ void throw_interp(char * msg, ...) {
   exit(1);
 }
 
-#ifdef DEBUG
-void debug_write(char * msg, object *obj, int level) {
+object *debug_write(char * msg, object *obj, int level) {
   int ii;
   for(ii = 0; ii < level; ++ii) {
     fprintf(stderr, " ");
@@ -388,22 +399,31 @@ void debug_write(char * msg, object *obj, int level) {
   fprintf(stderr, "%s: ", msg);
   write(stderr, obj);
   fprintf(stderr, "\n");
+  return obj;
 }
+
+#ifdef NODEBUG
+#define DN(msg, obj, level, n) obj
 #else
-void debug_write(char * msg, object *obj, int level) {
-}
+#define DN(msg, obj, level, n)			\
+  (DEBUG_LEVEL >= n ? debug_write(msg, obj, level) : obj);
 #endif
+
+#define D1(msg, obj, level) DN(msg, obj, level, 1);
+#define D2(msg, obj, level) DN(msg, obj, level, 2);
 
 object *interp(object *exp, object *env) {
   return interp1(exp, env, 0);
 }
 
-object *expand_macro(object *macro, object *args, object *env) {
+object *expand_macro(object *macro, object *args,
+		     object *env, int level) {
   object *new_env =
     extend_environment(macro->data.compound_proc.parameters,
 		       args,
 		       env);
-  object *expanded = interp(macro->data.compound_proc.body, new_env);
+  object *expanded = interp1(macro->data.compound_proc.body,
+			     new_env, level);
   return expanded;
 }
 
@@ -420,78 +440,84 @@ object *interp_unquote(object *exp, object *env, int level) {
 }
 
 object *interp1(object *exp, object *env, int level) {
-  debug_write("interpreting", exp, level);
+  D1("interpreting", exp, level);
 
   if(is_symbol(exp)) {
-    debug_write("looking up symbol", exp, level);
+    D2("looking up symbol", exp, level);
     object *result = lookup_variable_value(exp, env);
-    debug_write("found", result, level);
-    return result;
+    D2("found", result, level);
+    return D1("result", result, level);
   }
   else if(is_atom(exp)) {
-    debug_write("exp is atomic", exp, level);
-    return exp;
+    D2("exp is atomic", exp, level);
+    return D1("result", exp, level);
   }
   else if(is_pair(exp)) {
     object *head = car(exp);
     if(head == quote_symbol) {
-      debug_write("evaluating quote", exp, level);
-      return interp_unquote(second(exp), env, level);
+      D2("evaluating quote", exp, level);
+      return D1("result", interp_unquote(second(exp), env, level), level);
     }
     else if(head == begin_symbol) {
-      debug_write("evaluating begin", exp, level);
+      D2("evaluating begin", exp, level);
       object *result;
       exp = cdr(exp);
       while(!is_the_empty_list(exp)) {
 	result = interp1(car(exp), env, level + 1);
 	exp = cdr(exp);
       }
-      return result;
+      return D1("result", result, level);
     }
     else if(head == set_symbol) {
-      debug_write("evaluating set", exp, level);
+      D2("evaluating set", exp, level);
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
       define_variable(first(args), val, env);
-      return val;
+      return D1("result", val, level);
     }
     else if(head == if_symbol) {
-      debug_write("evaluating if", exp, level);
+      D2("evaluating if", exp, level);
       object *args = cdr(exp);
       object *predicate = interp1(first(args), env, level + 1);
+      object *result;
       if(predicate == true) {
-	return interp1(second(args), env, level + 1);
+	result = interp1(second(args), env, level + 1);
       } else {
-	return interp1(third(args), env, level + 1);
+	result = interp1(third(args), env, level + 1);
       }
+      return D1("result", result, level);
     }
     else if(head == lambda_symbol) {
-      debug_write("defining lambda", exp, level);
+      D2("defining lambda", exp, level);
       object *args = cdr(exp);
-      return make_compound_proc(first(args),
-				cons(begin_symbol, cdr(args)),
-				env);
+      return D1("result",
+		make_compound_proc(first(args),
+				   cons(begin_symbol, cdr(args)),
+				   env),
+		level);
     }
     else if(head == macro_symbol) {
-      debug_write("defining macro", exp, level);
+      D2("defining macro", exp, level);
       object *args = cdr(exp);
-      return make_syntax_proc(first(args),
-			      cons(begin_symbol, cdr(args)));
+      return D1("result",
+		make_syntax_proc(first(args),
+				 cons(begin_symbol, cdr(args))),
+		level);
     }
     else {
       /* procedure application */
-      debug_write("applying. head is", head, level);
+      D2("applying. head is", head, level);
       object *fn = interp1(head, env, level + 1);
-      debug_write("now have", fn, level);
+      D2("now have", fn, level);
 
       object *args = cdr(exp);
       object *evald_args;
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
-	object *expanded = expand_macro(fn, args, env);
-	debug_write("expanded macro", expanded, level);
-	return interp1(expanded, env, level + 1);
+	object *expanded = expand_macro(fn, args, env, level);
+	D2("expanded macro", expanded, level);
+	return D1("result", interp1(expanded, env, level + 1), level);
       }
 
       /* evaluate the arguments */
@@ -511,16 +537,20 @@ object *interp1(object *exp, object *env, int level) {
 
       /* dispatch the call */
       if(is_primitive_proc(fn)) {
-	debug_write("primitive apply", evald_args, level);
-	return fn->data.primitive_proc.fn(evald_args, env);
+	D2("primitive apply", evald_args, level);
+	return D1("result",
+		  fn->data.primitive_proc.fn(evald_args, env),
+		  level);
       } else if(is_compound_proc(fn)) {
 	object *new_env;
-	debug_write("parameters", fn->data.compound_proc.parameters, level);
-	debug_write("bindings", evald_args, level);
+	D2("parameters", fn->data.compound_proc.parameters, level);
+	D2("bindings", evald_args, level);
 	new_env = extend_environment(fn->data.compound_proc.parameters,
 				     evald_args,
 				     fn->data.compound_proc.env);
-	return interp1(fn->data.compound_proc.body, new_env, level + 1);
+	return D1("result",
+		  interp1(fn->data.compound_proc.body, new_env, level + 1),
+		  level);
       } else {
 	debug_write("error", fn, level);
 	throw_interp("cannot apply non-function\n");
@@ -592,6 +622,7 @@ void init() {
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
   macro_symbol = make_symbol("macro");
+  rest_symbol = make_symbol("&rest");
 
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();

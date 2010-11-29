@@ -27,7 +27,7 @@ char is_delimiter(int c) {
 char is_initial(char c) {
   return isalpha(c) || c == '*' || c == '/' ||
     c == '>' || c == '<' || c == '=' || c == '?' ||
-    c == '?' || c == '!';
+    c == '?' || c == '!' || c == '&';
 }
 
 int peek(FILE *in) {

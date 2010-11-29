@@ -40,10 +40,11 @@ void init_prim_environment(object *env);
 void init();
 
 void write(FILE *out, object *obj);
-object *expand_macro(object *macro, object *args, object *env);
+object *expand_macro(object *macro, object *args,
+		     object *env, int level);
 object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level);
-void debug_write(char * msg, object *obj, int level);
+object *debug_write(char * msg, object *obj, int level);
 void print_obj(object *obj);
 
 #endif

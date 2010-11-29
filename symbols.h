@@ -15,6 +15,7 @@ object *if_symbol;
 object *begin_symbol;
 object *lambda_symbol;
 object *macro_symbol;
+object *rest_symbol;
 
 object *the_empty_environment;
 object *the_global_environment;
