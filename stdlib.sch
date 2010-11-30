@@ -1,4 +1,6 @@
 ;; very basic define to get us started
+(set! *debug* #f)
+
 (set! define0
       (macro (name vars body)
 	'(set! ,name (lambda ,vars ,body))))
@@ -104,41 +106,39 @@
 (define-syntax define (name args &rest fbody)
   '(set! ,name (wrap-rest lambda ,args (begin . ,fbody))))
 
+
+;; now that we have a proper define/-syntax we can keep going
+
 (define-syntax let (bindings &rest body)
   '((lambda ,(map first bindings)
       (begin . ,body))
     . ,(map second bindings)))
 
+(define-syntax let* (bindings &rest body)
+  (if (null? bindings)
+      '(begin . ,body)
+      '(let ((,(first (car bindings)) ,(second (car bindings))))
+	 (let* ,(cdr bindings) . ,body))))
 
-(set! a '(1 2 3 4))
+(define any? (fn lst)
+  (if (null? (index-of fn lst))
+      #f
+      #t))
 
-(macroexpand0 '(define foo (a &rest b) b))
+(define any-eq? (val lst)
+  (if (null? (index-eq val lst))
+      #f
+      #t))
+
+(define-syntax when (pred conseq)
+  '(if ,pred
+       ,conseq
+       nil))
+
+(define-syntax unless (pred conseq)
+  '(if ,pred
+       nil
+       ,conseq))
+
+(macroexpand0 '(let* ((a 1) (b (* a 2))) (cons a b)))
 		
-;; now we can make a better define to keep going
-;(define any? (fn lst)
-;  (if (null? (index-of fn lst))
-;      #f
-;      #t))
-
-;(define any-eq? (val lst)
-;  (if (null? (index-eq val lst))
-;      #f
-;      #t))
-
-;(define-syntax when (pred conseq)
-;  '(if ,pred
-;       ,conseq
-;       nil))
-
-;(define-syntax unless (pred conseq)
-;  '(if ,pred
-;       nil
-;       ,conseq))
-
-
-	    
-;(define-syntax lambda2 (name vars body)
-;  '(lambda ,vars
-     
-
-
