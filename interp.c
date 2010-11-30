@@ -68,14 +68,7 @@ object *find_variable_value(object *var, object *env,
     vals = frame_values(frame);
     while(!is_the_empty_list(vars)) {
       if(var == car(vars)) {
-	if(!search_enclosing) {
-	  debug_write("find-variable", vars, 0);
-	  debug_write("find-variable-vals", vals, 0);
-	}
 	return vals;
-      } else if(!search_enclosing) {
-	debug_write("skipping-vars", vars, 0);
-	debug_write("skipping-vals", vals, 0);
       }
       vars = cdr(vars);
       vals = cdr(vals);
@@ -121,11 +114,10 @@ void set_variable_value(object *var, object *new_val, object *env) {
 
 /**
  * like set_variable_value but we define the variable if it doesn't
- * exist in our current frame. Unlike set_variable_value we don't
- * search enclosing environments.
+ * exist in our current frame.
  */
 void define_variable(object *var, object *new_val, object *env) {
-  object *val = find_variable_value(var, env, 0);
+  object *val = find_variable_value(var, env, 1);
   if(is_the_empty_list(val)) {
     add_binding_to_frame(var, new_val, first_frame(env));
   } else {
@@ -178,8 +170,6 @@ DEFUN1(is_procedure_proc) {
 }
 
 DEFUN1(add_proc) {
-  debug_write("prim-+", arguments, 0);
-
   long result = 0;
   while(!is_the_empty_list(arguments)) {
     result += LONG(FIRST);
@@ -235,8 +225,6 @@ DEFUN1(macroexpand0_proc) {
   object *macro = FIRST;
   object *macrofn = interp(car(macro), environment);
   object *macroargs = cdr(macro);
-  debug_write("macrofn", macrofn, 0);
-  debug_write("macroargs", macroargs, 0);
 
   return expand_macro(macrofn, macroargs, environment, 0);
 }
@@ -404,14 +392,18 @@ void throw_interp(char * msg, ...) {
 }
 
 object *debug_write(char * msg, object *obj, int level) {
-  int ii;
-  for(ii = 0; ii < level; ++ii) {
-    fprintf(stderr, " ");
-  }
+  object *debug = lookup_variable_value(debug_symbol, the_global_environment);
 
-  fprintf(stderr, "%s: ", msg);
-  write(stderr, obj);
-  fprintf(stderr, "\n");
+  if(debug == true) {
+    int ii;
+    for(ii = 0; ii < level; ++ii) {
+      fprintf(stderr, " ");
+    }
+    
+    fprintf(stderr, "%s: ", msg);
+    write(stderr, obj);
+    fprintf(stderr, "\n");
+  }
   return obj;
 }
 
@@ -615,6 +607,8 @@ void init_prim_environment(object *env) {
   add_procedure("macroexpand0", macroexpand0_proc);
 
   add_procedure("find-variable", find_variable_proc);
+
+  define_variable(debug_symbol, true, env);
 }
 
 void init() {
@@ -638,6 +632,7 @@ void init() {
   lambda_symbol = make_symbol("lambda");
   macro_symbol = make_symbol("macro");
   rest_symbol = make_symbol("&rest");
+  debug_symbol = make_symbol("*debug*");
 
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();

@@ -19,6 +19,7 @@ object *cdr(object *pair);
 #define LONG(x) x->data.fixnum.value
 #define CHAR(x) x->data.character.value
 #define STRING(x) x->data.string.value
+#define BOOLEAN(x) x->data.boolean.value
 
 /* environments */
 object *enclosing_environment(object *env);
