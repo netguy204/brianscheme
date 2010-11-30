@@ -169,6 +169,14 @@ DEFUN1(is_procedure_proc) {
   return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST));
 }
 
+DEFUN1(is_output_port_proc) {
+  return AS_BOOL(is_output_port(FIRST));
+}
+
+DEFUN1(is_input_port_proc) {
+  return AS_BOOL(is_input_port(FIRST));
+}
+
 DEFUN1(add_proc) {
   long result = 0;
   while(!is_the_empty_list(arguments)) {
@@ -359,6 +367,39 @@ DEFUN1(unread_char_proc) {
   return true;
 }
 
+DEFUN1(char_to_integer_proc) {
+  return make_fixnum(CHAR(FIRST));
+}
+
+DEFUN1(number_to_string_proc) {
+  char buffer[100];
+  sprintf(buffer, "%ld", LONG(FIRST));
+  return make_string(buffer);
+}
+
+DEFUN1(string_to_number_proc) {
+  return make_fixnum(atoi(STRING(FIRST)));
+}
+
+DEFUN1(symbol_to_string_proc) {
+  return make_string(FIRST->data.symbol.value);
+}
+
+DEFUN1(string_to_symbol_proc) {
+  return make_symbol(STRING(FIRST));
+}
+
+DEFUN1(exit_proc) {
+  exit((int)LONG(FIRST));
+  return NULL;
+}
+
+DEFUN1(apply_proc) {
+  object *fn = FIRST;
+  object *args = SECOND;
+  return interp(cons(fn, args), environment);
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -464,7 +505,7 @@ void write(FILE *out, object *obj) {
     fprintf(out, "#<eof");
     break;
   default:
-    fprintf(stderr, "cannot write unknown type\n");
+    fprintf(stderr, "cannot write unknown type: %d\n", obj->type);
     exit(1);
   }
 }
@@ -614,8 +655,11 @@ object *interp1(object *exp, object *env, int level) {
       /* evaluate the arguments */
       evald_args = the_empty_list;
       object *last;
+      D1("evaluating arguments", args, level);
       while(!is_the_empty_list(args)) {
+	D1("evaluating argument", first(args), level);
 	object *result = interp1(first(args), env, level + 1);
+	D1("result was", result, level);
 	if(evald_args == the_empty_list) {
 	  evald_args = cons(result, the_empty_list);
 	  last = evald_args;
@@ -673,6 +717,8 @@ void init_prim_environment(object *env) {
   add_procedure("string?", is_string_proc);
   add_procedure("pair?", is_pair_proc);
   add_procedure("procedure?", is_procedure_proc);
+  add_procedure("output-port?", is_output_port_proc);
+  add_procedure("input-port?", is_input_port_proc);
 
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
@@ -703,8 +749,16 @@ void init_prim_environment(object *env) {
 
   add_procedure("macroexpand0", macroexpand0_proc);
   add_procedure("eval", eval_proc);
+  add_procedure("apply", apply_proc);
+
+  add_procedure("char->integer", char_to_integer_proc);
+  add_procedure("number->string", number_to_string_proc);
+  add_procedure("string->number", string_to_symbol_proc);
+  add_procedure("symbol->string", symbol_to_string_proc);
+  add_procedure("string->symbol", string_to_symbol_proc);
 
   add_procedure("find-variable", find_variable_proc);
+  add_procedure("exit", exit_proc);
 
   define_variable(debug_symbol, true, env);
   define_variable(stdin_symbol,
