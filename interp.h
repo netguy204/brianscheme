@@ -20,6 +20,8 @@ object *cdr(object *pair);
 #define CHAR(x) x->data.character.value
 #define STRING(x) x->data.string.value
 #define BOOLEAN(x) x->data.boolean.value
+#define INPUT(x) x->data.input_port.stream
+#define OUTPUT(x) x->data.output_port.stream
 
 /* environments */
 object *enclosing_environment(object *env);

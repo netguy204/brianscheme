@@ -141,6 +141,32 @@ char is_syntax_proc(object *obj) {
   return obj->type == SYNTAX_PROC;
 }
 
+object *make_input_port(FILE *stream) {
+  object *obj = alloc_object();
+  obj->type = INPUT_PORT;
+  obj->data.input_port.stream = stream;
+  return obj;
+}
+
+char is_input_port(object *obj) {
+  return obj->type == INPUT_PORT;
+}
+
+char is_output_port(object *obj) {
+  return obj->type == OUTPUT_PORT;
+}
+
+char is_eof_object(object *obj) {
+  return obj == eof_object;
+}
+
+object *make_output_port(FILE *stream) {
+  object *obj = alloc_object();
+  obj->type = OUTPUT_PORT;
+  obj->data.output_port.stream = stream;
+  return obj;
+}
+
 object *find_symbol(char *value) {
   object *element;
 

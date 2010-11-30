@@ -34,6 +34,7 @@
 (define0 cadr (x) (car (cdr x)))
 (define0 first (x) (car x))
 (define0 second (x) (cadr x))
+(define0 third (x) (car (cdr (cdr x))))
 
 (define0 index-of (fn lst)
   (begin
@@ -178,6 +179,28 @@
 	(f (car l))
 	(for-each f (cdr l)))))
 
-(macroexpand0 '(or #t #t))
+(define (read name)
+  (let* ((in (open-input-port name))
+	(result (read-port in)))
+    (close-input-port in)
+    result))
+
+(define (load name)
+  (eval (read name)))
+
+(define (newline)
+  (write-char stdout #\newline))
+
+(define (write obj)
+  (write-port stdout obj))
+
+(define (error obj)
+  (write-port stderr obj)
+  (newline))
+
+(define (peek-char port)
+  (let ((ch (read-char port)))
+    (unread-char port ch)
+    ch))
 
 'stdlib-loaded

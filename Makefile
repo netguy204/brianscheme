@@ -18,4 +18,4 @@ check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)
 
 clean:
-	rm -f *.o $(TARGETS)
+	rm -f *.o $(TARGETS) *.nul

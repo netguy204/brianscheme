@@ -280,7 +280,84 @@ DEFUN1(is_greater_than_proc) {
   return true;
 }
 
+DEFUN1(open_output_port_proc) {
+  object *name = FIRST;
+  FILE *out = fopen(STRING(name), "w");
+  if(out == NULL) {
+    fprintf(stderr, "could not open file '%s'\n", STRING(name));
+    return the_empty_list;
+  }
+  return make_output_port(out);
+}
 
+DEFUN1(close_output_port_proc) {
+  FILE *out = OUTPUT(FIRST);
+  fclose(out);
+  return true;
+}
+
+DEFUN1(open_input_port_proc) {
+  object *name = FIRST;
+  FILE *in = fopen(STRING(name), "r");
+  if(in == NULL) {
+    fprintf(stderr, "could not open file '%s'\n", STRING(name));
+    return the_empty_list;
+  }
+  return make_input_port(in);
+}
+
+DEFUN1(close_input_port_proc) {
+  FILE *in = INPUT(FIRST);
+  fclose(in);
+  return true;
+}
+
+DEFUN1(eval_proc) {
+  object *exp = FIRST;
+  object *env;
+
+  if(cdr(arguments) == the_empty_list) {
+    env = environment;
+  } else {
+    env = SECOND;
+  }
+
+  return interp(exp, env);
+}
+
+object *read(FILE *in);
+DEFUN1(read_proc) {
+  object *in_port = FIRST;
+  return read(INPUT(in_port));
+}
+
+DEFUN1(write_proc) {
+  object *port = FIRST;
+  object *obj = SECOND;
+  write(OUTPUT(port), obj);
+  return true;
+}
+
+DEFUN1(write_char_proc) {
+  object *port = FIRST;
+  object *ch = SECOND;
+  putc(CHAR(ch), OUTPUT(port));
+  return true;
+}
+
+DEFUN1(read_char_proc) {
+  object *port = FIRST;
+  int result = getc(INPUT(port));
+  return (result == EOF) ? eof_object : make_character(result);
+}
+
+DEFUN1(unread_char_proc) {
+  object *port = FIRST;
+  object *ch = SECOND;
+
+  ungetc(CHAR(ch), INPUT(port));
+  return true;
+}
 
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
@@ -376,6 +453,15 @@ void write(FILE *out, object *obj) {
     break;
   case SYNTAX_PROC:
     fprintf(out, "#<syntax-procedure>");
+    break;
+  case INPUT_PORT:
+    fprintf(out, "#<input-port>");
+    break;
+  case OUTPUT_PORT:
+    fprintf(out, "#<output-port>");
+    break;
+  case EOF_OBJECT:
+    fprintf(out, "#<eof");
     break;
   default:
     fprintf(stderr, "cannot write unknown type\n");
@@ -604,11 +690,32 @@ void init_prim_environment(object *env) {
 
   add_procedure("eq?", is_eq_proc);
 
+  add_procedure("open-output-port", open_output_port_proc);
+  add_procedure("open-input-port", open_input_port_proc);
+  add_procedure("close-output-port", close_output_port_proc);
+  add_procedure("close-input-port", close_input_port_proc);
+
+  add_procedure("write-port", write_proc);
+  add_procedure("read-port", read_proc);
+  add_procedure("read-char", read_char_proc);
+  add_procedure("write-char", write_char_proc);
+  add_procedure("unread-char", unread_char_proc);
+
   add_procedure("macroexpand0", macroexpand0_proc);
+  add_procedure("eval", eval_proc);
 
   add_procedure("find-variable", find_variable_proc);
 
   define_variable(debug_symbol, true, env);
+  define_variable(stdin_symbol,
+		  make_input_port(stdin),
+		  env);
+  define_variable(stdout_symbol,
+		  make_output_port(stdout),
+		  env);
+  define_variable(stderr_symbol,
+		  make_output_port(stderr),
+		  env);
 }
 
 void init() {
@@ -633,6 +740,12 @@ void init() {
   macro_symbol = make_symbol("macro");
   rest_symbol = make_symbol("&rest");
   debug_symbol = make_symbol("*debug*");
+  stdin_symbol = make_symbol("stdin");
+  stdout_symbol = make_symbol("stdout");
+  stderr_symbol = make_symbol("stderr");
+
+  eof_object = alloc_object();
+  eof_object->type = EOF_OBJECT;
 
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();

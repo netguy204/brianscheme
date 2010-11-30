@@ -116,6 +116,11 @@ char is_compound_proc(object *obj);
 object *make_syntax_proc(object *parameters, object *body);
 char is_syntax_proc(object *obj);
 
+object *make_input_port(FILE *stream);
+object *make_output_port(FILE *stream);
+char is_input_port(object *obj);
+char is_output_port(object *obj);
+
 char is_atom(object *obj);
 
 #endif

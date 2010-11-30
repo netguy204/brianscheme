@@ -202,7 +202,7 @@ object *read(FILE *in) {
   }
   else if(c == '"') {
     i = 0;
-    while((c == getc(in)) != '"') {
+    while((c = getc(in)) != '"') {
       if(c == '\\') {
 	c = getc(in);
 	if(c == 'n') {
