@@ -1,5 +1,7 @@
-;; very basic define to get us started
+; this would get a bit noisy
 (set! *debug* #f)
+
+;; very basic define to get us started
 
 (set! define0
       (macro (name vars body)
@@ -157,7 +159,7 @@
       #f
       #t))
 
-(define (any-eq? val lst)
+(define (member? val lst)
   (if (null? (index-eq val lst))
       #f
       #t))
@@ -343,3 +345,5 @@
   (close-input-port0 port))
 
 'stdlib-loaded
+
+;(set! *debug* #t)

@@ -572,6 +572,7 @@ object *interp_unquote(object *exp, object *env, int level) {
 }
 
 object *interp1(object *exp, object *env, int level) {
+ interp_restart:
   D1("interpreting", exp, level);
 
   if(is_symbol(exp)) {
@@ -592,13 +593,16 @@ object *interp1(object *exp, object *env, int level) {
     }
     else if(head == begin_symbol) {
       D2("evaluating begin", exp, level);
-      object *result;
+
       exp = cdr(exp);
-      while(!is_the_empty_list(exp)) {
-	result = interp1(car(exp), env, level + 1);
+      while(!is_the_empty_list(cdr(exp))) {
+	interp1(car(exp), env, level + 1);
 	exp = cdr(exp);
       }
-      return D1("result", result, level);
+
+      /* rebind final exp and tailcall */
+      exp = car(exp);
+      goto interp_restart;
     }
     else if(head == set_symbol) {
       D2("evaluating set", exp, level);
@@ -611,13 +615,13 @@ object *interp1(object *exp, object *env, int level) {
       D2("evaluating if", exp, level);
       object *args = cdr(exp);
       object *predicate = interp1(first(args), env, level + 1);
-      object *result;
+
       if(predicate == true) {
-	result = interp1(second(args), env, level + 1);
+	exp = second(args);
       } else {
-	result = interp1(third(args), env, level + 1);
+	exp = third(args);
       }
-      return D1("result", result, level);
+      goto interp_restart;
     }
     else if(head == lambda_symbol) {
       D2("defining lambda", exp, level);
@@ -647,9 +651,9 @@ object *interp1(object *exp, object *env, int level) {
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
-	object *expanded = expand_macro(fn, args, env, level);
-	D2("expanded macro", expanded, level);
-	return D1("result", interp1(expanded, env, level + 1), level);
+	exp = expand_macro(fn, args, env, level);
+	D2("expanded macro", exp, level);
+	goto interp_restart;
       }
 
       /* evaluate the arguments */
@@ -678,16 +682,14 @@ object *interp1(object *exp, object *env, int level) {
 		  fn->data.primitive_proc.fn(evald_args, env),
 		  level);
       } else if(is_compound_proc(fn)) {
-	object *new_env;
 	D2("parameters", fn->data.compound_proc.parameters, level);
 	D2("bindings", evald_args, level);
 	D1("eval'd args", evald_args, level);
-	new_env = extend_environment(fn->data.compound_proc.parameters,
+	env = extend_environment(fn->data.compound_proc.parameters,
 				     evald_args,
 				     fn->data.compound_proc.env);
-	return D1("result",
-		  interp1(fn->data.compound_proc.body, new_env, level + 1),
-		  level);
+	exp = fn->data.compound_proc.body;
+	goto interp_restart;
       } else {
 	debug_write("error", fn, level);
 	throw_interp("cannot apply non-function\n");
