@@ -95,23 +95,14 @@
 
 ;; now we can define a proper define-syntax and use it to
 ;; build a proper define
-(define-syntax0 define-syntax (name args fbody)
-  '(set! ,name
-	 ,(let0 ((idx (index-eq '&rest args)))
-	    (if (null? idx)
-		'(macro ,args ,fbody)
-		'(macro ,args
-		   (let0 ((,(nth args (+ 1 idx)) (find-variable '&rest)))
-			 ,fbody))))))
+(define-syntax0 define-syntax1 (name args fbody)
+  '(set! ,name (wrap-rest macro ,args ,fbody)))
+
+(define-syntax1 define-syntax (name args &rest fbody)
+  '(set! ,name (wrap-rest macro ,args (begin . ,fbody))))
 
 (define-syntax define (name args &rest fbody)
-  '(set! ,name
-	 ,(let0 ((idx (index-eq '&rest args)))
-	    (if (null? idx)
-		'(lambda ,args ,fbody)
-		'(lambda ,args
-		   (let0 ((,(nth args (+ 1 idx)) (find-variable '&rest)))
-			 . ,fbody))))))
+  '(set! ,name (wrap-rest lambda ,args (begin . ,fbody))))
 
 (define-syntax let (bindings &rest body)
   '((lambda ,(map first bindings)
