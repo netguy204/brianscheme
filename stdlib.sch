@@ -108,7 +108,13 @@
 
 
 ;; now that we have a proper define/-syntax we can keep going
-
+(define length=1 (lst)
+  (if (not (null? (car lst)))
+      (if (null? (cdr lst))
+	  #t
+	  #f)
+      #f))
+      
 (define-syntax let (bindings &rest body)
   '((lambda ,(map first bindings)
       (begin . ,body))
@@ -117,8 +123,22 @@
 (define-syntax let* (bindings &rest body)
   (if (null? bindings)
       '(begin . ,body)
-      '(let ((,(first (car bindings)) ,(second (car bindings))))
+      '(let (,(first bindings))
 	 (let* ,(cdr bindings) . ,body))))
+
+
+;(define-syntax cond (&rest clauses)
+;  (if (null? clauses) nil
+      
+(define-syntax when (pred conseq)
+  '(if ,pred
+       ,conseq
+       nil))
+
+(define-syntax unless (pred conseq)
+  '(if ,pred
+       nil
+       ,conseq))
 
 (define any? (fn lst)
   (if (null? (index-of fn lst))
@@ -130,15 +150,32 @@
       #f
       #t))
 
-(define-syntax when (pred conseq)
-  '(if ,pred
-       ,conseq
-       nil))
+(define-syntax and (&rest clauses)
+  (if (null? clauses)
+      '#t
+      (if (length=1 clauses)
+	  (car clauses)
+	  '(if ,(car clauses)
+	       (and . ,(cdr clauses))
+	       #f))))
 
-(define-syntax unless (pred conseq)
-  '(if ,pred
-       nil
-       ,conseq))
+(define-syntax or (&rest clauses)
+  (if (null? clauses)
+      '#f
+      (if (length=1 clauses)
+	  (car clauses)
+	  '(if ,(car clauses)
+	       #t
+	       (or . ,(cdr clauses))))))
 
-(macroexpand0 '(let* ((a 1) (b (* a 2))) (cons a b)))
-		
+(define-syntax cond (&rest clauses)
+  (if (null? clauses)
+      #f
+      '(if ,(first (car clauses))
+	   ,(second (car clauses))
+	   (cond . ,(cdr clauses)))))
+
+(macroexpand0 '(cond
+		((> 1 2) 'foo)
+		((< 1 2) 'bar)))
+
