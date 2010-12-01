@@ -122,11 +122,11 @@ char is_compound_proc(object *obj) {
 
 object *make_syntax_proc(object *parameters, object *body) {
   object *obj = alloc_object();
+
   obj->type = SYNTAX_PROC;
   obj->data.compound_proc.parameters = parameters;
   obj->data.compound_proc.body = body;
   obj->data.compound_proc.env = the_empty_environment;
-
   return obj;
 }
 
@@ -136,6 +136,7 @@ char is_syntax_proc(object *obj) {
 
 object *make_input_port(FILE *stream) {
   object *obj = alloc_object();
+
   obj->type = INPUT_PORT;
   obj->data.input_port.stream = stream;
   return obj;
@@ -155,6 +156,7 @@ char is_eof_object(object *obj) {
 
 object *make_output_port(FILE *stream) {
   object *obj = alloc_object();
+
   obj->type = OUTPUT_PORT;
   obj->data.output_port.stream = stream;
   return obj;

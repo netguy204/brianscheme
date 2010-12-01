@@ -249,21 +249,18 @@ object *read(FILE *in) {
   else if(c == '\'') {
     object *quoted = read(in);
     push_root(&quoted);
-
-    object *result =  cons(quote_symbol,
-			   cons(quoted, the_empty_list));
-
+    quoted = cons(quoted, the_empty_list);
+    quoted = cons(quote_symbol, quoted);
     pop_root(&quoted);
-    return result;
+    return quoted;
   }
   else if(c == ',') {
     object *unquoted = read(in);
     push_root(&unquoted);
-
-    object *result = cons(unquote_symbol,
-			  cons(unquoted, the_empty_list));
+    unquoted = cons(unquoted, the_empty_list);
+    unquoted = cons(unquote_symbol, unquoted);
     pop_root(&unquoted);
-    return result;
+    return unquoted;
   }
   else if(c == EOF) {
     return NULL;
