@@ -38,11 +38,13 @@ void add_binding_to_frame(object *var, object *val,
 
 object *extend_environment(object *vars, object *vals,
 			   object *base_env) {
-  object *new_frame = make_frame(vars, vals);
+  object *result;
 
-  push_root(&new_frame);
-  object *result = cons(new_frame, base_env);
-  pop_root(&new_frame);
+  result = make_frame(vars, vals);
+
+  push_root(&result);
+  result = cons(result, base_env);
+  pop_root(&result);
 
   return result;
 }
@@ -233,7 +235,11 @@ DEFUN1(macroexpand0_proc) {
   object *macrofn = interp(car(macro), environment);
   object *macroargs = cdr(macro);
 
-  return expand_macro(macrofn, macroargs, environment, 0);
+  push_root(&macrofn);
+  object *result = expand_macro(macrofn, macroargs, environment, 0);
+  pop_root(&macrofn);
+
+  return result;
 }
 
 DEFUN1(is_eq_proc) {
@@ -415,6 +421,10 @@ DEFUN1(stats_proc) {
   return result;
 }
 
+DEFUN1(mark_and_sweep_proc) {
+  return make_fixnum(mark_and_sweep());
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -565,7 +575,12 @@ object *debug_write(char * msg, object *obj, int level) {
 #define D2(msg, obj, level) DN(msg, obj, level, 2);
 
 object *interp(object *exp, object *env) {
-  return interp1(exp, env, 0);
+  push_root(&exp);
+  push_root(&env);
+  object *result = interp1(exp, env, 0);
+  pop_root(&env);
+  pop_root(&exp);
+  return result;
 }
 
 object *expand_macro(object *macro, object *args,
@@ -574,8 +589,11 @@ object *expand_macro(object *macro, object *args,
     extend_environment(macro->data.compound_proc.parameters,
 		       args,
 		       env);
+  push_root(&new_env);
   object *expanded = interp1(macro->data.compound_proc.body,
 			     new_env, level);
+  pop_root(&new_env);
+
   return expanded;
 }
 
@@ -598,48 +616,52 @@ object *interp_unquote(object *exp, object *env, int level) {
   }
 }
 
+#define INTERP_RETURN(result) \
+  do {			      \
+  pop_root(&env);	      \
+  pop_root(&exp);	      \
+  return result;	      \
+  } while(0)
+
 object *interp1(object *exp, object *env, int level) {
+  push_root(&exp);
+  push_root(&env);
+
  interp_restart:
   D1("interpreting", exp, level);
 
   if(is_symbol(exp)) {
-    D2("looking up symbol", exp, level);
-    object *result = lookup_variable_value(exp, env);
-    D2("found", result, level);
-    return D1("result", result, level);
+    INTERP_RETURN(lookup_variable_value(exp, env));
   }
   else if(is_atom(exp)) {
-    D2("exp is atomic", exp, level);
-    return D1("result", exp, level);
+    INTERP_RETURN(exp);
   }
   else if(is_pair(exp)) {
     object *head = car(exp);
     if(head == quote_symbol) {
-      D2("evaluating quote", exp, level);
-      return D1("result", interp_unquote(second(exp), env, level), level);
+      INTERP_RETURN(interp_unquote(second(exp), env, level));
     }
     else if(head == begin_symbol) {
-      D2("evaluating begin", exp, level);
-
       exp = cdr(exp);
       while(!is_the_empty_list(cdr(exp))) {
 	interp1(car(exp), env, level + 1);
 	exp = cdr(exp);
       }
 
-      /* rebind final exp and tailcall */
       exp = car(exp);
       goto interp_restart;
     }
     else if(head == set_symbol) {
-      D2("evaluating set", exp, level);
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
+
+      push_root(&val);
       define_variable(first(args), val, env);
-      return D1("result", val, level);
+      pop_root(&val);
+
+      INTERP_RETURN(val);
     }
     else if(head == if_symbol) {
-      D2("evaluating if", exp, level);
       object *args = cdr(exp);
       object *predicate = interp1(first(args), env, level + 1);
 
@@ -653,25 +675,28 @@ object *interp1(object *exp, object *env, int level) {
     else if(head == lambda_symbol) {
       D2("defining lambda", exp, level);
       object *args = cdr(exp);
-      return D1("result",
-		make_compound_proc(first(args),
-				   cons(begin_symbol, cdr(args)),
-				   env),
-		level);
+      object *body = cons(begin_symbol, cdr(args));
+      push_root(&body);
+      object *proc = make_compound_proc(first(args),
+					body,
+					env);
+      pop_root(&body);
+      INTERP_RETURN(proc);
     }
     else if(head == macro_symbol) {
       D2("defining macro", exp, level);
       object *args = cdr(exp);
-      return D1("result",
-		make_syntax_proc(first(args),
-				 cons(begin_symbol, cdr(args))),
-		level);
+      object *body = cons(begin_symbol, cdr(args));
+      push_root(&body);
+      object *result = make_syntax_proc(first(args),
+					body);
+      pop_root(&body);
+      INTERP_RETURN(result);
     }
     else {
       /* procedure application */
-      D2("applying. head is", head, level);
       object *fn = interp1(head, env, level + 1);
-      D2("now have", fn, level);
+      push_root(&fn);
 
       object *args = cdr(exp);
       object *evald_args;
@@ -679,18 +704,20 @@ object *interp1(object *exp, object *env, int level) {
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
 	exp = expand_macro(fn, args, env, level);
-	D2("expanded macro", exp, level);
+	pop_root(&fn);
 	goto interp_restart;
       }
 
       /* evaluate the arguments */
-      evald_args = the_empty_list;
+      object *result;
       object *last;
-      D1("evaluating arguments", args, level);
+      evald_args = the_empty_list;
+      push_root(&evald_args);
+      push_root(&result);
+
       while(!is_the_empty_list(args)) {
-	D1("evaluating argument", first(args), level);
-	object *result = interp1(first(args), env, level + 1);
-	D1("result was", result, level);
+	result = interp1(first(args), env, level + 1);
+
 	if(evald_args == the_empty_list) {
 	  evald_args = cons(result, the_empty_list);
 	  last = evald_args;
@@ -701,34 +728,30 @@ object *interp1(object *exp, object *env, int level) {
 	args = cdr(args);
       }
     
-
       /* dispatch the call */
+      pop_root(&result);
+      pop_root(&evald_args);
+      pop_root(&fn);
       if(is_primitive_proc(fn)) {
-	D2("primitive apply", evald_args, level);
-	return D1("result",
-		  fn->data.primitive_proc.fn(evald_args, env),
-		  level);
+	INTERP_RETURN(fn->data.primitive_proc.fn(evald_args, env));
+
       } else if(is_compound_proc(fn)) {
-	D2("parameters", fn->data.compound_proc.parameters, level);
-	D2("bindings", evald_args, level);
-	D1("eval'd args", evald_args, level);
 	env = extend_environment(fn->data.compound_proc.parameters,
-				     evald_args,
-				     fn->data.compound_proc.env);
+				 evald_args,
+				 fn->data.compound_proc.env);
 	exp = fn->data.compound_proc.body;
 	goto interp_restart;
       } else {
 	debug_write("error", fn, level);
 	throw_interp("cannot apply non-function\n");
-	return NULL;
+	INTERP_RETURN(NULL);
       }
     }
-
   }
 
   write(stderr, exp);
   throw_interp(": can't evaluate\n");
-  return NULL;
+  INTERP_RETURN(NULL);
 }
 
 
@@ -795,8 +818,9 @@ void init_prim_environment(object *env) {
   add_procedure("find-variable", find_variable_proc);
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
+  add_procedure("mark-and-sweep", mark_and_sweep_proc);
 
-  define_variable(debug_symbol, true, env);
+  define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,
 		  curr = make_input_port(stdin),
 		  env);

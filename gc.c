@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <execinfo.h>
+#include <string.h>
 
 #include "types.h"
 #include "symbols.h"
@@ -36,12 +37,24 @@ void throw_gc(char *msg) {
   exit(2);
 }
 
+#ifdef DEBUG_GC
 void print_backtrace() {
 #define MAX_FRAMES 30
   void *buffer[MAX_FRAMES];
   int frames = backtrace(buffer, MAX_FRAMES);
   backtrace_symbols_fd(buffer, frames, 2);
 }
+
+void debug_gc(char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  va_end(args);
+}
+#else
+void print_backtrace() {}
+void debug_gc(char *msg, ...) {}
+#endif
 
 object *push_root(object **stack) {
   object_list *new_anchor = MALLOC(sizeof(object_list));
@@ -53,6 +66,7 @@ object *push_root(object **stack) {
 
 void pop_root(object **stack) {
   if(Root_Objects->obj != stack) {
+    print_backtrace();
     throw_gc("pop_stack_root - object not on top\n");
   }
 
@@ -61,13 +75,6 @@ void pop_root(object **stack) {
   free(old_anchor);
 }
 
-
-void debug_gc(char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-}
 
 void extend_heap(long extension) {
   int ii;
@@ -114,6 +121,7 @@ long sweep_unmarked() {
   long num_freed = 0;
   object *head = Active_List;
   object *next_head;
+  object *new_active = NULL;
 
   while(head) {
     next_head = head->next;
@@ -127,11 +135,16 @@ long sweep_unmarked() {
       head->next = Free_Objects;
       Free_Objects = head;
       num_freed++;
+    } else {
+      head->next = new_active;
+      new_active = head;
     }
 
     head->mark = 0;
     head = next_head;
   }
+
+  Active_List = new_active;
 
   return num_freed;
 }
@@ -140,7 +153,7 @@ long mark_and_sweep() {
   /* mark everything reachable from root */
   object_list *next = Root_Objects;
   while(next) {
-    debug_gc("examining root %ld\n", next);
+    debug_gc("examining root %ld -> %ld\n", next, next->obj);
     if(next->obj) {
       mark_reachable(*(next->obj));
     } else {
@@ -156,6 +169,10 @@ static long Alloc_Count = 0;
 static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
+  /* always sweep while we're debugging
+  fprintf("freed %d\n", mark_and_sweep());
+  */
+
   if(Free_Objects == NULL) {
     debug_gc("no space. trying mark-and-sweep\n");
     print_backtrace();
@@ -166,8 +183,8 @@ object *alloc_object(void) {
     debug_gc("alloc-count is now %ld\n", Alloc_Count);
 
 
-    /* did we reclaim anything? */
-    if(Free_Objects == NULL) {
+    /* did we free enough? */
+    if(freed == 0 || Next_Heap_Extension / freed > 10) {
       debug_gc("extending the heap\n");
       extend_heap(Next_Heap_Extension);
       Next_Heap_Extension *= 1.8;
@@ -181,10 +198,15 @@ object *alloc_object(void) {
   object *obj = Free_Objects;
   Free_Objects = obj->next;
 
+  /* clear when we're debugging so things fail
+   * quickly */
+  memset(obj, 0, sizeof(object));
+
   obj->next = Active_List;
   Active_List = obj;
 
   ++Alloc_Count;
+
   return obj;
 }
 
