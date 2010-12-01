@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include "interp.h"
+#include "gc.h"
 
 static const int DEBUG_LEVEL = 1;
 
@@ -37,19 +38,13 @@ void add_binding_to_frame(object *var, object *val,
 
 object *extend_environment(object *vars, object *vals,
 			   object *base_env) {
-  /* handle &rest args?
-  object *newvars;
-  object *newvals;
-  object *nextvar;
-  object *nextval;
+  object *new_frame = make_frame(vars, vals);
 
-  object *var = vars;
-  while(!is_the_empty_list(var)) {
-    if(var == rest_symbol) {
-    }
-  }
-  */
-  return cons(make_frame(vars, vals), base_env);
+  push_root(&new_frame);
+  object *result = cons(new_frame, base_env);
+  pop_root(&new_frame);
+
+  return result;
 }
 
 /**
@@ -175,6 +170,10 @@ DEFUN1(is_output_port_proc) {
 
 DEFUN1(is_input_port_proc) {
   return AS_BOOL(is_input_port(FIRST));
+}
+
+DEFUN1(is_eof_proc) {
+  return AS_BOOL(is_eof_object(FIRST));
 }
 
 DEFUN1(add_proc) {
@@ -336,7 +335,8 @@ DEFUN1(eval_proc) {
 object *read(FILE *in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
-  return read(INPUT(in_port));
+  object *result = read(INPUT(in_port));
+  return (result == NULL) ? eof_object : result;
 }
 
 DEFUN1(write_proc) {
@@ -397,7 +397,22 @@ DEFUN1(exit_proc) {
 DEFUN1(apply_proc) {
   object *fn = FIRST;
   object *args = SECOND;
-  return interp(cons(fn, args), environment);
+
+  object *exp = cons(fn, args);
+  push_root(&exp);
+  object *result = interp(exp, environment);
+  pop_root(&exp);
+  return result;
+}
+
+DEFUN1(stats_proc) {
+  /* FIXME: gc */
+  object *result =
+    list2(list2(make_symbol("cons"),
+		make_fixnum(get_cons_count())),
+	  list2(make_symbol("alloc"),
+		make_fixnum(get_alloc_count())));
+  return result;
 }
 
 void write_pair(FILE *out, object *pair) {
@@ -422,6 +437,11 @@ void write(FILE *out, object *obj) {
   char c;
   char *str;
   object *head;
+
+  if(obj == the_global_environment) {
+    fprintf(out, "#<global-environment>");
+    return;
+  }
 
   switch(obj->type) {
   case THE_EMPTY_LIST:
@@ -566,9 +586,16 @@ object *interp_unquote(object *exp, object *env, int level) {
   if(head == unquote_symbol) {
     return interp1(second(exp), env, level);
   } else {
-    return cons(interp_unquote(car(exp), env, level),
-		interp_unquote(cdr(exp), env, level));
-    }
+    object *h1 = interp_unquote(car(exp), env, level);
+    push_root(&h1);
+    object *h2 = interp_unquote(cdr(exp), env, level);
+    push_root(&h2);
+
+    object *result = cons(h1, h2);
+    pop_root(&h2);
+    pop_root(&h1);
+    return result;		
+  }
 }
 
 object *interp1(object *exp, object *env, int level) {
@@ -706,9 +733,14 @@ object *interp1(object *exp, object *env, int level) {
 
 
 void init_prim_environment(object *env) {
+  /* need to protect the thing in definition
+   * from gc briefly */
+  object *curr = NULL;
+  push_root(&curr);
+
 #define add_procedure(scheme_name, c_name)    \
   define_variable(make_symbol(scheme_name),   \
-                  make_primitive_proc(c_name),\
+                  curr=make_primitive_proc(c_name),	\
                   env);
 
   add_procedure("null?", is_null_proc);
@@ -721,6 +753,7 @@ void init_prim_environment(object *env) {
   add_procedure("procedure?", is_procedure_proc);
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
+  add_procedure("eof-object?", is_eof_proc);
 
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
@@ -761,30 +794,41 @@ void init_prim_environment(object *env) {
 
   add_procedure("find-variable", find_variable_proc);
   add_procedure("exit", exit_proc);
+  add_procedure("interpreter-stats", stats_proc);
 
   define_variable(debug_symbol, true, env);
   define_variable(stdin_symbol,
-		  make_input_port(stdin),
+		  curr = make_input_port(stdin),
 		  env);
   define_variable(stdout_symbol,
-		  make_output_port(stdout),
+		  curr = make_output_port(stdout),
 		  env);
   define_variable(stderr_symbol,
-		  make_output_port(stderr),
+		  curr = make_output_port(stderr),
 		  env);
+  define_variable(make_symbol("base-env"),
+		  env,
+		  env);
+
+  pop_root(&curr);
 }
 
 void init() {
+  push_root(&symbol_table);
+
   the_empty_list = alloc_object();
   the_empty_list->type = THE_EMPTY_LIST;
+  push_root(&the_empty_list);
 
   false = alloc_object();
   false->type = BOOLEAN;
   false->data.boolean.value = 0;
+  push_root(&false);
 
   true = alloc_object();
   true->type = BOOLEAN;
   true->data.boolean.value = 1;
+  push_root(&true);
 
   symbol_table = the_empty_list;
   unquote_symbol = make_symbol("unquote");
@@ -802,9 +846,12 @@ void init() {
 
   eof_object = alloc_object();
   eof_object->type = EOF_OBJECT;
+  push_root(&eof_object);
 
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();
+  push_root(&the_global_environment);
+
   init_prim_environment(the_global_environment);
 }
 

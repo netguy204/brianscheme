@@ -49,6 +49,10 @@ typedef struct object {
       FILE *stream;
     } output_port;
   } data;
+
+  /* garbage collection data */
+  struct object* next;
+  char mark;
 } object;
 
 typedef struct object* (prim_proc)(struct object*,
@@ -96,6 +100,10 @@ object *cdr(object *pair);
 
 void set_cdr(object *obj, object *value);
 
+/* statistics */
+long get_alloc_count();
+long get_cons_count();
+
 #define caar(obj) car(car(obj))
 #define cadr(obj) car(cdr(obj))
 #define first(obj) car(obj)
@@ -120,6 +128,7 @@ object *make_input_port(FILE *stream);
 object *make_output_port(FILE *stream);
 char is_input_port(object *obj);
 char is_output_port(object *obj);
+char is_eof_object(object *obj);
 
 char is_atom(object *obj);
 

@@ -43,9 +43,11 @@
       #t))
 
 (define0 cadr (x) (car (cdr x)))
+(define0 caddr (x) (car (cdr (cdr x))))
+
 (define0 first (x) (car x))
 (define0 second (x) (cadr x))
-(define0 third (x) (car (cdr (cdr x))))
+(define0 third (x) (caddr x))
 
 (define0 index-of (fn lst)
   (begin
@@ -118,9 +120,11 @@
 (define-syntax cond (&rest clauses)
   (if (null? clauses)
       #f
-      '(if ,(first (car clauses))
-	   ,(second (car clauses))
-	   (cond . ,(cdr clauses)))))
+      (if (eq? (first (car clauses)) 'else)
+	  (second (car clauses))
+	  '(if ,(first (car clauses))
+	       ,(second (car clauses))
+	       (cond . ,(cdr clauses))))))
 
 (define-syntax and (&rest clauses)
   (cond
@@ -190,14 +194,23 @@
 	(f (car l))
 	(for-each f (cdr l)))))
 
+; read a single form from name
 (define (read name)
   (let* ((in (open-input-port name))
 	(result (read-port in)))
     (close-input-port in)
     result))
 
+; read and evaluate all forms from name
 (define (load name)
-  (eval (read name)))
+  (let ((in (open-input-port name))
+	(eval0 eval))
+    (define (iter form)
+      (unless (eof-object? form)
+	      (write (eval0 form base-env))
+	      (iter (read-port in))))
+    (iter (read-port in))
+    #t))
 
 (define (newline)
   (write-char stdout #\newline))
@@ -297,10 +310,10 @@
   (assert-numbers values)
   (apply prim-= values))
 
-(define (assert-string var)
+(define (assert-string name var)
   (if (string? var)
       #t
-      (throw-error "expected a string")))
+      (throw-error "expected a string" var)))
 
 (define (assert-input-port var)
   (if (input-port? var)
@@ -317,7 +330,7 @@
 (define close-output-port0 close-output-port)
 
 (define (open-output-port name)
-  (assert-string name)
+  (assert-string 'open-output-port name)
   (assert-none-following name)
 
   (open-output-port0 name))
@@ -333,7 +346,7 @@
 (define close-input-port0 close-output-port)
 
 (define (open-input-port name)
-  (assert-string name)
+  (assert-string 'open-input-port name)
   (assert-none-following name)
 
   (open-input-port0 name))
@@ -344,6 +357,15 @@
 
   (close-input-port0 port))
 
+(define (do-times fn times)
+  (define (iter n)
+    (if (< n times)
+	(begin
+	  (fn n)
+	  (iter (+ n 1)))
+	#t))
+  (iter 0))
+  
 'stdlib-loaded
 
 ;(set! *debug* #t)

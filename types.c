@@ -4,20 +4,7 @@
 
 #include "types.h"
 #include "symbols.h"
-
-
-void *MALLOC(long size) {
-  void *obj = malloc(size);
-  if(obj == NULL) {
-    fprintf(stderr, "out of memory\n");
-    exit(1);
-  }
-  return obj;
-}
-
-object *alloc_object(void) {
-  return MALLOC(sizeof(object));
-}
+#include "gc.h"
 
 char is_the_empty_list(object *obj) {
   return obj == the_empty_list;
@@ -73,12 +60,18 @@ char is_string(object *obj) {
   return obj->type == STRING;
 }
 
+static long Cons_Count = 0;
 object *cons(object *car, object *cdr) {
   object *obj = alloc_object();
   obj->type = PAIR;
   obj->data.pair.car = car;
   obj->data.pair.cdr = cdr;
+  ++Cons_Count;
   return obj;
+}
+
+long get_cons_count() {
+  return Cons_Count;
 }
 
 char is_pair(object *obj) {
@@ -189,11 +182,15 @@ object *make_symbol(char *value) {
   if(element != NULL) return car(element);
 
   obj = alloc_object();
+
   obj->type = SYMBOL;
   obj->data.symbol.value = MALLOC(strlen(value) + 1);
   strcpy(obj->data.symbol.value, value);
 
+  push_root(&obj);
   symbol_table = cons(obj, symbol_table);
+  pop_root(&obj);
+
   return obj;
 }
 
