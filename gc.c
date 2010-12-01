@@ -15,22 +15,16 @@ void *MALLOC(long size) {
   return obj;
 }
 
-typedef struct heap_list {
-  object *heap;
+typedef struct object_pointer_list {
+  object ***objs;
+  long top;
   long size;
-  struct heap_list *next;
-} heap_list;
-
-typedef struct object_list {
-  object **obj;
-  struct object_list *next;
 } object_list;
 
 /* initialized to the_empty_list */
-static object* Free_Objects = NULL;
-static object_list* Root_Objects = NULL;
-static heap_list* Active_Heaps = NULL;
-static object* Active_List = NULL;
+static object *Free_Objects = NULL;
+struct object_pointer_list *Root_Objects = NULL;
+static object *Active_List = NULL;
 
 void throw_gc(char *msg) {
   fprintf(stderr, "gc: %s", msg);
@@ -57,24 +51,34 @@ void debug_gc(char *msg, ...) {}
 #endif
 
 object *push_root(object **stack) {
-  object_list *new_anchor = MALLOC(sizeof(object_list));
-  new_anchor->next = Root_Objects;
-  new_anchor->obj = stack;
-  Root_Objects = new_anchor;
+  /* grow the stack if we need to */
+  if(Root_Objects == NULL) {
+    Root_Objects = MALLOC(sizeof(Root_Objects));
+    Root_Objects->top = 0;
+    Root_Objects->size = 200;
+    Root_Objects->objs = MALLOC(sizeof(object**) * 
+				Root_Objects->size);
+  }
+
+  /* FIXME: why doesn't this work?
+  if(Root_Objects->top == Root_Objects->size) {
+    long new_size = Root_Objects->size * 2 + 100;
+    debug_gc("growing root stack to %ld\n", new_size);
+    Root_Objects->objs = realloc(Root_Objects->objs, new_size);
+    Root_Objects->size = new_size;
+  }
+  */
+
+  Root_Objects->objs[Root_Objects->top++] = stack;
   return *stack;
 }
 
 void pop_root(object **stack) {
-  if(Root_Objects->obj != stack) {
+  if(Root_Objects->objs[--Root_Objects->top] != stack) {
     print_backtrace();
     throw_gc("pop_stack_root - object not on top\n");
   }
-
-  object_list *old_anchor = Root_Objects;
-  Root_Objects = Root_Objects->next;
-  free(old_anchor);
 }
-
 
 void extend_heap(long extension) {
   int ii;
@@ -86,13 +90,6 @@ void extend_heap(long extension) {
 
   new_heap[extension-1].next = Free_Objects;
   Free_Objects = new_heap;
-
-  /* add this new heap to the heap list */
-  heap_list *heap_pointer = MALLOC(sizeof(heap_list));
-  heap_pointer->heap = new_heap;
-  heap_pointer->size = extension;
-  heap_pointer->next = Active_Heaps;
-  Active_Heaps = heap_pointer;
 }
 
 void mark_reachable(object *root) {
@@ -151,15 +148,11 @@ long sweep_unmarked() {
 
 long mark_and_sweep() {
   /* mark everything reachable from root */
-  object_list *next = Root_Objects;
-  while(next) {
-    debug_gc("examining root %ld -> %ld\n", next, next->obj);
-    if(next->obj) {
-      mark_reachable(*(next->obj));
-    } else {
-      debug_gc("root is null\n");
-    }
-    next = next->next;
+  int ii = 0;
+  for(ii = 0; ii < Root_Objects->top; ++ii) {
+    object **next = Root_Objects->objs[ii];
+    debug_gc("examining root %ld\n", next);
+    mark_reachable(*next);
   }
 
   return sweep_unmarked();
