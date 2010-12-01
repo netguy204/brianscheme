@@ -50,8 +50,7 @@ void print_backtrace() {}
 void debug_gc(char *msg, ...) {}
 #endif
 
-object *push_root(object **stack) {
-  /* grow the stack if we need to */
+void ensure_root_objects(void) {
   if(Root_Objects == NULL) {
     Root_Objects = MALLOC(sizeof(Root_Objects));
     Root_Objects->top = 0;
@@ -59,6 +58,10 @@ object *push_root(object **stack) {
     Root_Objects->objs = MALLOC(sizeof(object**) * 
 				Root_Objects->size);
   }
+}
+
+object *push_root(object **stack) {
+  /* grow the stack if we need to */
 
   /* FIXME: why doesn't this work?
   if(Root_Objects->top == Root_Objects->size) {
@@ -147,6 +150,8 @@ long sweep_unmarked() {
 }
 
 long mark_and_sweep() {
+  ensure_root_objects();
+
   /* mark everything reachable from root */
   int ii = 0;
   for(ii = 0; ii < Root_Objects->top; ++ii) {
@@ -163,7 +168,7 @@ static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
   /* always sweep while we're debugging
-  fprintf("freed %d\n", mark_and_sweep());
+  mark_and_sweep();
   */
 
   if(Free_Objects == NULL) {
@@ -192,7 +197,8 @@ object *alloc_object(void) {
   Free_Objects = obj->next;
 
   /* clear when we're debugging so things fail
-   * quickly */
+   * quickly 
+   */
   memset(obj, 0, sizeof(object));
 
   obj->next = Active_List;

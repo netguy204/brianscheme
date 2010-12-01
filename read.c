@@ -7,6 +7,9 @@
 #include "types.h"
 #include "symbols.h"
 #include "read.h"
+#include "gc.h"
+/*temp*/
+#include "interp.h"
 
 object *throw_read(char * msg, ...) {
   va_list args;
@@ -116,23 +119,38 @@ object *read_pair(FILE *in) {
   ungetc(c, in);
 
   car_obj = read(in);
+  push_root(&car_obj);
 
   eat_whitespace(in);
 
   c = getc(in);
   if(c == '.') {
     peek_expected_delimiter(in);
+
     cdr_obj = read(in);
+    push_root(&cdr_obj);
+
     eat_whitespace(in);
     c = getc(in);
     if(c != ')') {
       return throw_read("improper list missing trailing paren\n");
     }
-    return cons(car_obj, cdr_obj);
+
+    object *result = cons(car_obj, cdr_obj);
+    pop_root(&cdr_obj);
+    pop_root(&car_obj);
+
+    return result;
   } else {
     ungetc(c, in);
+
     cdr_obj = read_pair(in);
-    return cons(car_obj, cdr_obj);
+    push_root(&cdr_obj);
+
+    object *result = cons(car_obj, cdr_obj);
+    pop_root(&cdr_obj);
+    pop_root(&car_obj);
+    return result;
   }
 }
 
@@ -229,10 +247,23 @@ object *read(FILE *in) {
     return read_pair(in);
   }
   else if(c == '\'') {
-    return cons(quote_symbol, cons(read(in), the_empty_list));
+    object *quoted = read(in);
+    push_root(&quoted);
+
+    object *result =  cons(quote_symbol,
+			   cons(quoted, the_empty_list));
+
+    pop_root(&quoted);
+    return result;
   }
   else if(c == ',') {
-    return cons(unquote_symbol, cons(read(in), the_empty_list));
+    object *unquoted = read(in);
+    push_root(&unquoted);
+
+    object *result = cons(unquote_symbol,
+			  cons(unquoted, the_empty_list));
+    pop_root(&unquoted);
+    return result;
   }
   else if(c == EOF) {
     return NULL;

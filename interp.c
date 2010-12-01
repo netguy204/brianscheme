@@ -838,8 +838,6 @@ void init_prim_environment(object *env) {
 }
 
 void init() {
-  push_root(&symbol_table);
-
   the_empty_list = alloc_object();
   the_empty_list->type = THE_EMPTY_LIST;
   push_root(&the_empty_list);
@@ -855,6 +853,8 @@ void init() {
   push_root(&true);
 
   symbol_table = the_empty_list;
+  push_root(&symbol_table);
+
   unquote_symbol = make_symbol("unquote");
   quote_symbol = make_symbol("quote");
   set_symbol = make_symbol("set!");
