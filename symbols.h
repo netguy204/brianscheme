@@ -21,9 +21,11 @@ object *stdin_symbol;
 object *stdout_symbol;
 object *stderr_symbol;
 object *eof_object;
+object *exit_hook_symbol;
 
 object *the_empty_environment;
 object *the_global_environment;
 
+object *the_call_stack;
 
 #endif

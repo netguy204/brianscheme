@@ -102,5 +102,5 @@
 
 ;; now test stuff
 (set! env '((a b c) (d e f) (g h i)))
-(set! *debug* #t)
+;(set! *debug* #t)
 ;(in-env? 'e env)

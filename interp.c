@@ -415,6 +415,15 @@ DEFUN1(string_to_symbol_proc) {
 }
 
 DEFUN1(exit_proc) {
+  object *exit_hook = lookup_variable_value(exit_hook_symbol,
+					    environment);
+  if(exit_hook != the_empty_list) {
+    object *exp = cons(exit_hook, the_empty_list);
+    push_root(&exp);
+    interp(exp, environment);
+    pop_root(&exp);
+  }
+
   exit((int)LONG(FIRST));
   return NULL;
 }
@@ -665,6 +674,14 @@ object *interp_unquote(object *exp, object *env, int level) {
   }
 }
 
+void push_callstack(object *target) {
+  set_car(the_call_stack, cons(target, car(the_call_stack)));
+}
+
+void pop_callstack() {
+  set_car(the_call_stack, cdr(car(the_call_stack)));
+}
+
 /* convenient tool for unbinding the arguments that must be bound
  * during interp1. We rebind to temp to force the evalation of result
  * if it's an exp
@@ -674,8 +691,10 @@ object *interp_unquote(object *exp, object *env, int level) {
     object *temp = result;    \
     pop_root(&env);	      \
     pop_root(&exp);	      \
+    pop_callstack();	      \
     return temp;	      \
   } while(0)
+
 
 object *interp1(object *exp, object *env, int level) {
   /* we break the usual convention of assuming our own arguments are
@@ -684,6 +703,7 @@ object *interp1(object *exp, object *env, int level) {
    */
   push_root(&exp);
   push_root(&env);
+  push_callstack(exp);
 
  interp_restart:
   D1("interpreting", exp, level);
@@ -905,8 +925,14 @@ void init_prim_environment(object *env) {
   define_variable(stderr_symbol,
 		  curr = make_output_port(stderr),
 		  env);
+  define_variable(make_symbol("callstack"),
+		  the_call_stack,
+		  env);
   define_variable(make_symbol("base-env"),
 		  env,
+		  env);
+  define_variable(exit_hook_symbol,
+		  the_empty_list,
 		  env);
 
   pop_root(&curr);
@@ -942,6 +968,7 @@ void init() {
   stdin_symbol = make_symbol("stdin");
   stdout_symbol = make_symbol("stdout");
   stderr_symbol = make_symbol("stderr");
+  exit_hook_symbol = make_symbol("exit-hook");
 
   eof_object = alloc_object();
   eof_object->type = EOF_OBJECT;
@@ -950,6 +977,9 @@ void init() {
   the_empty_environment = the_empty_list;
   the_global_environment = setup_environment();
   push_root(&the_global_environment);
+
+  the_call_stack = cons(the_empty_list, the_empty_list);
+  push_root(&the_call_stack);
 
   init_prim_environment(the_global_environment);
 }

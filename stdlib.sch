@@ -436,6 +436,15 @@
 	      (iter (cdr rest))))))
   (iter lst))
 
+(define (print-backtrace)
+  (define (iter rest)
+    (unless (null? rest)
+	    (write (car rest))
+	    (iter (cdr rest))))
+  (iter (car callstack)))
+
+(define exit-hook print-backtrace)
+	
 'stdlib-loaded
 
 ;(set! *debug* #t)
