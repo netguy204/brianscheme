@@ -53,10 +53,6 @@
 	  (exit 1)))
 
 (define (comp-lambda args body env)
-  (write "args" args)
-  (write "body" body)
-  (write "env" env)
-
   (assert-symbols args)
   (make-fn (seq (gen 'args (length args))
 		(comp-begin body (cons args env))
