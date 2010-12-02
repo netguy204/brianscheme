@@ -481,7 +481,8 @@
 	  (result (begin . ,body))
 	  (end (clock)))
      (write "execution took" 
-	    (make-rat (- end start) (clocks-per-sec))
+	    (- end start) "/" (clocks-per-sec)
+	    ;(make-rat (- end start) (clocks-per-sec))
 	    "seconds")
      result))
 
