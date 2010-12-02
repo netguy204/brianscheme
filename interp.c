@@ -41,7 +41,6 @@ object *extend_environment(object *vars, object *vals,
   object *result;
 
   result = make_frame(vars, vals);
-
   push_root(&result);
   result = cons(result, base_env);
   pop_root(&result);
@@ -412,12 +411,20 @@ DEFUN1(apply_proc) {
 }
 
 DEFUN1(stats_proc) {
-  /* FIXME: gc */
-  object *result =
-    list2(list2(make_symbol("cons"),
-		make_fixnum(get_cons_count())),
-	  list2(make_symbol("alloc"),
-		make_fixnum(get_alloc_count())));
+  object *temp = cons(make_fixnum(get_cons_count()), the_empty_list);
+  push_root(&temp);
+  temp = cons(make_symbol("cons"), temp);
+
+  object *result = cons(temp, the_empty_list);
+  push_root(&result);
+
+  temp = cons(make_fixnum(get_alloc_count()), the_empty_list);
+  temp = cons(make_symbol("alloc"), temp);
+  result = cons(temp, result);
+
+  pop_root(&result);
+  pop_root(&temp);
+
   return result;
 }
 
@@ -575,11 +582,7 @@ object *debug_write(char * msg, object *obj, int level) {
 #define D2(msg, obj, level) DN(msg, obj, level, 2);
 
 object *interp(object *exp, object *env) {
-  push_root(&exp);
-  push_root(&env);
   object *result = interp1(exp, env, 0);
-  pop_root(&env);
-  pop_root(&exp);
   return result;
 }
 
@@ -606,24 +609,35 @@ object *interp_unquote(object *exp, object *env, int level) {
   } else {
     object *h1 = interp_unquote(car(exp), env, level);
     push_root(&h1);
+
     object *h2 = interp_unquote(cdr(exp), env, level);
     push_root(&h2);
 
     object *result = cons(h1, h2);
+
     pop_root(&h2);
     pop_root(&h1);
     return result;		
   }
 }
 
+/* convenient tool for unbinding the arguments that must be bound
+ * during interp1. We rebind to temp to force the evalation of result
+ * if it's an exp
+ */
 #define INTERP_RETURN(result) \
   do {			      \
-  pop_root(&env);	      \
-  pop_root(&exp);	      \
-  return result;	      \
+    object *temp = result;    \
+    pop_root(&env);	      \
+    pop_root(&exp);	      \
+    return temp;	      \
   } while(0)
 
 object *interp1(object *exp, object *env, int level) {
+  /* we break the usual convention of assuming our own arguments are
+   * protected here because the tail recursive call can rebind these
+   * two items to something new
+   */
   push_root(&exp);
   push_root(&env);
 
@@ -643,6 +657,11 @@ object *interp1(object *exp, object *env, int level) {
     }
     else if(head == begin_symbol) {
       exp = cdr(exp);
+      if(is_the_empty_list(exp)) {
+	throw_interp("begin must be followed by exp");
+	INTERP_RETURN(NULL);
+      }
+
       while(!is_the_empty_list(cdr(exp))) {
 	interp1(car(exp), env, level + 1);
 	exp = cdr(exp);
@@ -654,8 +673,8 @@ object *interp1(object *exp, object *env, int level) {
     else if(head == set_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
-
       push_root(&val);
+
       define_variable(first(args), val, env);
       pop_root(&val);
 
@@ -673,10 +692,10 @@ object *interp1(object *exp, object *env, int level) {
       goto interp_restart;
     }
     else if(head == lambda_symbol) {
-      D2("defining lambda", exp, level);
       object *args = cdr(exp);
       object *body = cons(begin_symbol, cdr(args));
       push_root(&body);
+
       object *proc = make_compound_proc(first(args),
 					body,
 					env);
@@ -684,10 +703,10 @@ object *interp1(object *exp, object *env, int level) {
       INTERP_RETURN(proc);
     }
     else if(head == macro_symbol) {
-      D2("defining macro", exp, level);
       object *args = cdr(exp);
       object *body = cons(begin_symbol, cdr(args));
       push_root(&body);
+
       object *result = make_syntax_proc(first(args),
 					body);
       pop_root(&body);
@@ -699,7 +718,6 @@ object *interp1(object *exp, object *env, int level) {
       push_root(&fn);
 
       object *args = cdr(exp);
-      object *evald_args;
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
@@ -709,9 +727,9 @@ object *interp1(object *exp, object *env, int level) {
       }
 
       /* evaluate the arguments */
-      object *result;
+      object *evald_args = the_empty_list;
+      object *result = the_empty_list;
       object *last;
-      evald_args = the_empty_list;
       push_root(&evald_args);
       push_root(&result);
 
@@ -729,19 +747,26 @@ object *interp1(object *exp, object *env, int level) {
       }
     
       /* dispatch the call */
-      pop_root(&result);
-      pop_root(&evald_args);
-      pop_root(&fn);
       if(is_primitive_proc(fn)) {
+	pop_root(&result);
+	pop_root(&evald_args);
+	pop_root(&fn);
 	INTERP_RETURN(fn->data.primitive_proc.fn(evald_args, env));
-
       } else if(is_compound_proc(fn)) {
 	env = extend_environment(fn->data.compound_proc.parameters,
 				 evald_args,
 				 fn->data.compound_proc.env);
 	exp = fn->data.compound_proc.body;
+
+	pop_root(&result);
+	pop_root(&evald_args);
+	pop_root(&fn);
 	goto interp_restart;
       } else {
+	pop_root(&result);
+	pop_root(&evald_args);
+	pop_root(&fn);
+
 	debug_write("error", fn, level);
 	throw_interp("cannot apply non-function\n");
 	INTERP_RETURN(NULL);
@@ -756,8 +781,8 @@ object *interp1(object *exp, object *env, int level) {
 
 
 void init_prim_environment(object *env) {
-  /* need to protect the thing in definition
-   * from gc briefly */
+  /* used throughout this method to protect the thing in definition
+   * from gc */
   object *curr = NULL;
   push_root(&curr);
 
