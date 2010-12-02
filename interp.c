@@ -414,7 +414,7 @@ DEFUN1(string_to_symbol_proc) {
   return make_symbol(STRING(FIRST));
 }
 
-DEFUN1(exit_proc) {
+void eval_exit_hook(object *environment) {
   object *exit_hook = lookup_variable_value(exit_hook_symbol,
 					    environment);
   if(exit_hook != the_empty_list) {
@@ -423,7 +423,10 @@ DEFUN1(exit_proc) {
     interp(exp, environment);
     pop_root(&exp);
   }
+}
 
+DEFUN1(exit_proc) {
+  eval_exit_hook(environment);
   exit((int)LONG(FIRST));
   return NULL;
 }
@@ -601,6 +604,8 @@ void throw_interp(char * msg, ...) {
   va_start(args, msg);
   vfprintf(stderr, msg, args);
   va_end(args);
+
+  eval_exit_hook(the_global_environment);
   exit(1);
 }
 
