@@ -1,10 +1,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
-#include <execinfo.h>
 #include <string.h>
 
 #include "types.h"
 #include "symbols.h"
+
+/* enable gc debuging by defining
+ * DEBUG_GC
+ */
 
 void *MALLOC(long size) {
   void *obj = malloc(size);
@@ -32,6 +35,8 @@ void throw_gc(char *msg) {
 }
 
 #ifdef DEBUG_GC
+#include <execinfo.h>
+
 void print_backtrace() {
 #define MAX_FRAMES 30
   void *buffer[MAX_FRAMES];
@@ -156,7 +161,6 @@ long mark_and_sweep() {
   int ii = 0;
   for(ii = 0; ii < Root_Objects->top; ++ii) {
     object **next = Root_Objects->objs[ii];
-    debug_gc("examining root %ld\n", next);
     mark_reachable(*next);
   }
 
@@ -168,8 +172,8 @@ static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
   /* always sweep while we're debugging
-  */
   mark_and_sweep();
+  */
 
   if(Free_Objects == NULL) {
     debug_gc("no space. trying mark-and-sweep\n");
@@ -198,8 +202,8 @@ object *alloc_object(void) {
 
   /* clear when we're debugging so things fail
    * quickly 
-   */
   memset(obj, 0, sizeof(object));
+   */
 
   obj->next = Active_List;
   Active_List = obj;

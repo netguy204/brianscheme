@@ -296,7 +296,8 @@ DEFUN1(open_output_port_proc) {
   object *name = FIRST;
   FILE *out = fopen(STRING(name), "w");
   if(out == NULL) {
-    fprintf(stderr, "could not open file '%s'\n", STRING(name));
+    fprintf(stderr, "could not open file '%s' for output\n",
+	    STRING(name));
     return the_empty_list;
   }
   return make_output_port(out);
@@ -312,7 +313,8 @@ DEFUN1(open_input_port_proc) {
   object *name = FIRST;
   FILE *in = fopen(STRING(name), "r");
   if(in == NULL) {
-    fprintf(stderr, "could not open file '%s'\n", STRING(name));
+    fprintf(stderr, "could not open file '%s' for input\n",
+	    STRING(name));
     return the_empty_list;
   }
   return make_input_port(in);

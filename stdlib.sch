@@ -365,7 +365,13 @@
 	  (iter (+ n 1)))
 	#t))
   (iter 0))
-  
+
+(define-syntax delay (&rest body)
+  '(lambda () . ,body))
+
+(define (force fn)
+  (fn))
+
 'stdlib-loaded
 
 ;(set! *debug* #t)
