@@ -44,10 +44,14 @@
 
 (define0 cadr (x) (car (cdr x)))
 (define0 caddr (x) (car (cdr (cdr x))))
+(define0 cadddr (x) (car (cdr (cdr (cdr x)))))
 
 (define0 first (x) (car x))
 (define0 second (x) (cadr x))
 (define0 third (x) (caddr x))
+(define0 fourth (x) (cadddr x))
+
+(define0 rest (x) (cdr x))
 
 (define0 index-of (fn lst)
   (begin
@@ -163,10 +167,22 @@
       #f
       #t))
 
+(define (every? fn lst)
+  (define (iter rest)
+    (if (null? rest)
+	#t
+	(if (fn (car rest))
+	    (iter (cdr rest))
+	    #f)))
+
+  (iter lst))
+
 (define (member? val lst)
-  (if (null? (index-eq val lst))
-      #f
-      #t))
+  (if (pair? lst)
+      (if (null? (index-eq val lst))
+	  #f
+	  #t)
+      (eq? val lst)))
 
 (define (length items)
   (define (iter a count)
@@ -179,6 +195,15 @@
   (if (null? list1)
       list2
       (cons (car list1) (append (cdr list1) list2))))
+
+;; todo, make tail recursive
+(define (append-all lsts)
+  (if (null? (rest lsts))
+      (first lsts)
+      (append (first lsts) (append-all (rest lsts)))))
+
+(define (mappend fn lst)
+  (append-all (map fn lst)))
 
 (define (reverse l)
   (define (iter in out)
@@ -270,16 +295,22 @@
 (define set-car!0 set-car!)
 (define (set-car! obj new-car)
   (assert-pair obj)
-  (assert-none-following lst)
+  (assert-none-following new-car)
 
   (set-car!0 obj new-car))
 
 (define set-cdr!0 set-cdr!)
 (define (set-cdr! obj new-cdr)
   (assert-pair obj)
-  (assert-none-following lst)
+  (assert-none-following new-cdr)
 
   (set-cdr!0 obj new-cdr))
+
+(define (atom? obj)
+  (or (boolean? obj)
+      (integer? obj)
+      (char? obj)
+      (string? obj)))
 
 (define (assert-numbers values)
   (if (any? (lambda (x) (not (integer? x))) ',values)
@@ -367,10 +398,43 @@
   (iter 0))
 
 (define-syntax delay (&rest body)
-  '(lambda () . ,body))
+  '(cons nil (lambda () . ,body)))
 
 (define (force fn)
-  (fn))
+  (when (and (not (null? (cdr fn))) (null? (car fn)))
+	(set-car! fn ((cdr fn)))
+	(set-cdr! fn nil))
+  (car fn))
+
+(define-syntax time (&rest body)
+  '(let* ((start (clock))
+	  (result (begin . ,body))
+	  (end (clock)))
+     (write "execution took" (- end start)
+	    "/" (clocks-per-sec) "seconds")
+     result))
+
+(define (starts-with lst val)
+  (eq? (first lst) val))
+
+(define-syntax case (key &rest clauses)
+  '(let ((key-val ,key))
+     (cond . ,(map (lambda (c)
+		     (if (starts-with c 'else)
+			 c
+			 '((member? key-val ',(first c))
+			   . ,(cdr c))))
+		   clauses))))
+
+(define (find fn lst)
+  (define (iter rest)
+    (if (null? rest)
+	#f
+	(let ((res (fn (car rest))))
+	  (if res
+	      (car rest)
+	      (iter (cdr rest))))))
+  (iter lst))
 
 'stdlib-loaded
 

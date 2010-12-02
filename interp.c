@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 
 #include "types.h"
 #include "interp.h"
@@ -67,7 +68,12 @@ object *find_variable_value(object *var, object *env,
 	return vals;
       }
       vars = cdr(vars);
-      vals = cdr(vals);
+
+      /* since these may not be the same length
+       * we need to check again */
+      if(!is_the_empty_list(vals)) {
+	vals = cdr(vals);
+      }
     }
     if(!search_enclosing) return the_empty_list;
     env = enclosing_environment(env);
@@ -165,6 +171,10 @@ DEFUN1(is_procedure_proc) {
   return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST));
 }
 
+DEFUN1(is_syntax_proc_proc) {
+  return AS_BOOL(is_syntax_proc(FIRST));
+}
+
 DEFUN1(is_output_port_proc) {
   return AS_BOOL(is_output_port(FIRST));
 }
@@ -199,6 +209,14 @@ DEFUN1(mul_proc) {
   while(!is_the_empty_list(arguments)) {
     result *= LONG(FIRST);
     NEXT;
+  }
+  return make_fixnum(result);
+}
+
+DEFUN1(div_proc) {
+  long result = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result /= LONG(FIRST);
   }
   return make_fixnum(result);
 }
@@ -407,7 +425,10 @@ DEFUN1(apply_proc) {
 
   object *exp = cons(fn, args);
   push_root(&exp);
+  /* TODO: does this need to be pushed? */
+  push_root(&environment);
   object *result = interp(exp, environment);
+  pop_root(&environment);
   pop_root(&exp);
   return result;
 }
@@ -432,6 +453,23 @@ DEFUN1(stats_proc) {
 
 DEFUN1(mark_and_sweep_proc) {
   return make_fixnum(mark_and_sweep());
+}
+
+DEFUN1(clock_proc) {
+  return make_fixnum(clock());
+}
+
+DEFUN1(clocks_per_sec_proc) {
+  return make_fixnum(CLOCKS_PER_SEC);
+}
+
+DEFUN1(concat_proc) {
+  char buffer[100];
+
+  char *str1 = STRING(FIRST);
+  char *str2 = STRING(SECOND);
+  sprintf(buffer, "%s%s", str1, str2);
+  return make_string(buffer);
 }
 
 void write_pair(FILE *out, object *pair) {
@@ -584,7 +622,11 @@ object *debug_write(char * msg, object *obj, int level) {
 #define D2(msg, obj, level) DN(msg, obj, level, 2);
 
 object *interp(object *exp, object *env) {
+  push_root(&exp);
+  push_root(&env);
   object *result = interp1(exp, env, 0);
+  pop_root(&env);
+  pop_root(&exp);
   return result;
 }
 
@@ -769,8 +811,8 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&evald_args);
 	pop_root(&fn);
 
-	debug_write("error", fn, level);
-	throw_interp("cannot apply non-function\n");
+	write(stderr, fn);
+	throw_interp("\ncannot apply non-function\n");
 	INTERP_RETURN(NULL);
       }
     }
@@ -801,6 +843,7 @@ void init_prim_environment(object *env) {
   add_procedure("string?", is_string_proc);
   add_procedure("pair?", is_pair_proc);
   add_procedure("procedure?", is_procedure_proc);
+  add_procedure("syntax-procedure?", is_syntax_proc_proc);
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
   add_procedure("eof-object?", is_eof_proc);
@@ -808,6 +851,7 @@ void init_prim_environment(object *env) {
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
   add_procedure("*", mul_proc);
+  add_procedure("/", div_proc);
   add_procedure("<", is_less_than_proc);
   add_procedure(">", is_greater_than_proc);
   add_procedure("=", is_number_equal_proc);
@@ -842,10 +886,14 @@ void init_prim_environment(object *env) {
   add_procedure("symbol->string", symbol_to_string_proc);
   add_procedure("string->symbol", string_to_symbol_proc);
 
+  add_procedure("concat", concat_proc);
+
   add_procedure("find-variable", find_variable_proc);
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
   add_procedure("mark-and-sweep", mark_and_sweep_proc);
+  add_procedure("clock", clock_proc);
+  add_procedure("clocks-per-sec", clocks_per_sec_proc);
 
   define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,

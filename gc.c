@@ -29,8 +29,12 @@ static object *Free_Objects = NULL;
 struct object_pointer_list *Root_Objects = NULL;
 static object *Active_List = NULL;
 
-void throw_gc(char *msg) {
-  fprintf(stderr, "gc: %s", msg);
+void throw_gc(char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  va_end(args);
+
   exit(2);
 }
 
@@ -66,6 +70,8 @@ void ensure_root_objects(void) {
 }
 
 object *push_root(object **stack) {
+  ensure_root_objects();
+
   /* grow the stack if we need to */
 
   /* FIXME: why doesn't this work?
@@ -76,6 +82,10 @@ object *push_root(object **stack) {
     Root_Objects->size = new_size;
   }
   */
+  if(Root_Objects->top == Root_Objects->size) {
+    throw_gc("exceeded the maximum number (%d) of gc roots\n",
+	     Root_Objects->size);
+  }
 
   Root_Objects->objs[Root_Objects->top++] = stack;
   return *stack;
@@ -179,14 +189,18 @@ object *alloc_object(void) {
     debug_gc("no space. trying mark-and-sweep\n");
     print_backtrace();
 
-    long freed = mark_and_sweep();
+    long freed = 0;
+    /* comment this out to turn off gc
+     */
+    freed = mark_and_sweep();
+
     Alloc_Count -= freed;
     debug_gc("mark-and-sweep freed %ld objects\n", freed);
     debug_gc("alloc-count is now %ld\n", Alloc_Count);
 
 
     /* did we free enough? */
-    if(freed == 0 || Next_Heap_Extension / freed > 10) {
+    if(freed == 0 || Next_Heap_Extension / freed > 2) {
       debug_gc("extending the heap\n");
       extend_heap(Next_Heap_Extension);
       Next_Heap_Extension *= 1.8;
@@ -202,8 +216,8 @@ object *alloc_object(void) {
 
   /* clear when we're debugging so things fail
    * quickly 
-  memset(obj, 0, sizeof(object));
    */
+  memset(obj, 0, sizeof(object));
 
   obj->next = Active_List;
   Active_List = obj;
