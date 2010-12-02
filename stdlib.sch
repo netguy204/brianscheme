@@ -406,14 +406,6 @@
 	(set-cdr! fn nil))
   (car fn))
 
-(define-syntax time (&rest body)
-  '(let* ((start (clock))
-	  (result (begin . ,body))
-	  (end (clock)))
-     (write "execution took" (- end start)
-	    "/" (clocks-per-sec) "seconds")
-     result))
-
 (define (starts-with lst val)
   (eq? (first lst) val))
 
@@ -444,7 +436,55 @@
   (iter (car callstack)))
 
 (define exit-hook print-backtrace)
-	
+
+(define (gcd a b)
+  (if (= b 0)
+      a
+      (gcd b (- a (* b (/ a b))))))
+
+(define (make-rat a b)
+  (reduce-rat (cons a b)))
+
+(define (rat-num a)
+  (car a))
+
+(define (rat-den a)
+  (cdr a))
+
+(define (reduce-rat rat)
+  (let ((common (gcd (rat-num rat) (rat-den rat))))
+    (cons (/ (rat-num rat) common) (/ (rat-den rat) common))))
+
+(define (neg-rat rat)
+  (make-rat (- 0 (rat-num rat)) (rat-den rat)))
+
+(define (add-rat a b)
+  (let ((na (rat-num a))
+	(nb (rat-num b))
+	(da (rat-den a))
+	(db (rat-den b)))
+    (make-rat (+ (* na db) (* nb da)) (* da db))))
+
+(define (sub-rat a b)
+  (add-rat a (neg-rat b)))
+
+(define (mul-rat a b)
+  (make-rat (* (rat-num a) (rat-num b))
+	    (* (rat-den a) (rat-den b))))
+
+(define (div-rat a b)
+  (make-rat (* (rat-num a) (rat-den b))
+	    (* (rat-den a) (rat-num b))))
+
+(define-syntax time (&rest body)
+  '(let* ((start (clock))
+	  (result (begin . ,body))
+	  (end (clock)))
+     (write "execution took" 
+	    (make-rat (- end start) (clocks-per-sec))
+	    "seconds")
+     result))
+
 'stdlib-loaded
 
 ;(set! *debug* #t)
