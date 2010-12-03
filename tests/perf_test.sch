@@ -11,7 +11,7 @@
     (do-times (lambda (x)
 		(set! result (cons x result)))
 	      max-n)
-    (cdr result)))
+    result))
 
 (set! big-list nil)
 (time (set! big-list (make-list 1000)) nil)
@@ -22,3 +22,12 @@
 
 'length
 (time (length big-list))
+
+'big-map
+(time (map (lambda (x) (+ 1 x)) big-list) 'done)
+
+'big-reduce
+(time (reduce + big-list))
+
+'big-append
+(time (append big-list big-list) 'done)

@@ -59,13 +59,23 @@
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that too. Note that these functions are not type-safe. We
 ;; should probably override them later with versions that are.
+(define0 reverse (l)
+  (begin
+    (define0 iter (in out)
+      (if (pair? in)
+	  (iter (cdr0 in) (cons (car0 in) out))
+	  out))
+    
+    (iter l '())))
+
 (define0 map (fn lst)
   (begin
-    (define0 iter (rest)
+    (define0 iter (done rest)
       (if (null? rest)
-	  nil
-	  (cons (fn (car0 rest)) (iter (cdr0 rest)))))
-    (iter lst)))
+	  done
+	  (iter (cons (fn (car0 rest)) done) (cdr0 rest))))
+    
+    (reverse (iter nil lst))))
 
 (define0 not (x)
   (if x
@@ -73,13 +83,14 @@
       #t))
 
 (define0 cadr0 (x) (car0 (cdr0 x)))
+(define0 second0 (x) (cadr0 x))
+
 (define0 cadr (x) (car (cdr x)))
-(define0 caddr (x) (car0 (cdr0 (cdr0 x))))
-(define0 cadddr (x) (car0 (cdr0 (cdr0 (cdr0 x)))))
+(define0 caddr (x) (car (cdr (cdr x))))
+(define0 cadddr (x) (car (cdr (cdr (cdr x)))))
 
 (define0 first (x) (car x))
 (define0 second (x) (cadr x))
-(define0 second0 (x) (cadr0 x))
 (define0 third (x) (caddr x))
 (define0 fourth (x) (cadddr x))
 
@@ -420,13 +431,6 @@
 (define (mappend fn lst)
   (append-all (map fn lst)))
 
-(define (reverse l)
-  (define (iter in out)
-    (if (pair? in)
-	(iter (cdr in) (cons (car in) out))
-	out))
-  (iter l '()))
-
 (define (for-each f l)
   (if (null? l)
       #t
@@ -588,16 +592,6 @@
 (define (div-rat a b)
   (make-rat (* (rat-num a) (rat-den b))
 	    (* (rat-den a) (rat-num b))))
-
-(define-syntax time (&rest body)
-  '(let* ((start (clock))
-	  (result (begin . ,body))
-	  (end (clock)))
-     (write "execution took" 
-	    (- end start) "/" (clocks-per-sec)
-	    ;(make-rat (- end start) (clocks-per-sec))
-	    "seconds")
-     result))
 
 'stdlib-loaded
 
