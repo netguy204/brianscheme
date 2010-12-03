@@ -176,6 +176,14 @@ object *find_symbol(char *value) {
   return NULL;
 }
 
+object *make_uninterned_symbol(char *value) {
+  object *obj = alloc_object();
+  obj->type = SYMBOL;
+  obj->data.symbol.value = MALLOC(strlen(value) + 1);
+  strcpy(obj->data.symbol.value, value);
+  return obj;
+}
+
 object *make_symbol(char *value) {
   object *obj;
   object *element;
@@ -183,11 +191,7 @@ object *make_symbol(char *value) {
   element = find_symbol(value);
   if(element != NULL) return car(element);
 
-  obj = alloc_object();
-
-  obj->type = SYMBOL;
-  obj->data.symbol.value = MALLOC(strlen(value) + 1);
-  strcpy(obj->data.symbol.value, value);
+  obj = make_uninterned_symbol(value);
 
   push_root(&obj);
   symbol_table = cons(obj, symbol_table);

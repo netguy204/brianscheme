@@ -5,7 +5,7 @@
 
 (set! define0
       (macro (name vars body)
-	'(set! ,name (lambda ,vars ,body))))
+	'(set-local! ',name (lambda ,vars ,body))))
 	
 (set! define-syntax0
       (macro (name vars body)
@@ -21,6 +21,8 @@
 (set! prim-< <)
 (set! prim-> >)
 (set! prim-= =)
+(set! car0 car)
+(set! cdr0 cdr)
 
 ;; primitive let since we don't have &rest yet
 (define-syntax0 let0 (bindings body)
@@ -34,7 +36,7 @@
     (define0 iter (rest)
       (if (null? rest)
 	  nil
-	  (cons (fn (car rest)) (iter (cdr rest)))))
+	  (cons (fn (car0 rest)) (iter (cdr0 rest)))))
     (iter lst)))
 
 (define0 not (x)
@@ -42,41 +44,41 @@
       #f
       #t))
 
-(define0 cadr (x) (car (cdr x)))
-(define0 caddr (x) (car (cdr (cdr x))))
-(define0 cadddr (x) (car (cdr (cdr (cdr x)))))
+(define0 cadr (x) (car0 (cdr0 x)))
+(define0 caddr (x) (car0 (cdr0 (cdr0 x))))
+(define0 cadddr (x) (car0 (cdr0 (cdr0 (cdr0 x)))))
 
-(define0 first (x) (car x))
+(define0 first (x) (car0 x))
 (define0 second (x) (cadr x))
 (define0 third (x) (caddr x))
 (define0 fourth (x) (cadddr x))
 
-(define0 rest (x) (cdr x))
+(define0 rest (x) (cdr0 x))
 
 (define0 index-of (fn lst)
   (begin
     (define0 iter (n rest)
       (if (null? rest)
 	  nil
-	  (if (fn (car rest))
+	  (if (fn (car0 rest))
 	      n
-	      (iter (prim-+ n 1) (cdr rest)))))
+	      (iter (prim-+ n 1) (cdr0 rest)))))
     (iter 0 lst)))
 
 (define0 nth (lst n)
   (begin
     (define0 iter (i rest)
       (if (prim-= i n)
-	  (car rest)
-	  (iter (prim-+ i 1) (cdr rest))))
+	  (car0 rest)
+	  (iter (prim-+ i 1) (cdr0 rest))))
     (iter 0 lst)))
 
 (define0 index-eq (val lst)
   (index-of (lambda (x) (eq? x val)) lst))
 
 (define0 length=1 (lst)
-  (if (not (null? (car lst)))
-      (if (null? (cdr lst))
+  (if (not (null? (car0 lst)))
+      (if (null? (cdr0 lst))
 	  #t
 	  #f)
       #f))
@@ -154,12 +156,35 @@
   '((lambda (top)
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
-      
+
 (define-syntax define (name &rest body)
-  (if (symbol? name)
-      '(set! ,name . ,body)
-      '(define ,(first name)
-	 (wrap-rest lambda ,(cdr name) (begin . ,body)))))
+  '(begin
+     ,(if (symbol? name)
+	  '(set-local! ',name nil)
+	  '(set-local! ',(car0 name) nil))
+     ,(if (symbol? name)
+	  '(set! ,name . ,body)
+	  '(set! ,(first name)
+	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
+
+;; install the exit-hook
+(define (print-backtrace)
+  (define (iter rest)
+    (unless (null? rest)
+	    (write (car0 rest))
+	    (iter (cdr0 rest))))
+  (iter (car0 callstack)))
+
+(define exit-hook print-backtrace)
+
+;; repl for debugging
+(define (repl)
+  (write-port stdout 'debug-repl>)
+  (let ((result (eval (read-port stdin) base-env)))
+    (write-port stdout result)
+    (write-char stdout #\newline)
+    (unless (eq? result 'quit)
+	    (repl))))
 
 ;; now that we have a proper define/-syntax we can keep going
 (define (any? fn lst)
@@ -273,13 +298,11 @@
 ; cute trick to verify num-args. given the list of values
 ; that begins at the last argument, we expect the cdr to be
 ; nil
-(define cdr0 cdr)
 (define-syntax assert-none-following (arg)
   '(if (eq? (cdr0 (find-variable ',arg)) nil)
        #t
        (throw-error ',arg "should be the last argument")))
 
-(define car0 car)
 (define (car lst)
   (assert-pair lst)
   (assert-none-following lst)
@@ -311,6 +334,7 @@
       (integer? obj)
       (char? obj)
       (string? obj)))
+
 
 (define (assert-numbers values)
   (if (any? (lambda (x) (not (integer? x))) ',values)
@@ -436,15 +460,6 @@
 	      (iter (cdr rest))))))
   (iter lst))
 
-(define (print-backtrace)
-  (define (iter rest)
-    (unless (null? rest)
-	    (write (car rest))
-	    (iter (cdr rest))))
-  (iter (car callstack)))
-
-(define exit-hook print-backtrace)
-	
 'stdlib-loaded
 
 ;(set! *debug* #t)

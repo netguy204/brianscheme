@@ -116,10 +116,23 @@ void set_variable_value(object *var, object *new_val, object *env) {
 
 /**
  * like set_variable_value but we define the variable if it doesn't
- * exist in our current frame.
+ * exist in a reachable frame.
  */
 void define_variable(object *var, object *new_val, object *env) {
   object *val = find_variable_value(var, env, 1);
+  if(is_the_empty_list(val)) {
+    add_binding_to_frame(var, new_val, first_frame(env));
+  } else {
+    set_car(val, new_val);
+  }
+}
+
+/**
+ * like set_variable_value but we define the variable if it doesn't
+ * exist in the given frame.
+ */
+void define_local_variable(object *var, object *new_val, object *env) {
+  object *val = find_variable_value(var, env, 0);
   if(is_the_empty_list(val)) {
     add_binding_to_frame(var, new_val, first_frame(env));
   } else {
@@ -245,6 +258,11 @@ DEFUN1(set_cdr_proc) {
 
 DEFUN1(list_proc) {
   return arguments;
+}
+
+DEFUN1(set_local_proc) {
+  define_local_variable(FIRST, SECOND, environment);
+  return SECOND;
 }
 
 DEFUN1(macroexpand0_proc) {
@@ -412,6 +430,10 @@ DEFUN1(symbol_to_string_proc) {
 
 DEFUN1(string_to_symbol_proc) {
   return make_symbol(STRING(FIRST));
+}
+
+DEFUN1(string_to_uninterned_symbol_proc) {
+  return make_uninterned_symbol(STRING(FIRST));
 }
 
 void eval_exit_hook(object *environment) {
@@ -887,6 +909,7 @@ void init_prim_environment(object *env) {
   add_procedure("set-car!", set_car_proc);
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
+  add_procedure("set-local!", set_local_proc);
 
   add_procedure("eq?", is_eq_proc);
 
@@ -910,6 +933,8 @@ void init_prim_environment(object *env) {
   add_procedure("string->number", string_to_symbol_proc);
   add_procedure("symbol->string", symbol_to_string_proc);
   add_procedure("string->symbol", string_to_symbol_proc);
+  add_procedure("string->uninterned-symbol",
+		string_to_uninterned_symbol_proc);
 
   add_procedure("concat", concat_proc);
 
