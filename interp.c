@@ -450,7 +450,7 @@ void eval_exit_hook(object *environment) {
 DEFUN1(exit_proc) {
   eval_exit_hook(environment);
   exit((int)LONG(FIRST));
-  return NULL;
+  return false;
 }
 
 DEFUN1(apply_proc) {
@@ -506,6 +506,16 @@ DEFUN1(concat_proc) {
   return make_string(buffer);
 }
 
+void throw_interp(char * msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  va_end(args);
+
+  eval_exit_hook(the_global_environment);
+  exit(1);
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -528,6 +538,12 @@ void write(FILE *out, object *obj) {
   char c;
   char *str;
   object *head;
+
+  if(obj == NULL) {
+    fprintf(out, "#<NULL>");
+    throw_interp("cons contained null");
+    return;
+  }
 
   if(obj == the_global_environment) {
     fprintf(out, "#<global-environment>");
@@ -619,16 +635,6 @@ void write(FILE *out, object *obj) {
     fprintf(stderr, "cannot write unknown type: %d\n", obj->type);
     exit(1);
   }
-}
-
-void throw_interp(char * msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-
-  eval_exit_hook(the_global_environment);
-  exit(1);
 }
 
 object *debug_write(char * msg, object *obj, int level) {

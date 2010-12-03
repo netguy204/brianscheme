@@ -24,6 +24,13 @@
 (set! car0 car)
 (set! cdr0 cdr)
 
+(set! next-gensym 0)
+(define0 gensym ()
+  (begin
+    (set! next-gensym (+ next-gensym 1))
+    (string->uninterned-symbol
+     (concat "#" (number->string next-gensym)))))
+
 ;; primitive let since we don't have &rest yet
 (define-syntax0 let0 (bindings body)
   '((lambda ,(map first bindings)
@@ -431,34 +438,42 @@
   (car fn))
 
 (define-syntax time (&rest body)
-  '(let* ((start (clock))
-	  (result (begin . ,body))
-	  (end (clock)))
-     (write "execution took" (- end start)
-	    "/" (clocks-per-sec) "seconds")
-     result))
+  (let ((start (gensym))
+	(result (gensym))
+	(end (gensym)))
+    '(let* ((,start (clock))
+	    (,result (begin . ,body))
+	    (,end (clock)))
+       (write "execution took" (- ,end ,start)
+	      "/" (clocks-per-sec) "seconds")
+       ,result)))
 
 (define (starts-with lst val)
   (eq? (first lst) val))
 
 (define-syntax case (key &rest clauses)
-  '(let ((key-val ,key))
-     (cond . ,(map (lambda (c)
-		     (if (starts-with c 'else)
-			 c
-			 '((member? key-val ',(first c))
-			   . ,(cdr c))))
-		   clauses))))
+  (let ((key-val (gensym)))
+    '(let ((,key-val ,key))
+       (cond . ,(map (lambda (c)
+		       (if (starts-with c 'else)
+			   c
+			   '((member? ,key-val ',(first c))
+			     . ,(cdr c))))
+		     clauses)))))
 
 (define (find fn lst)
   (define (iter rest)
     (if (null? rest)
-	#f
+	nil
 	(let ((res (fn (car rest))))
 	  (if res
 	      (car rest)
 	      (iter (cdr rest))))))
   (iter lst))
+
+(define-syntax dolist (args &rest body)
+  '(for-each (lambda (,(first args)) . ,body)
+	     ,(second args)))
 
 'stdlib-loaded
 
