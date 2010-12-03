@@ -64,6 +64,8 @@ void *MALLOC(long size);
 
 object *alloc_object(void);
 
+object *make_uninterned_symbol(char *value);
+
 object *make_symbol(char *value);
 
 char is_the_empty_list(object *obj);
