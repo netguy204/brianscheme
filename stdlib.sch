@@ -1,7 +1,18 @@
-; this would get a bit noisy
-(set! *debug* #f)
+;; STAGE 2, bootstrapping from primitives.
+;;
+;; In this environment we don't have a working define or define-syntax
+;; and all of the primitives do no type checking. We'll be building up
+;; a more friendly environment from here.
+;;
+;; I'm using the fname0 notation to denote functions that are nearly
+;; primitive and not intended for everyday use. None of these '0'
+;; functions do type checking and often they are just renamed versions
+;; of their original primitive self so that we can replace their name
+;; with something more user-friendly.
 
-;; very basic define to get us started
+;; Some very basic defines to get us started
+
+(set! nil '())
 
 (set! define0
       (macro (name vars body)
@@ -11,10 +22,13 @@
       (macro (name vars body)
 	'(set! ,name (macro ,vars ,body))))
 
-(set! nil '())
 
-;; some primitives we override later that we need
-;; to continue using in the lower levels 
+;; We're going to override these names later so I'm stashing away the
+;; original primitive versions so that we can refer to those
+;; explicitely in the bootstrap environment. If we didn't do this
+;; there would be a nasty circular dependency when things like
+;; typesafe + went to check its arguments using functions implemented
+;; in terms of typesafe +.
 (set! prim-+ +)
 (set! prim-- -)
 (set! prim-* *)
@@ -24,6 +38,12 @@
 (set! car0 car)
 (set! cdr0 cdr)
 
+;; The first thing we'll be doing is defining the define-syntax
+;; macro. We're going to need a basic let functionality first so lets
+;; define that. This initial let0 is so-called because it doesn't
+;; support automatically wrapping all of its arguments after the first
+;; in an implicit (begin..). We'll need to add support for &rest
+;; before we can make an appropriate let definition.
 (set! next-gensym 0)
 (define0 gensym ()
   (begin
@@ -31,13 +51,14 @@
     (string->uninterned-symbol
      (concat "#" (number->string next-gensym)))))
 
-;; primitive let since we don't have &rest yet
 (define-syntax0 let0 (bindings body)
   '((lambda ,(map first bindings)
       ,body)
     . ,(map second bindings)))
 
-;; handy primitives
+;; We used map in our definition of let0 so we had better go ahead and
+;; define that too. Note that these functions are not type-safe. We
+;; should probably override them later with versions that are.
 (define0 map (fn lst)
   (begin
     (define0 iter (rest)
@@ -62,6 +83,10 @@
 
 (define0 rest (x) (cdr0 x))
 
+;; Defining some more convenience routines so that we can eventially
+;; define the wrap-rest macro which will be very useful for defining
+;; nicer versions of define-syntax and define that support &rest
+;; arguments and allow the user to define functions that do the same.
 (define0 index-of (fn lst)
   (begin
     (define0 iter (n rest)
@@ -83,13 +108,6 @@
 (define0 index-eq (val lst)
   (index-of (lambda (x) (eq? x val)) lst))
 
-(define0 length=1 (lst)
-  (if (not (null? (car0 lst)))
-      (if (null? (cdr0 lst))
-	  #t
-	  #f)
-      #f))
-
 ;; now building up function definition with &rest
 (define-syntax0 wrap-rest (type args fbody)
   (let0 ((idx (index-eq '&rest args)))
@@ -108,6 +126,26 @@
 (define-syntax1 define-syntax (name args &rest fbody)
   '(set! ,name (wrap-rest macro ,args (begin . ,fbody))))
 
+(define-syntax define (name &rest body)
+  '(begin
+     ,(if (symbol? name)
+	  '(set-local! ',name nil)
+	  '(set-local! ',(car0 name) nil))
+     ,(if (symbol? name)
+	  '(set! ,name . ,body)
+	  '(set! ,(first name)
+	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
+
+;; Finally! Now we can get to work defining our standard conditional
+;; constructs and other basic functionality that everyone expects to
+;; have available.
+(define (length=1 lst)
+  (if (not (null? (car0 lst)))
+      (if (null? (cdr0 lst))
+	  #t
+	  #f)
+      #f))
+
 (define-syntax let (bindings &rest body)
   '((lambda ,(map first bindings)
       (begin . ,body))
@@ -118,7 +156,6 @@
       '(begin . ,body)
       '(let (,(first bindings))
 	 (let* ,(cdr bindings) . ,body))))
-
 
 (define-syntax when (pred &rest conseq)
   '(if ,pred
@@ -147,7 +184,6 @@
 	    (and . ,(cdr clauses))
 	    #f))))
 
-
 (define-syntax or (&rest clauses)
   (cond
    ((null? clauses) #f)
@@ -155,6 +191,16 @@
    (#t '(if ,(car clauses)
 	    #t
 	    (or . ,(cdr clauses))))))
+
+(define-syntax case (key &rest clauses)
+  (let ((key-val (gensym)))
+    '(let ((,key-val ,key))
+       (cond . ,(map (lambda (c)
+		       (if (starts-with c 'else)
+			   c
+			   '((member? ,key-val ',(first c))
+			     . ,(cdr c))))
+		     clauses)))))
 
 (define-syntax push! (obj dst)
   '(set! ,dst (cons ,obj ,dst)))
@@ -164,17 +210,17 @@
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
 
-(define-syntax define (name &rest body)
-  '(begin
-     ,(if (symbol? name)
-	  '(set-local! ',name nil)
-	  '(set-local! ',(car0 name) nil))
-     ,(if (symbol? name)
-	  '(set! ,name . ,body)
-	  '(set! ,(first name)
-	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
-
-;; install the exit-hook
+;; The exit-hook variable is looked up (in the current environment)
+;; and invoked if set whenever the (exit) primitive function is
+;; executed. The interpreter also invokes this hook when it's about to
+;; abort due to an error condition.
+;;
+;; We'll install a hook that prints a backtrace and dumps the user
+;; into a debug repl so that can try to figure out what went wrong
+;; before things go down for good.
+;;
+;; Whenever the hook returns the interpreter will make the exit system
+;; call for real and everything will disappear.
 (define (print-backtrace)
   (define (iter rest)
     (unless (null? rest)
@@ -182,18 +228,149 @@
 	    (iter (cdr0 rest))))
   (iter (car0 callstack)))
 
-(define exit-hook print-backtrace)
-
-;; repl for debugging
-(define (repl)
+(define (debug-repl)
   (write-port stdout 'debug-repl>)
   (let ((result (eval (read-port stdin) base-env)))
     (write-port stdout result)
     (write-char stdout #\newline)
     (unless (eq? result 'quit)
-	    (repl))))
+	    (debug-repl))))
 
-;; now that we have a proper define/-syntax we can keep going
+(define (exit-hook)
+  (print-backtrace)
+  (write "evaluate 'quit to exit")
+  (debug-repl))
+
+(define-syntax throw-error (&rest objs)
+  '(begin
+     (error . ,objs)
+     (exit 1)))
+
+;; Now we start defining the type-safer versions of the primitives
+;; that we started out with. We must be very careful in our
+;; type-checking to only use code that doesn't use the same
+;; type-checking methods. There are so many wonderful ways to mess
+;; this up.
+(define (assert-pair obj)
+  (if (pair? obj)
+      #t
+      (throw-error "a pair was expected" obj)))
+
+; This is a cute trick to verify num-args. If we obtain a list of
+; values that begins at the last argument we expected to get then the
+; cdr of that list better be nil.
+(define-syntax assert-none-following (arg)
+  '(if (eq? (cdr0 (find-variable ',arg)) nil)
+       #t
+       (throw-error ',arg "should be the last argument")))
+
+(define (car lst)
+  (assert-pair lst)
+  (assert-none-following lst)
+
+  (car0 lst))
+
+(define (cdr lst)
+  (assert-pair lst)
+  (assert-none-following lst)
+
+  (cdr0 lst))
+
+(define set-car!0 set-car!)
+(define (set-car! obj new-car)
+  (assert-pair obj)
+  (assert-none-following new-car)
+
+  (set-car!0 obj new-car))
+
+(define set-cdr!0 set-cdr!)
+(define (set-cdr! obj new-cdr)
+  (assert-pair obj)
+  (assert-none-following new-cdr)
+
+  (set-cdr!0 obj new-cdr))
+
+(define (assert-numbers values)
+  (if (any? (lambda (x) (not (integer? x))) ',values)
+      (throw-error "tried to do math on non-integers" ',values)
+      #t))
+
+(define (+ &rest values)
+  (assert-numbers values)
+  (apply prim-+ values))
+
+(define (- &rest values)
+  (assert-numbers values)
+  (apply prim-- values))
+
+(define (* &rest values)
+  (assert-numbers values)
+  (apply prim-* values))
+
+(define (< &rest values)
+  (assert-numbers values)
+  (apply prim-< values))
+
+(define (> &rest values)
+  (assert-numbers values)
+  (apply prim-> values))
+
+(define (= &rest values)
+  (assert-numbers values)
+  (apply prim-= values))
+
+(define (assert-string name var)
+  (if (string? var)
+      #t
+      (throw-error "expected a string" var)))
+
+(define (assert-input-port var)
+  (if (input-port? var)
+      #t
+      (throw-error "expected an input port")))
+
+(define (assert-output-port var)
+  (if (output-port? var)
+      #t
+      (throw-error "expected an output port")))
+
+; output ports
+(define open-output-port0 open-output-port)
+(define close-output-port0 close-output-port)
+
+(define (open-output-port name)
+  (assert-string 'open-output-port name)
+  (assert-none-following name)
+
+  (open-output-port0 name))
+
+(define (close-output-port port)
+  (assert-input-port port)
+  (assert-none-following port)
+
+  (close-output-port0 port))
+
+; input ports
+(define open-input-port0 open-input-port)
+(define close-input-port0 close-output-port)
+
+(define (open-input-port name)
+  (assert-string 'open-input-port name)
+  (assert-none-following name)
+
+  (open-input-port0 name))
+
+(define (close-input-port port)
+  (assert-input-port port)
+  (assert-none-following port)
+
+  (close-input-port0 port))
+
+
+;; Now go on and define a few useful higher level functions. This list
+;; of things is largely driven by personal need at this point. Perhaps
+;; I'll go back and try to implement whatever is in the spec more
+;; closely.
 (define (any? fn lst)
   (if (null? (index-of fn lst))
       #f
@@ -286,138 +463,16 @@
   (write-with-spaces stderr objs)
   (newline))
 
-(define-syntax throw-error (&rest objs)
-  '(begin
-     (error . ,objs)
-     (exit 1)))
-
 (define (peek-char port)
   (let ((ch (read-char port)))
     (unread-char port ch)
     ch))
-
-;; now define type safe versions of the primitives
-(define (assert-pair obj)
-  (if (pair? obj)
-      #t
-      (throw-error "a pair was expected" obj)))
-
-; cute trick to verify num-args. given the list of values
-; that begins at the last argument, we expect the cdr to be
-; nil
-(define-syntax assert-none-following (arg)
-  '(if (eq? (cdr0 (find-variable ',arg)) nil)
-       #t
-       (throw-error ',arg "should be the last argument")))
-
-(define (car lst)
-  (assert-pair lst)
-  (assert-none-following lst)
-
-  (car0 lst))
-
-(define (cdr lst)
-  (assert-pair lst)
-  (assert-none-following lst)
-
-  (cdr0 lst))
-
-(define set-car!0 set-car!)
-(define (set-car! obj new-car)
-  (assert-pair obj)
-  (assert-none-following new-car)
-
-  (set-car!0 obj new-car))
-
-(define set-cdr!0 set-cdr!)
-(define (set-cdr! obj new-cdr)
-  (assert-pair obj)
-  (assert-none-following new-cdr)
-
-  (set-cdr!0 obj new-cdr))
 
 (define (atom? obj)
   (or (boolean? obj)
       (integer? obj)
       (char? obj)
       (string? obj)))
-
-
-(define (assert-numbers values)
-  (if (any? (lambda (x) (not (integer? x))) ',values)
-      (throw-error "tried to do math on non-integers" ',values)
-      #t))
-
-(define (+ &rest values)
-  (assert-numbers values)
-  (apply prim-+ values))
-
-(define (- &rest values)
-  (assert-numbers values)
-  (apply prim-- values))
-
-(define (* &rest values)
-  (assert-numbers values)
-  (apply prim-* values))
-
-(define (< &rest values)
-  (assert-numbers values)
-  (apply prim-< values))
-
-(define (> &rest values)
-  (assert-numbers values)
-  (apply prim-> values))
-
-(define (= &rest values)
-  (assert-numbers values)
-  (apply prim-= values))
-
-(define (assert-string name var)
-  (if (string? var)
-      #t
-      (throw-error "expected a string" var)))
-
-(define (assert-input-port var)
-  (if (input-port? var)
-      #t
-      (throw-error "expected an input port")))
-
-(define (assert-output-port var)
-  (if (output-port? var)
-      #t
-      (throw-error "expected an output port")))
-
-; output ports
-(define open-output-port0 open-output-port)
-(define close-output-port0 close-output-port)
-
-(define (open-output-port name)
-  (assert-string 'open-output-port name)
-  (assert-none-following name)
-
-  (open-output-port0 name))
-
-(define (close-output-port port)
-  (assert-input-port port)
-  (assert-none-following port)
-
-  (close-output-port0 port))
-
-; input ports
-(define open-input-port0 open-input-port)
-(define close-input-port0 close-output-port)
-
-(define (open-input-port name)
-  (assert-string 'open-input-port name)
-  (assert-none-following name)
-
-  (open-input-port0 name))
-
-(define (close-input-port port)
-  (assert-input-port port)
-  (assert-none-following port)
-
-  (close-input-port0 port))
 
 (define (do-times fn times)
   (define (iter n)
@@ -428,38 +483,8 @@
 	#t))
   (iter 0))
 
-(define-syntax delay (&rest body)
-  '(cons nil (lambda () . ,body)))
-
-(define (force fn)
-  (when (and (not (null? (cdr fn))) (null? (car fn)))
-	(set-car! fn ((cdr fn)))
-	(set-cdr! fn nil))
-  (car fn))
-
-(define-syntax time (&rest body)
-  (let ((start (gensym))
-	(result (gensym))
-	(end (gensym)))
-    '(let* ((,start (clock))
-	    (,result (begin . ,body))
-	    (,end (clock)))
-       (write "execution took" (- ,end ,start)
-	      "/" (clocks-per-sec) "seconds")
-       ,result)))
-
 (define (starts-with lst val)
   (eq? (first lst) val))
-
-(define-syntax case (key &rest clauses)
-  (let ((key-val (gensym)))
-    '(let ((,key-val ,key))
-       (cond . ,(map (lambda (c)
-		       (if (starts-with c 'else)
-			   c
-			   '((member? ,key-val ',(first c))
-			     . ,(cdr c))))
-		     clauses)))))
 
 (define (find fn lst)
   (define (iter rest)
@@ -475,6 +500,31 @@
   '(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
+
+;; Implement the classic delay/force combo directly by representing a
+;; delay as the cons of its value (nil of not yet forced) and the
+;; closure that computes it (nil if it has been forced)
+(define-syntax delay (&rest body)
+  '(cons nil (lambda () . ,body)))
+
+(define (force fn)
+  (when (and (not (null? (cdr fn))) (null? (car fn)))
+	(set-car! fn ((cdr fn)))
+	(set-cdr! fn nil))
+  (car fn))
+
+;; For really simple performance testing: Print out the time it takes
+;; to execute a set of forms.
+(define-syntax time (&rest body)
+  (let ((start (gensym))
+	(result (gensym))
+	(end (gensym)))
+    '(let* ((,start (clock))
+	    (,result (begin . ,body))
+	    (,end (clock)))
+       (write "execution took" (- ,end ,start)
+	      "/" (clocks-per-sec) "seconds")
+       ,result)))
+
 'stdlib-loaded
 
-;(set! *debug* #t)
