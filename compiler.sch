@@ -1,3 +1,16 @@
+;; Stage 3, Bytecode generation
+;;
+;; This is essentially a direct translation of the bytecode compiler
+;; presented in Peter Norvig's "Paradigms of Artificial Intelligence
+;; Programming." The bytecode should be identitcal to the bytecode
+;; produced in the book.
+;;
+;; Eventually this bytecode will be executed on a virtual machine back
+;; in primitive space.
+
+;; Comment out the second form for loads of function trace
+;; information. I should really write a real trace macro at some
+;; point.
 (define write-dbg write)
 (define (write-dbg &rest args)
   #t)
@@ -13,7 +26,8 @@
 	   (begin (comp-begin (rest x) env))
 	   (set! (seq (comp (third x) env) (gen-set (second x) env)))
 	   (if (comp-if (second x) (third x) (rest (rest x)) env))
-	   (lambda (gen 'fn (comp-lambda (second x) (rest (rest x)) env)))
+	   (lambda (gen 'fn
+			(comp-lambda (second x) (rest (rest x)) env)))
 	   (else (seq (mappend (lambda (y) (comp y env)) (rest x))
 		      (comp (first x) env)
 		      (gen 'call (length (rest x)))))))))
@@ -40,7 +54,7 @@
   (list 'fn code env name args))
 
 (define (fn? fn)
-  (eq? (car fn) 'fn))
+  (and (pair? fn) (eq? (car fn) 'fn)))
 
 (define (fn-code fn)
   (first (cdr fn)))
@@ -114,16 +128,23 @@
 	nil
 	(list (index-eq frame env) (index-eq symbol frame)))))
 
-(define (show-fn fn)
+(define (make-space spaces)
+  (reduce concat (duplicate " " spaces) ""))
+
+(define (show-fn fn indent)
   (if (not (fn? fn))
-      (write "   " fn)
+      (write "#  " fn)
       (begin
 	(newline)
 	(dolist (instr (fn-code fn))
-		(write instr)))))
+		(if (symbol? instr)
+		    (write instr ":")
+		    (dolist (arg instr)
+			    (show-fn arg (+ indent 4))))))))
+
 
 (define (comp-show fn)
-  (show-fn (compiler fn)))
+  (show-fn (compiler fn) 0))
 
 
 ; now we can compile functions to bytecode and print the results like

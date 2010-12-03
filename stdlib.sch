@@ -52,9 +52,9 @@
      (concat "#" (number->string next-gensym)))))
 
 (define-syntax0 let0 (bindings body)
-  '((lambda ,(map first bindings)
+  '((lambda ,(map car0 bindings)
       ,body)
-    . ,(map second bindings)))
+    . ,(map second0 bindings)))
 
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that too. Note that these functions are not type-safe. We
@@ -72,16 +72,18 @@
       #f
       #t))
 
-(define0 cadr (x) (car0 (cdr0 x)))
+(define0 cadr0 (x) (car0 (cdr0 x)))
+(define0 cadr (x) (car (cdr x)))
 (define0 caddr (x) (car0 (cdr0 (cdr0 x))))
 (define0 cadddr (x) (car0 (cdr0 (cdr0 (cdr0 x)))))
 
-(define0 first (x) (car0 x))
+(define0 first (x) (car x))
 (define0 second (x) (cadr x))
+(define0 second0 (x) (cadr0 x))
 (define0 third (x) (caddr x))
 (define0 fourth (x) (cadddr x))
 
-(define0 rest (x) (cdr0 x))
+(define0 rest (x) (cdr x))
 
 ;; Defining some more convenience routines so that we can eventially
 ;; define the wrap-rest macro which will be very useful for defining
@@ -133,7 +135,7 @@
 	  '(set-local! ',(car0 name) nil))
      ,(if (symbol? name)
 	  '(set! ,name . ,body)
-	  '(set! ,(first name)
+	  '(set! ,(car0 name)
 	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
 
 ;; Finally! Now we can get to work defining our standard conditional
@@ -402,14 +404,18 @@
 
 (define (append list1 list2)
   (if (null? list1)
-      list2
+      (if (null? list2)
+	  nil
+	  list2)
       (cons (car list1) (append (cdr list1) list2))))
 
 ;; todo, make tail recursive
 (define (append-all lsts)
-  (if (null? (rest lsts))
-      (first lsts)
-      (append (first lsts) (append-all (rest lsts)))))
+  (if (null? lsts)
+      nil
+      (if (null? (rest lsts))
+	  (first lsts)
+	  (append (first lsts) (append-all (rest lsts))))))
 
 (define (mappend fn lst)
   (append-all (map fn lst)))
@@ -483,6 +489,10 @@
 	#t))
   (iter 0))
 
+(define-syntax dotimes (args &rest body)
+  '(do-times (lambda (,(first args)) . ,body)
+	     ,(second args)))
+
 (define (starts-with lst val)
   (eq? (first lst) val))
 
@@ -495,6 +505,21 @@
 	      (car rest)
 	      (iter (cdr rest))))))
   (iter lst))
+
+(define (reduce fn lst &rest init)
+  (define (iter last rest)
+    (if (null? rest)
+	last
+	(iter (fn last (car rest)) (cdr rest))))
+  (if (null? init)
+      (iter (car lst) (cdr lst))
+      (iter (car init) lst)))
+
+(define (duplicate obj n)
+  (define result nil)
+  (dotimes (x n)
+	   (set! result (cons obj result)))
+  result)
 
 (define-syntax dolist (args &rest body)
   '(for-each (lambda (,(first args)) . ,body)
