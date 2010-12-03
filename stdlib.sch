@@ -413,20 +413,21 @@
 	(iter (cdr a) (prim-+ 1 count))))
   (iter items 0))
 
-(define (append list1 list2)
-  (if (null? list1)
-      (if (null? list2)
-	  nil
-	  list2)
-      (cons (car list1) (append (cdr list1) list2))))
-
-;; todo, make tail recursive
-(define (append-all lsts)
-  (if (null? lsts)
-      nil
-      (if (null? (rest lsts))
-	  (first lsts)
-	  (append (first lsts) (append-all (rest lsts))))))
+(define (append-all lists)
+  (define (iter result current-list remaining-lists)
+    (if (null? current-list)
+	(if (null? remaining-lists)
+	    result
+	    (iter result
+		  (car remaining-lists)
+		  (cdr remaining-lists)))
+	(iter (cons (car current-list) result)
+	      (cdr current-list)
+	      remaining-lists)))
+  (reverse (iter nil nil lists)))
+	      
+(define (append &rest lists)
+  (append-all lists))
 
 (define (mappend fn lst)
   (append-all (map fn lst)))
