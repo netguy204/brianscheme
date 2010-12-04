@@ -88,11 +88,13 @@
 (define0 cadr (x) (car (cdr x)))
 (define0 caddr (x) (car (cdr (cdr x))))
 (define0 cadddr (x) (car (cdr (cdr (cdr x)))))
+(define0 caddddr (x) (car (cdr (cdr (cdr (cdr x))))))
 
 (define0 first (x) (car x))
 (define0 second (x) (cadr x))
 (define0 third (x) (caddr x))
 (define0 fourth (x) (cadddr x))
+(define0 fifth (x) (caddddr x))
 
 (define0 rest (x) (cdr x))
 
@@ -186,7 +188,7 @@
       (if (eq? (first (car clauses)) 'else)
 	  (second (car clauses))
 	  `(if ,(first (car clauses))
-	       ,(second (car clauses))
+	       (begin . ,(rest (car clauses)))
 	       (cond . ,(cdr clauses))))))
 
 (define-syntax and (&rest clauses)
@@ -260,6 +262,17 @@
 	    (debug-repl))))
 
 (define (exit-hook)
+  ;; turn off debug so that we don't get a lot of extra noise between
+  ;; the real failure and the launch of the debug-repl.
+  (set-debug! #f)
+
+  ;; disable the exit-hook in case the thing that kicked us off was an
+  ;; exception during writing out something that's going to appear in
+  ;; the backtrace
+  (set! exit-hook nil)
+
+  ;; now dump an approximation of the backtrace (it's missing all
+  ;; tail-calls) and launch a debug repl.
   (print-backtrace)
   (write "evaluate 'quit to exit")
   (debug-repl))
@@ -350,6 +363,17 @@
 (define (= &rest values)
   (assert-numbers values)
   (apply prim-= values))
+
+(define (<=2 a b)
+  (or (< a b) (= a b)))
+
+(define-syntax <= (&rest values)
+  (if (or (null? values)
+	  (null? (cdr values)))
+      #t
+      `(and (<=2 ,(first values) ,(second values))
+	    (<= . ,(cdr values)))))
+
 
 (define (assert-string name var)
   (if (string? var)
@@ -516,8 +540,10 @@
 (define-syntax dotimes (args &rest body)
   `(do-times (lambda (,(first args)) . ,body)
 	     ,(second args)))
+
 (define (starts-with lst val)
-  (eq? (first lst) val))
+  (and (pair? lst)
+       (eq? (first lst) val)))
 
 (define (find fn lst)
   (define (iter rest)
@@ -528,6 +554,20 @@
 	      (car rest)
 	      (iter (cdr rest))))))
   (iter lst))
+
+(define (starts-with? exp val)
+  (and (pair? exp) (eq? (car exp) val)))
+
+(define (assoc key list)
+  (find (lambda (e) (starts-with? e key))
+	list))
+
+(define (equal? a b)
+  (if (and (pair? a)
+	   (pair? b))
+      (and (equal? (car a) (car b))
+	   (equal? (cdr a) (cdr b)))
+      (eq? a b)))
 
 (define (reduce fn lst &rest init)
   (define (iter last rest)

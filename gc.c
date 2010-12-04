@@ -63,7 +63,7 @@ void ensure_root_objects(void) {
   if(Root_Objects == NULL) {
     Root_Objects = MALLOC(sizeof(Root_Objects));
     Root_Objects->top = 0;
-    Root_Objects->size = 200;
+    Root_Objects->size = 400;
     Root_Objects->objs = MALLOC(sizeof(object**) * 
 				Root_Objects->size);
   }

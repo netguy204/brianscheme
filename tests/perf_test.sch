@@ -32,4 +32,7 @@
 'big-append
 (time (append big-list big-list) 'done)
 
+'mark-and-sweep
+(time (mark-and-sweep))
+
 (exit 0)

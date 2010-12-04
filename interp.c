@@ -206,6 +206,10 @@ DEFUN1(is_procedure_proc) {
   return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST));
 }
 
+DEFUN1(is_compound_proc_proc) {
+  return AS_BOOL(is_compound_proc(FIRST));
+}
+
 DEFUN1(is_syntax_proc_proc) {
   return AS_BOOL(is_syntax_proc(FIRST));
 }
@@ -512,6 +516,22 @@ DEFUN1(concat_proc) {
   return make_string(buffer);
 }
 
+DEFUN1(current_environment_proc) {
+  return environment;
+}
+
+DEFUN1(compound_args_proc) {
+  return FIRST->data.compound_proc.parameters;
+}
+
+DEFUN1(compound_body_proc) {
+  return FIRST->data.compound_proc.body;
+}
+
+DEFUN1(compound_env_proc) {
+  return FIRST->data.compound_proc.env;
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -537,7 +557,6 @@ void write(FILE *out, object *obj) {
 
   if(obj == NULL) {
     fprintf(out, "#<NULL>");
-    throw_interp("cons contained null");
     return;
   }
 
@@ -596,6 +615,9 @@ void write(FILE *out, object *obj) {
     break;
   case PAIR:
     head = car(obj);
+    /* it's a bug to assume this object has a cadr but I'm
+     * not sure what to do instead.
+     */
     if(head == quote_symbol) {
       fprintf(out, "'");
       write(out, cadr(obj));
@@ -777,10 +799,14 @@ object *interp1(object *exp, object *env, int level) {
       object *args = cdr(exp);
       object *predicate = interp1(first(args), env, level + 1);
 
-      if(predicate == true) {
-	exp = second(args);
+      if(predicate == false || is_the_empty_list(predicate)) {
+	if(is_the_empty_list(cdr(cdr(args)))) {
+	  INTERP_RETURN(false);
+	} else {
+	  exp = third(args);
+	}
       } else {
-	exp = third(args);
+	exp = second(args);
       }
       goto interp_restart;
     }
@@ -892,6 +918,7 @@ void init_prim_environment(object *env) {
   add_procedure("string?", is_string_proc);
   add_procedure("pair?", is_pair_proc);
   add_procedure("procedure?", is_procedure_proc);
+  add_procedure("compound-procedure?", is_compound_proc_proc);
   add_procedure("syntax-procedure?", is_syntax_proc_proc);
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
@@ -946,6 +973,11 @@ void init_prim_environment(object *env) {
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);
+  add_procedure("current-environment",
+		current_environment_proc);
+  add_procedure("compound-body", compound_body_proc);
+  add_procedure("compound-args", compound_args_proc);
+  add_procedure("compound-environment", compound_env_proc);
 
   define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,
