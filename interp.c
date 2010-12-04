@@ -9,6 +9,7 @@
 #include "gc.h"
 
 static const int DEBUG_LEVEL = 1;
+static char debug_enabled = 0;
 
 /* dealing with environments */
 object *enclosing_environment(object *env) {
@@ -224,6 +225,15 @@ DEFUN1(mul_proc) {
     NEXT;
   }
   return make_fixnum(result);
+}
+
+DEFUN1(debug_proc) {
+  if(FIRST == false) {
+    debug_enabled = 0;
+  } else {
+    debug_enabled = 1;
+  }
+  return FIRST;
 }
 
 DEFUN1(div_proc) {
@@ -638,9 +648,7 @@ void write(FILE *out, object *obj) {
 }
 
 object *debug_write(char * msg, object *obj, int level) {
-  object *debug = lookup_variable_value(debug_symbol, the_global_environment);
-
-  if(debug == true) {
+  if(debug_enabled) {
     int ii;
     for(ii = 0; ii < level; ++ii) {
       fprintf(stderr, " ");
@@ -950,6 +958,7 @@ void init_prim_environment(object *env) {
   add_procedure("mark-and-sweep", mark_and_sweep_proc);
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
+  add_procedure("set-debug!", debug_proc);
 
   define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,
