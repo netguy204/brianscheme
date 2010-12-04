@@ -31,3 +31,5 @@
 
 'big-append
 (time (append big-list big-list) 'done)
+
+(exit 0)

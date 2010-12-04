@@ -254,10 +254,19 @@
   (write "evaluate 'quit to exit")
   (debug-repl))
 
+;; We want to also provide a way to exit without invoking the exit
+;; hook. It seems natural to call this exit so we'll redefine the old
+;; one and replace it.
+(define throw-exit exit)
+
 (define-syntax throw-error (&rest objs)
   '(begin
      (error . ,objs)
-     (exit 1)))
+     (throw-exit 1)))
+
+(define (exit val)
+  (set! exit-hook nil)
+  (throw-exit val))
 
 ;; Now we start defining the type-safer versions of the primitives
 ;; that we started out with. We must be very careful in our
@@ -555,44 +564,59 @@
 	      "/" (clocks-per-sec) "seconds")
        ,result)))
 
+(define (abs a)
+  (if (< a 0)
+      (- 0 a)
+      a))
+
+(define (min a b)
+  (if (< a b)
+      a
+      b))
+
+(define (max a b)
+  (if (> a b)
+      a
+      b))
+
 (define (gcd a b)
   (if (= b 0)
-      a
+      (abs a)
       (gcd b (- a (* b (/ a b))))))
 
 (define (make-rat a b)
   (reduce-rat (cons a b)))
 
-(define (rat-num a)
+(define (numerator a)
   (car a))
 
-(define (rat-den a)
+(define (denominator a)
   (cdr a))
 
 (define (reduce-rat rat)
-  (let ((common (gcd (rat-num rat) (rat-den rat))))
-    (cons (/ (rat-num rat) common) (/ (rat-den rat) common))))
+  (let ((common (gcd (numerator rat) (denominator rat))))
+    (cons (/ (numerator rat) common) (/ (denominator rat) common))))
 
 (define (neg-rat rat)
-  (make-rat (- 0 (rat-num rat)) (rat-den rat)))
+  (make-rat (- 0 (numerator rat)) (denominator rat)))
 
 (define (add-rat a b)
-  (let ((na (rat-num a))
-	(nb (rat-num b))
-	(da (rat-den a))
-	(db (rat-den b)))
+  (let ((na (numerator a))
+	(nb (numerator b))
+	(da (denominator a))
+	(db (denominator b)))
     (make-rat (+ (* na db) (* nb da)) (* da db))))
 
 (define (sub-rat a b)
   (add-rat a (neg-rat b)))
 
 (define (mul-rat a b)
-  (make-rat (* (rat-num a) (rat-num b))
-	    (* (rat-den a) (rat-den b))))
+  (make-rat (* (numerator a) (numerator b))
+	    (* (denominator a) (denominator b))))
 
 (define (div-rat a b)
-  (make-rat (* (rat-num a) (rat-den b))
-	    (* (rat-den a) (rat-num b))))
+  (make-rat (* (numerator a) (denominator b))
+	    (* (denominator a) (numerator b))))
 
 'stdlib-loaded
 
