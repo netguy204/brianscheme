@@ -295,11 +295,6 @@ DEFUN1(list_proc) {
   return arguments;
 }
 
-DEFUN1(set_local_proc) {
-  define_local_variable(FIRST, SECOND, environment);
-  return SECOND;
-}
-
 DEFUN1(macroexpand0_proc) {
   object *macro = FIRST;
   object *macrofn = interp(car(macro), environment);
@@ -811,12 +806,18 @@ object *interp1(object *exp, object *env, int level) {
       exp = car(exp);
       goto interp_restart;
     }
-    else if(head == set_symbol) {
+    else if(head == set_symbol ||
+	    head == setlocal_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
       push_root(&val);
 
-      define_variable(first(args), val, env);
+      if(head == set_symbol) {
+	define_variable(first(args), val, env);
+      } else {
+	define_local_variable(first(args), val, env);
+      }
+
       pop_root(&val);
 
       INTERP_RETURN(val);
@@ -967,7 +968,6 @@ void init_prim_environment(object *env) {
   add_procedure("make-vector", make_vector_proc);
   add_procedure("get-vector", get_vector_element_proc);
   add_procedure("set-vector!", set_vector_element_proc);
-  add_procedure("set-local!", set_local_proc);
 
   add_procedure("eq?", is_eq_proc);
 
@@ -1053,6 +1053,7 @@ void init() {
   quote_symbol = make_symbol("quote");
   quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
+  setlocal_symbol = make_symbol("set-local!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");

@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <string.h>
+
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
@@ -11,13 +13,14 @@ void load_library(char *libname) {
     exit(3);
   }
   
-  object *form = read(stdlib);
-  push_root(&form);
-  while(form) {
+  object *form;
+  while((form = read(stdlib)) != NULL) {
+    push_root(&form);
     print_obj(interp(form, the_global_environment));
-    form = read(stdlib);
+    pop_root(&form);
   }
-  pop_root(&form);
+
+  fclose(stdlib);
 }
 
 int main(int argc, char ** argv) {
@@ -26,10 +29,16 @@ int main(int argc, char ** argv) {
 
   init();
 
-  /* load the stdlib */
-  load_library(libname);
+  if(argc > 1 && strcmp(argv[1], "-b") == 0) {
+    /* don't load the standard lib */
+    ii = 2;
+  } else {
+    /* load the stdlib */
+    load_library(libname);
+    ii = 1;
+  }
 
-  for(ii = 1; ii < argc; ++ii) {
+  for(; ii < argc; ++ii) {
     load_library(argv[ii]);
   }
 

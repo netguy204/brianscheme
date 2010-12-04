@@ -11,12 +11,12 @@
 ;; with something more user-friendly.
 
 ;; Some very basic defines to get us started
-(set-debug! #t)
+
 (set! nil '())
 
 (set! define0
       (macro (name vars body)
-	`(set-local! ',name (lambda ,vars ,body))))
+	`(set-local! ,name (lambda ,vars ,body))))
 	
 (set! define-syntax0
       (macro (name vars body)
@@ -44,6 +44,7 @@
 ;; support automatically wrapping all of its arguments after the first
 ;; in an implicit (begin..). We'll need to add support for &rest
 ;; before we can make an appropriate let definition.
+
 (set! next-gensym 0)
 (define0 gensym ()
   (begin
@@ -66,7 +67,7 @@
 	  (iter (cdr0 in) (cons (car0 in) out))
 	  out))
     
-    (iter l '())))
+    (iter l nil)))
 
 (define0 map (fn lst)
   (begin
@@ -139,8 +140,8 @@
 (define-syntax define (name &rest body)
   `(begin
      ,(if (symbol? name)
-	  `(set-local! ',name nil)
-	  `(set-local! ',(car0 name) nil))
+	  `(set-local! ,name nil)
+	  `(set-local! ,(car0 name) nil))
      ,(if (symbol? name)
 	  `(set! ,name . ,body)
 	  `(set! ,(car0 name)

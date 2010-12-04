@@ -197,8 +197,8 @@ static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
   /* always sweep while we're debugging
-  */
   mark_and_sweep();
+  */
 
   if(Free_Objects == NULL) {
     debug_gc("no space. trying mark-and-sweep\n");
@@ -231,8 +231,8 @@ object *alloc_object(void) {
 
   /* clear when we're debugging so things fail
    * quickly 
-   */
   memset(obj, 0, sizeof(object));
+   */
 
   obj->next = Active_List;
   Active_List = obj;
