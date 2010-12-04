@@ -77,11 +77,6 @@
     
     (reverse (iter nil lst))))
 
-(define0 not (x)
-  (if x
-      #f
-      #t))
-
 (define0 cadr0 (x) (car0 (cdr0 x)))
 (define0 second0 (x) (cadr0 x))
 
@@ -154,6 +149,11 @@
 ;; Finally! Now we can get to work defining our standard conditional
 ;; constructs and other basic functionality that everyone expects to
 ;; have available.
+(define-syntax not (pred)
+  `(if ,pred
+       #f
+       #t))
+
 (define (length=1 lst)
   (if (not (null? (car0 lst)))
       (if (null? (cdr0 lst))

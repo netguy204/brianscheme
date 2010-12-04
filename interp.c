@@ -471,6 +471,20 @@ DEFUN1(string_to_uninterned_symbol_proc) {
   return make_uninterned_symbol(STRING(FIRST));
 }
 
+DEFUN1(make_vector_proc) {
+  object *obj = make_vector(FIRST, LONG(SECOND));
+  return obj;
+}
+
+DEFUN1(get_vector_element_proc) {
+  return VARRAY(FIRST)[LONG(SECOND)];
+}
+
+DEFUN1(set_vector_element_proc) {
+  VARRAY(FIRST)[LONG(SECOND)] = THIRD;
+  return THIRD;
+}
+
 DEFUN1(exit_proc) {
   eval_exit_hook(environment);
   exit((int)LONG(FIRST));
@@ -551,6 +565,7 @@ void write_pair(FILE *out, object *pair) {
 }
 
 void write(FILE *out, object *obj) {
+  int ii;
   char c;
   char *str;
   object *head;
@@ -612,6 +627,17 @@ void write(FILE *out, object *obj) {
       str++;
     }
     putc('"', out);
+    break;
+  case VECTOR:
+    putc('#', out);
+    putc('(', out);
+    for(ii = 0; ii < VSIZE(obj); ++ii) {
+      if(ii > 0) {
+	putc(' ', out);
+      }
+      write(out, VARRAY(obj)[ii]);
+    }
+    putc(')', out);
     break;
   case PAIR:
     head = car(obj);
@@ -938,6 +964,9 @@ void init_prim_environment(object *env) {
   add_procedure("set-car!", set_car_proc);
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
+  add_procedure("make-vector", make_vector_proc);
+  add_procedure("get-vector", get_vector_element_proc);
+  add_procedure("set-vector!", set_vector_element_proc);
   add_procedure("set-local!", set_local_proc);
 
   add_procedure("eq?", is_eq_proc);

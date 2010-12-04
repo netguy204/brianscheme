@@ -111,6 +111,8 @@ void extend_heap(long extension) {
 }
 
 void mark_reachable(object *root) {
+  int ii;
+
   if(root == NULL) return;
   if(root->mark) return;
 
@@ -126,6 +128,11 @@ void mark_reachable(object *root) {
     mark_reachable(root->data.compound_proc.parameters);
     mark_reachable(root->data.compound_proc.body);
     mark_reachable(root->data.compound_proc.env);
+    break;
+  case VECTOR:
+    for(ii = 0; ii < VSIZE(root); ++ii) {
+      mark_reachable(VARRAY(root)[ii]);
+    }
     break;
   default:
     break;
@@ -143,8 +150,16 @@ long sweep_unmarked() {
 
     /* unreached so free it */
     if(!head->mark) {
-      if(head->type == STRING) {
+      /* free any extra memory associated with this type */
+      switch(head->type) {
+      case STRING:
 	free(head->data.string.value);
+	break;
+      case VECTOR:
+	free(VARRAY(head));
+	break;
+      default:
+	break;
       }
       
       head->next = Free_Objects;

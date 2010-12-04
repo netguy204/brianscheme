@@ -72,11 +72,10 @@
 
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
-  (when val? ;(seq (if (member? x '(#t nil -1 0 1 2))
-		      ;(gen x)
-		      ;(gen 'const x))
-	(seq (gen 'const x)
-	     (unless more? (gen 'return)))))
+  (when val? (seq (if (member? x '(#t #f nil -1 0 1 2))
+		      (gen x)
+		      (gen 'const x))
+		  (unless more? (gen 'return)))))
 
 (define (comp-var x env val? more?)
   (write-dbg 'comp-var x 'val? val? 'more? more?)
@@ -222,7 +221,7 @@
   (map (lambda (fn) (cons 'prim fn))
        '((+ 2 + #t #f) (- 2 - #t #f) (* 2 * #t #f) (/ 2 / #t #f)
 	 (< 2 < #f #f) (> 2 > #f #f)
-	 (= 2 = #f #f) (eq? 2 eq? #f #f) (not 1 not #f #f)
+	 (= 2 = #f #f) (eq? 2 eq? #f #f)
 	 (car 1 car #f #f) (cdr 1 cdr #f #f)
 	 (null? 1 null? #f #f))))
 

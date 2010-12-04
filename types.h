@@ -9,7 +9,8 @@
 typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
-	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC} object_type;
+	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
+	      VECTOR} object_type;
 
 typedef struct object {
   object_type type;
@@ -33,6 +34,10 @@ typedef struct object {
       struct object *car;
       struct object *cdr;
     } pair;
+    struct {
+      struct object **objects;
+      unsigned long size;
+    } vector;
     struct {
       struct object *(*fn)(struct object *arguments,
 			   struct object *environment);
@@ -102,20 +107,29 @@ object *cdr(object *pair);
 
 void set_cdr(object *obj, object *value);
 
+object *make_vector(object *fill, long size);
+
+char is_vector(object *obj);
+
 /* statistics */
 long get_alloc_count();
 long get_cons_count();
 
 #define caar(obj) car(car(obj))
 #define cadr(obj) car(cdr(obj))
+#define caddr(obj) car(cdr(cdr(obj)))
+
 #define first(obj) car(obj)
 #define second(obj) cadr(obj)
-#define third(obj) car(cdr(cdr(obj)))
+#define third(obj) caddr(obj)
 #define list1(a) cons(a,the_empty_list)
 #define list2(a,b) cons(a,list1(b))
 #define list3(a,b,c) cons(a,list2(b,c))
 #define list4(a,b,c,d) cons(a,list3(b,c,d))
 #define list5(a,b,c,d,e) cons(a,list4(b,c,d,e))
+
+#define VARRAY(obj) (obj->data.vector.objects)
+#define VSIZE(obj) (obj->data.vector.size)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

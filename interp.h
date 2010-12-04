@@ -12,7 +12,8 @@ object *cdr(object *pair);
 #define DEFUN1(name) object* name(object *arguments, \
 				  object *environment)
 #define FIRST car(arguments)
-#define SECOND cadr(arguments)
+#define SECOND second(arguments)
+#define THIRD third(arguments)
 #define NEXT arguments = cdr(arguments)
 
 #define AS_BOOL(x) (x ? true : false)

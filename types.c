@@ -94,6 +94,22 @@ void set_cdr(object *obj, object *value) {
   obj->data.pair.cdr = value;
 }
 
+object *make_vector(object *fill, long size) {
+  int ii;
+  object *obj = alloc_object();
+  obj->type = VECTOR;
+  VARRAY(obj) = MALLOC(sizeof(object) * size);
+  VSIZE(obj) = size;
+  for(ii = 0; ii < size; ++ii) {
+    VARRAY(obj)[ii] = fill;
+  }
+  return obj;
+}
+
+char is_vector(object *obj) {
+  return obj->type == VECTOR;
+}
+
 object *make_primitive_proc(prim_proc fn) {
   object *obj = alloc_object();
   obj->type = PRIMITIVE_PROC;
