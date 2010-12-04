@@ -36,7 +36,7 @@ typedef struct object {
     } pair;
     struct {
       struct object **objects;
-      unsigned long size;
+      long size;
     } vector;
     struct {
       struct object *(*fn)(struct object *arguments,
@@ -128,6 +128,12 @@ long get_cons_count();
 #define list4(a,b,c,d) cons(a,list3(b,c,d))
 #define list5(a,b,c,d,e) cons(a,list4(b,c,d,e))
 
+#define LONG(x) x->data.fixnum.value
+#define CHAR(x) x->data.character.value
+#define STRING(x) x->data.string.value
+#define BOOLEAN(x) x->data.boolean.value
+#define INPUT(x) x->data.input_port.stream
+#define OUTPUT(x) x->data.output_port.stream
 #define VARRAY(obj) (obj->data.vector.objects)
 #define VSIZE(obj) (obj->data.vector.size)
 

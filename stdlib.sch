@@ -11,7 +11,7 @@
 ;; with something more user-friendly.
 
 ;; Some very basic defines to get us started
-
+(set-debug! #t)
 (set! nil '())
 
 (set! define0

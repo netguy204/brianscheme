@@ -56,7 +56,7 @@ void debug_gc(char *msg, ...) {
 }
 #else
 void print_backtrace() {}
-void debug_gc(char *msg, ...) {}
+#define debug_gc(msg, ...)
 #endif
 
 void ensure_root_objects(void) {
@@ -197,8 +197,8 @@ static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
   /* always sweep while we're debugging
-  mark_and_sweep();
   */
+  mark_and_sweep();
 
   if(Free_Objects == NULL) {
     debug_gc("no space. trying mark-and-sweep\n");

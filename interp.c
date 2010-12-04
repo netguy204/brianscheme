@@ -565,7 +565,7 @@ void write_pair(FILE *out, object *pair) {
 }
 
 void write(FILE *out, object *obj) {
-  int ii;
+  long ii;
   char c;
   char *str;
   object *head;
@@ -874,7 +874,7 @@ object *interp1(object *exp, object *env, int level) {
       /* evaluate the arguments */
       object *evald_args = the_empty_list;
       object *result = the_empty_list;
-      object *last;
+      object *last = the_empty_list;
       push_root(&evald_args);
       push_root(&result);
 
