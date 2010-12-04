@@ -58,7 +58,7 @@
 	(syntax-procedure? (car val)))))
 
 (define (comp-macroexpand0 exp)
-  (eval `(macroexpand0 '(,(eval (car exp)) . ,(cdr exp)))))
+  (eval `(macroexpand0 '(,(car exp) . ,(cdr exp)))))
 
 (define (make-fn code env name args)
   (write-dbg 'make-fn 'code code)

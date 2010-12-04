@@ -473,20 +473,6 @@ DEFUN1(exit_proc) {
   return false;
 }
 
-DEFUN1(apply_proc) {
-  object *fn = FIRST;
-  object *args = SECOND;
-
-  object *exp = cons(fn, args);
-  push_root(&exp);
-  /* TODO: does this need to be pushed? */
-  push_root(&environment);
-  object *result = interp(exp, environment);
-  pop_root(&environment);
-  pop_root(&exp);
-  return result;
-}
-
 DEFUN1(stats_proc) {
   object *temp = cons(make_fixnum(get_cons_count()), the_empty_list);
   push_root(&temp);
@@ -942,7 +928,6 @@ void init_prim_environment(object *env) {
 
   add_procedure("macroexpand0", macroexpand0_proc);
   add_procedure("eval", eval_proc);
-  add_procedure("apply", apply_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("number->string", number_to_string_proc);

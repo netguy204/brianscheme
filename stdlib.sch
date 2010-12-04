@@ -223,6 +223,15 @@
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
 
+;; I'm pretty sure this is a fully legit version of apply. Let me know
+;; if you disagree... I'm a little surprised this can be implemented
+;; in userspace.
+(define-syntax apply (fn args)
+  `(,fn . ,(map (lambda (x) `',x) (eval args))))
+
+(define-syntax funcall (fn &rest args)
+  `(apply ,fn ',args))
+ 
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
 ;; executed. The interpreter also invokes this hook when it's about to
