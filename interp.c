@@ -11,6 +11,27 @@
 static const int DEBUG_LEVEL = 1;
 static char debug_enabled = 0;
 
+void eval_exit_hook(object *environment) {
+  object *exit_hook = lookup_variable_value(exit_hook_symbol,
+					    environment);
+  if(exit_hook != the_empty_list) {
+    object *exp = cons(exit_hook, the_empty_list);
+    push_root(&exp);
+    interp(exp, environment);
+    pop_root(&exp);
+  }
+}
+
+void throw_interp(char * msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  va_end(args);
+
+  eval_exit_hook(the_global_environment);
+  exit(1);
+}
+
 /* dealing with environments */
 object *enclosing_environment(object *env) {
   return cdr(env);
@@ -88,29 +109,29 @@ object *find_variable_value(object *var, object *env,
  * implementing &rest args in userspace
  */
 DEFUN1(find_variable_proc) {
-  object *val = find_variable_value(FIRST, environment, 0);
-  return val;
-}
-
-/**
- * PRIVATE
- * Handle errors when a symbol is assumed to be bound but isn't
- */
-void throw_unbound_sym(object *sym) {
-  fprintf(stderr, "unbound symbol, %s\n", sym->data.symbol.value);
-  exit(1);
+  if(is_the_empty_list(cdr(arguments)) || SECOND == false) {
+    return find_variable_value(FIRST, environment, 0);
+  } else {
+    return find_variable_value(FIRST, environment, 1);
+  }
 }
 
 object *lookup_variable_value(object *var, object *env) {
   object *val = find_variable_value(var, env, 1);
-  if(is_the_empty_list(val)) throw_unbound_sym(var);
+  if(is_the_empty_list(val)) {
+    throw_interp("lookup failed. variable %s is unbound\n",
+		 STRING(var));
+  }
 
   return car(val);
 }
 
 void set_variable_value(object *var, object *new_val, object *env) {
   object *val = find_variable_value(var, env, 1);
-  if(is_the_empty_list(val)) throw_unbound_sym(var);
+  if(is_the_empty_list(val)) {
+    throw_interp("set failed. variable %s is unbound\n",
+		 STRING(var));
+  }
 
   set_car(val, new_val);
 }
@@ -446,17 +467,6 @@ DEFUN1(string_to_uninterned_symbol_proc) {
   return make_uninterned_symbol(STRING(FIRST));
 }
 
-void eval_exit_hook(object *environment) {
-  object *exit_hook = lookup_variable_value(exit_hook_symbol,
-					    environment);
-  if(exit_hook != the_empty_list) {
-    object *exp = cons(exit_hook, the_empty_list);
-    push_root(&exp);
-    interp(exp, environment);
-    pop_root(&exp);
-  }
-}
-
 DEFUN1(exit_proc) {
   eval_exit_hook(environment);
   exit((int)LONG(FIRST));
@@ -514,16 +524,6 @@ DEFUN1(concat_proc) {
   char *str2 = STRING(SECOND);
   sprintf(buffer, "%s%s", str1, str2);
   return make_string(buffer);
-}
-
-void throw_interp(char * msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-
-  eval_exit_hook(the_global_environment);
-  exit(1);
 }
 
 void write_pair(FILE *out, object *pair) {
@@ -639,11 +639,10 @@ void write(FILE *out, object *obj) {
     fprintf(out, "#<output-port>");
     break;
   case EOF_OBJECT:
-    fprintf(out, "#<eof");
+    fprintf(out, "#<eof>");
     break;
   default:
-    fprintf(stderr, "cannot write unknown type: %d\n", obj->type);
-    exit(1);
+    throw_interp("cannot write unknown type: %d\n", obj->type);
   }
 }
 
@@ -758,6 +757,9 @@ object *interp1(object *exp, object *env, int level) {
   else if(is_pair(exp)) {
     object *head = car(exp);
     if(head == quote_symbol) {
+      INTERP_RETURN(second(exp));
+    }
+    else if(head == quasiquote_symbol) {
       INTERP_RETURN(interp_unquote(second(exp), env, level));
     }
     else if(head == begin_symbol) {
@@ -1003,6 +1005,7 @@ void init() {
 
   unquote_symbol = make_symbol("unquote");
   quote_symbol = make_symbol("quote");
+  quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");

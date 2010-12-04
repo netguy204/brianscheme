@@ -9,6 +9,7 @@ object *false;
 object *true;
 object *symbol_table;
 object *quote_symbol;
+object *quasiquote_symbol;
 object *unquote_symbol;
 object *set_symbol;
 object *if_symbol;

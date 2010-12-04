@@ -262,6 +262,14 @@ object *read(FILE *in) {
     pop_root(&unquoted);
     return unquoted;
   }
+  else if(c == '`') {
+    object *qquoted = read(in);
+    push_root(&qquoted);
+    qquoted = cons(qquoted, the_empty_list);
+    qquoted = cons(quasiquote_symbol, qquoted);
+    pop_root(&qquoted);
+    return qquoted;
+  }
   else if(c == EOF) {
     return NULL;
   }

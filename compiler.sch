@@ -18,9 +18,10 @@
 (define (comp x env)
   (write-dbg 'comp x)
   (cond
+   ((and (pair? x)
+	 (sym-is-syntax? (car x))) (comp (comp-macroexpand0 x) env))
    ((symbol? x) (gen-var x env))
    ((atom? x) (gen 'const x))
-   ((syntax-procedure? x) (comp (macroexpand0 x) env))
    (else (case (first x)
 	   (quote (gen 'const (second x)))
 	   (begin (comp-begin (rest x) env))
@@ -28,6 +29,7 @@
 	   (if (comp-if (second x) (third x) (rest (rest x)) env))
 	   (lambda (gen 'fn
 			(comp-lambda (second x) (rest (rest x)) env)))
+	   ;; generate an invocation
 	   (else (seq (mappend (lambda (y) (comp y env)) (rest x))
 		      (comp (first x) env)
 		      (gen 'call (length (rest x)))))))))
@@ -48,6 +50,15 @@
 	 (comp then env) (gen 'jump l2)
 	 (list l1) (comp else env)
 	 (list l2))))
+
+(define (sym-is-syntax? sym)
+  (let ((val (find-variable sym #t)))
+    (if (null? val)
+	#f
+	(syntax-procedure? (car val)))))
+
+(define (comp-macroexpand0 exp)
+  (eval `(macroexpand0 '(,(eval (car exp)) . ,(cdr exp)))))
 
 (define (make-fn code env name args)
   (write-dbg 'make-fn 'code code)

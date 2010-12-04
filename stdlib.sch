@@ -16,11 +16,11 @@
 
 (set! define0
       (macro (name vars body)
-	'(set-local! ',name (lambda ,vars ,body))))
+	`(set-local! ',name (lambda ,vars ,body))))
 	
 (set! define-syntax0
       (macro (name vars body)
-	'(set! ,name (macro ,vars ,body))))
+	`(set! ,name (macro ,vars ,body))))
 
 
 ;; We're going to override these names later so I'm stashing away the
@@ -52,7 +52,7 @@
      (concat "#" (number->string next-gensym)))))
 
 (define-syntax0 let0 (bindings body)
-  '((lambda ,(map car0 bindings)
+  `((lambda ,(map car0 bindings)
       ,body)
     . ,(map second0 bindings)))
 
@@ -125,8 +125,8 @@
 (define-syntax0 wrap-rest (type args fbody)
   (let0 ((idx (index-eq '&rest args)))
 	(if (null? idx)
-	    '(,type ,args ,fbody)
-	    '(,type ,args
+	    `(,type ,args ,fbody)
+	    `(,type ,args
 		    (let0 ((,(nth args (prim-+ 1 idx)) (find-variable '&rest)))
 			  ,fbody)))))
 
@@ -134,19 +134,19 @@
 ;; now we can define a proper define-syntax and use it to
 ;; build a proper define
 (define-syntax0 define-syntax1 (name args fbody)
-  '(set! ,name (wrap-rest macro ,args ,fbody)))
+  `(set! ,name (wrap-rest macro ,args ,fbody)))
 
 (define-syntax1 define-syntax (name args &rest fbody)
-  '(set! ,name (wrap-rest macro ,args (begin . ,fbody))))
+  `(set! ,name (wrap-rest macro ,args (begin . ,fbody))))
 
 (define-syntax define (name &rest body)
-  '(begin
+  `(begin
      ,(if (symbol? name)
-	  '(set-local! ',name nil)
-	  '(set-local! ',(car0 name) nil))
+	  `(set-local! ',name nil)
+	  `(set-local! ',(car0 name) nil))
      ,(if (symbol? name)
-	  '(set! ,name . ,body)
-	  '(set! ,(car0 name)
+	  `(set! ,name . ,body)
+	  `(set! ,(car0 name)
 	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
 
 ;; Finally! Now we can get to work defining our standard conditional
@@ -160,23 +160,23 @@
       #f))
 
 (define-syntax let (bindings &rest body)
-  '((lambda ,(map first bindings)
+  `((lambda ,(map first bindings)
       (begin . ,body))
     . ,(map second bindings)))
 
 (define-syntax let* (bindings &rest body)
   (if (null? bindings)
-      '(begin . ,body)
-      '(let (,(first bindings))
+      `(begin . ,body)
+      `(let (,(first bindings))
 	 (let* ,(cdr bindings) . ,body))))
 
 (define-syntax when (pred &rest conseq)
-  '(if ,pred
+  `(if ,pred
        (begin . ,conseq)
        nil))
 
 (define-syntax unless (pred &rest conseq)
-  '(if ,pred
+  `(if ,pred
        nil
        (begin . ,conseq)))
 
@@ -185,7 +185,7 @@
       #f
       (if (eq? (first (car clauses)) 'else)
 	  (second (car clauses))
-	  '(if ,(first (car clauses))
+	  `(if ,(first (car clauses))
 	       ,(second (car clauses))
 	       (cond . ,(cdr clauses))))))
 
@@ -193,7 +193,7 @@
   (cond
    ((null? clauses) #t)
    ((length=1 clauses) (car clauses))
-   (#t '(if ,(car clauses)
+   (#t `(if ,(car clauses)
 	    (and . ,(cdr clauses))
 	    #f))))
 
@@ -201,25 +201,25 @@
   (cond
    ((null? clauses) #f)
    ((length=1 clauses) (car clauses))
-   (#t '(if ,(car clauses)
+   (#t `(if ,(car clauses)
 	    #t
 	    (or . ,(cdr clauses))))))
 
 (define-syntax case (key &rest clauses)
   (let ((key-val (gensym)))
-    '(let ((,key-val ,key))
+    `(let ((,key-val ,key))
        (cond . ,(map (lambda (c)
 		       (if (starts-with c 'else)
 			   c
-			   '((member? ,key-val ',(first c))
+			   `((member? ,key-val ',(first c))
 			     . ,(cdr c))))
 		     clauses)))))
 
 (define-syntax push! (obj dst)
-  '(set! ,dst (cons ,obj ,dst)))
+  `(set! ,dst (cons ,obj ,dst)))
 
 (define-syntax pop! (dst)
-  '((lambda (top)
+  `((lambda (top)
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
 
@@ -239,7 +239,8 @@
     (unless (null? rest)
 	    (write (car0 rest))
 	    (iter (cdr0 rest))))
-  (iter (car0 callstack)))
+  (let ((cs (car0 callstack)))
+    (iter (cdr0 (cdr0 cs)))))
 
 (define (debug-repl)
   (write-port stdout 'debug-repl>)
@@ -260,7 +261,7 @@
 (define throw-exit exit)
 
 (define-syntax throw-error (&rest objs)
-  '(begin
+  `(begin
      (error . ,objs)
      (throw-exit 1)))
 
@@ -282,7 +283,7 @@
 ; values that begins at the last argument we expected to get then the
 ; cdr of that list better be nil.
 (define-syntax assert-none-following (arg)
-  '(if (eq? (cdr0 (find-variable ',arg)) nil)
+  `(if (eq? (cdr0 (find-variable ',arg)) nil)
        #t
        (throw-error ',arg "should be the last argument")))
 
@@ -313,8 +314,8 @@
   (set-cdr!0 obj new-cdr))
 
 (define (assert-numbers values)
-  (if (any? (lambda (x) (not (integer? x))) ',values)
-      (throw-error "tried to do math on non-integers" ',values)
+  (if (any? (lambda (x) (not (integer? x))) values)
+      (throw-error "tried to do math on non-integers" values)
       #t))
 
 (define (+ &rest values)
@@ -504,7 +505,7 @@
   (iter 0))
 
 (define-syntax dotimes (args &rest body)
-  '(do-times (lambda (,(first args)) . ,body)
+  `(do-times (lambda (,(first args)) . ,body)
 	     ,(second args)))
 (define (starts-with lst val)
   (eq? (first lst) val))
@@ -535,7 +536,7 @@
   result)
 
 (define-syntax dolist (args &rest body)
-  '(for-each (lambda (,(first args)) . ,body)
+  `(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
 
@@ -543,7 +544,7 @@
 ;; delay as the cons of its value (nil of not yet forced) and the
 ;; closure that computes it (nil if it has been forced)
 (define-syntax delay (&rest body)
-  '(cons nil (lambda () . ,body)))
+  `(cons nil (lambda () . ,body)))
 
 (define (force fn)
   (when (and (not (null? (cdr fn))) (null? (car fn)))
@@ -557,7 +558,7 @@
   (let ((start (gensym))
 	(result (gensym))
 	(end (gensym)))
-    '(let* ((,start (clock))
+    `(let* ((,start (clock))
 	    (,result (begin . ,body))
 	    (,end (clock)))
        (write "execution took" (- ,end ,start)
