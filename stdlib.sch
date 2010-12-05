@@ -229,6 +229,9 @@
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
 
+(define-syntax inc! (dst)
+  `(set! ,dst (+ 1 ,dst)))
+
 ;; I'm pretty sure this is a fully legit version of apply. Let me know
 ;; if you disagree... I'm a little surprised this can be implemented
 ;; in userspace.

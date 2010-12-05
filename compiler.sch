@@ -337,6 +337,59 @@
 		    (dolist (arg instr)
 			    (show-fn arg (+ indent 4))))))))
 
+(define (label? obj)
+  (symbol? obj))
+
+(define (args instr)
+  (if (pair? instr) (rest instr)))
+
+(define (arg1 instr)
+  (if (pair? instr) (second instr)))
+
+(define (set-arg1! instr val)
+  (set-car! (cdr instr) val))
+
+(define (arg2 instr)
+  (if (pair? instr) (third instr)))
+
+(define (is instr op)
+  (if (pair? op)
+      (member? (opcode instr) op)
+      (eq? (opcode instr) op)))
+
+(define (opcode instr)
+  (if (label? instr)
+      'label
+      (first instr)))
+
+(define (assemble fn)
+  (let* ((r1 (asm-first-pass (fn-code fn)))
+	 (r2 (asm-second-pass (fn-code fn)
+			      (first r1)
+			      (second r1))))
+    ;; stick the result on the end
+    (reverse (cons r2 (reverse fn)))))
+
+(define (asm-first-pass code)
+  (let ((length 0)
+	(labels nil))
+    (dolist (instr code)
+	    (if (label? instr)
+		(push! (cons instr length) labels)
+		(inc! length)))
+    (list length labels)))
+
+(define (asm-second-pass code length labels)
+  (let ((addr 0)
+	(code-vector (make-vector nil length)))
+    (dolist (instr code)
+	    (unless (label? instr)
+		    (if (is instr '(jump tjump fjump save))
+			(set-arg1! instr
+				   (cdr (assoc (arg1 instr) labels))))
+		    (set-vector! code-vector addr instr)
+		    (inc! addr)))
+    code-vector))
 
 (define (comp-show fn)
   (show-fn (compiler fn) 0))

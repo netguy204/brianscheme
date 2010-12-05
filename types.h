@@ -109,6 +109,8 @@ void set_cdr(object *obj, object *value);
 
 object *make_vector(object *fill, long size);
 
+object *list_to_vector(object *list);
+
 char is_vector(object *obj);
 
 /* statistics */

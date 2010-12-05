@@ -1039,6 +1039,11 @@ void init() {
   the_empty_list->type = THE_EMPTY_LIST;
   push_root(&the_empty_list);
 
+  the_empty_vector = alloc_object();
+  the_empty_vector->type = VECTOR;
+  VSIZE(the_empty_vector) = 0;
+  push_root(&the_empty_vector);
+
   false = alloc_object();
   false->type = BOOLEAN;
   false->data.boolean.value = 0;

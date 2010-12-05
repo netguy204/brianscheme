@@ -154,6 +154,48 @@ object *read_pair(FILE *in) {
   }
 }
 
+object *read_vector(FILE *in) {
+  int c;
+  object *list_head;
+  object *list_tail;
+  object *current;
+
+  eat_whitespace(in);
+
+  c = getc(in);
+  if(c == ')') {
+    return the_empty_vector;
+  }
+  ungetc(c, in);
+
+  current = cons(read(in), the_empty_list);
+  push_root(&current);
+  list_head = current;
+  push_root(&list_head);
+
+  /* this is protected by the head */
+  list_tail = list_head;
+
+  eat_whitespace(in);
+  c = getc(in);
+  while(c != ')') {
+    ungetc(c, in);
+
+    current = read(in);
+    set_cdr(list_tail, cons(current, the_empty_list));
+    list_tail = cdr(list_tail);
+
+    eat_whitespace(in);
+    c = getc(in);
+  }
+
+  object *vector = list_to_vector(list_head);
+  pop_root(&list_head);
+  pop_root(&current);
+
+  return vector;
+}
+
 object *read(FILE *in) {
   int c;
   short sign = 1;
@@ -173,6 +215,8 @@ object *read(FILE *in) {
       return false;
     case '\\':
       return read_character(in);
+    case '(':
+      return read_vector(in);
     default:
       return throw_read("unknown boolean or character literal\n");
     }

@@ -94,12 +94,18 @@ void set_cdr(object *obj, object *value) {
   obj->data.pair.cdr = value;
 }
 
-object *make_vector(object *fill, long size) {
-  int ii;
+object *make_unfilled_vector(long size) {
   object *obj = alloc_object();
   obj->type = VECTOR;
   VARRAY(obj) = MALLOC(sizeof(object) * size);
   VSIZE(obj) = size;
+  return obj;
+}
+
+object *make_vector(object *fill, long size) {
+  int ii;
+  object *obj = make_unfilled_vector(size);
+
   for(ii = 0; ii < size; ++ii) {
     VARRAY(obj)[ii] = fill;
   }
@@ -108,6 +114,32 @@ object *make_vector(object *fill, long size) {
 
 char is_vector(object *obj) {
   return obj->type == VECTOR;
+}
+
+object *list_to_vector(object *list) {
+  long length = 0;
+  long position = 0;
+
+  object *next = list;
+
+  if(is_the_empty_list(list)) {
+    return the_empty_vector;
+  }
+
+  while(!is_the_empty_list(next)) {
+    ++length;
+    next = cdr(next);
+  }
+
+  object *vector = make_unfilled_vector(length);
+  next = list;
+
+  while(!is_the_empty_list(next)) {
+    VARRAY(vector)[position++] = car(next);
+    next = cdr(next);
+  }
+
+  return vector;
 }
 
 object *make_primitive_proc(prim_proc fn) {

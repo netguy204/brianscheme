@@ -5,6 +5,7 @@
 /* global primitive symbols */
 
 object *the_empty_list;
+object *the_empty_vector;
 object *false;
 object *true;
 object *symbol_table;
