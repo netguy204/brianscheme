@@ -556,9 +556,9 @@ DEFUN1(compound_env_proc) {
 
 DEFUN1(vm_execute_proc) {
   if(is_the_empty_list(cdr(arguments))) {
-    return vm_execute(FIRST, the_empty_list);
+    return vm_execute(FIRST, the_empty_list, environment);
   } else {
-    return vm_execute(FIRST, SECOND);
+    return vm_execute(FIRST, SECOND, environment);
   }
 }
 
@@ -936,7 +936,7 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&fn);
 	goto interp_restart;
       } else if(is_compiled_proc(fn)) {
-	result = vm_execute(fn, evald_args);
+	result = vm_execute(fn, evald_args, env);
 	pop_root(&result);
 	pop_root(&evald_args);
 	pop_root(&fn);

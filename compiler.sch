@@ -71,7 +71,8 @@
 	   (comp-list (rest exps) env))))
 
 (define (bytecode-literal? x)
-  (or (integer? x) (boolean? x)))
+  (or (integer? x) (boolean? x)
+      (eq? x 'nil)))
 
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
@@ -229,6 +230,7 @@
 	 (< 2 < #f #f) (> 2 > #f #f)
 	 (= 2 = #f #f) (eq? 2 eq? #f #f)
 	 (car 1 car #f #f) (cdr 1 cdr #f #f) (cons 2 cons #f #f)
+	 (car0 1 car #f #f) (cdr0 1 cdr #f #f)
 	 (null? 1 null? #f #f))))
 
 ;; f is primitive if it's in the table and not shadowed in the

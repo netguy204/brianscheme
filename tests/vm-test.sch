@@ -30,17 +30,27 @@
      
      comp))
 
-(macroexpand0 '(vm-test (begin (+ 1 (+ 2 (+ 3 4))))))
+(set! f ((compiler '(lambda (x) (+ x 1)))))
+(set! mapr2 ((compiler (compound->lambda mapr))))
 
-(vm-test (begin (+ 1 (+ 2 (+ 3 4)))))
-(vm-test ((lambda (x) (cons 1 x)) 5))
+(define (make-list max-n)
+  (let ((result nil))
+    (do-times (lambda (x)
+		(set! result (cons x result)))
+	      max-n)
+    result))
 
-(vm-test
- (((lambda (x) (if x
-		   (lambda (y) (cons x y))
-		   (lambda (y) (+ y y)))) #t) 5))
-				      
+'make-big-list
+(set! big-list nil)
+(time (set! big-list (make-list 1000)) nil)
 
-(set! f (compiler '(lambda (x) (+ x 1))))
+'big-map
+(set! m1 nil)
+(time (set! m1 (mapr (lambda (x) (+ 1 x)) big-list)) 'done)
 
-(set! f2 ((compiler '(lambda (x y) (cons x (+ x y))))))
+'compiled-big-map
+(set! m2 nil)
+(time (set! m2 (mapr2 big-list f)) 'done)
+
+(assert (equal? m1 m2))
+

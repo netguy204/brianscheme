@@ -23,10 +23,16 @@ object *tjump_op;
 object *callj_op;
 object *lvar_op;
 object *save_op;
+object *gvar_op;
+object *lset_op;
+object *pop_op;
 
 object *plus_op;
 object *numeq_op;
 object *cons_op;
+object *null_op;
+object *car_op;
+object *cdr_op;
 
 object *error_sym;
 
@@ -87,14 +93,19 @@ object *cons_impl(object *a, object *b) {
     return obj;					\
   } while(0)
 
+#ifdef VM_DEBUGGING
 #define VM_DEBUG(msg, obj)			\
   do {						\
     fprintf(stdout, "%s: ", msg);		\
     write(stdout, obj);				\
     fprintf(stdout, "\n");			\
   } while(0)
+#else
+#define VM_DEBUG(msg, obj)
+#endif
 
-object *vm_execute(object *fn, object *stack) {
+object *vm_execute(object *fn, object *stack,
+		   object *ienv) {
   object *code_array;
   object *env;
   object *instr;
@@ -122,6 +133,8 @@ object *vm_execute(object *fn, object *stack) {
 
  vm_fn_begin:
   code_array = BYTECODE(fn);
+  VM_DEBUG("bytecode", code_array);
+  VM_DEBUG("stack", stack);
 
   object **codes = VARRAY(code_array);
   long num_codes = VSIZE(code_array);
@@ -134,7 +147,7 @@ object *vm_execute(object *fn, object *stack) {
   opcode = OPCODE(instr);
 
   VM_DEBUG("dispatching", instr);
-  VM_DEBUG("stack", stack);
+  /* VM_DEBUG("stack", stack); */
 
   switch(opcode->type) {
   case BOOLEAN:
@@ -204,8 +217,44 @@ object *vm_execute(object *fn, object *stack) {
       object *data = VARRAY(car(next))[idx];
       PUSH(data, stack);
     }
+    else if(opcode == lset_op) {
+      int env_num = LONG(ARG1(instr));
+      int idx = LONG(ARG2(instr));
+
+      object *next = env;
+      while(env_num-- > 0) {
+	next = cdr(next);
+      }
+
+      VARRAY(car(next))[idx] = first(stack);
+    }
+    else if(opcode == gvar_op) {
+      object *var = lookup_variable_value(ARG1(instr), ienv);
+      push_root(&var);
+      PUSH(var, stack);
+      pop_root(&var);
+    }
+    else if(opcode == pop_op) {
+      POP(top, stack);
+    }
     else if(opcode == cons_op) {
       CALL2(cons_impl);
+    }
+    else if(opcode == null_op) {
+      POP(top, stack);
+      if(is_the_empty_list(top)) {
+	PUSH(true, stack);
+      } else {
+	PUSH(false, stack);
+      }
+    }
+    else if(opcode == car_op) {
+      set_car(stack,
+	      car(car(stack)));
+    }
+    else if(opcode == cdr_op) {
+      set_car(stack,
+	      cdr(car(stack)));
     }
     else if(opcode == save_op) {
       object *ret_addr = cons(fn, env);
@@ -262,10 +311,16 @@ void vm_init(void) {
   callj_op = make_symbol("callj");
   lvar_op = make_symbol("lvar");
   save_op = make_symbol("save");
+  gvar_op = make_symbol("gvar");
+  lset_op = make_symbol("lset");
+  pop_op = make_symbol("pop");
 
   plus_op = make_symbol("+");
   numeq_op = make_symbol("=");
   cons_op = make_symbol("cons");
+  null_op = make_symbol("null?");
+  car_op = make_symbol("car");
+  cdr_op = make_symbol("cdr");
 
   error_sym = make_symbol("error");
 }

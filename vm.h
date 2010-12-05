@@ -4,6 +4,7 @@
 #include "types.h"
 
 void vm_init(void);
-object *vm_execute(object *fn, object *stack);
+object *vm_execute(object *fn, object *stack,
+		   object *env);
 
 #endif
