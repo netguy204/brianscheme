@@ -1,6 +1,7 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
+#include "types.h"
 
 /* global primitive symbols */
 

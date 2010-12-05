@@ -119,11 +119,20 @@ long get_cons_count();
 
 #define caar(obj) car(car(obj))
 #define cadr(obj) car(cdr(obj))
-#define caddr(obj) car(cdr(cdr(obj)))
+#define cddr(obj) cdr(cdr(obj))
+#define cdddr(obj) cdr(cddr(obj))
+#define cddddr(obj) cdr(cdddr(obj))
+
+#define caddr(obj) car(cddr(obj))
+#define cadddr(obj) car(cdddr(obj)))
+#define caddddr(obj) car(cddddr(obj))
 
 #define first(obj) car(obj)
 #define second(obj) cadr(obj)
 #define third(obj) caddr(obj)
+#define fourth(obj) cadddr(obj)
+#define fifth(obj) caddddr(obj)
+
 #define list1(a) cons(a,the_empty_list)
 #define list2(a,b) cons(a,list1(b))
 #define list3(a,b,c) cons(a,list2(b,c))
@@ -133,6 +142,7 @@ long get_cons_count();
 #define LONG(x) x->data.fixnum.value
 #define CHAR(x) x->data.character.value
 #define STRING(x) x->data.string.value
+#define SYMBOL(x) x->data.symbol.value
 #define BOOLEAN(x) x->data.boolean.value
 #define INPUT(x) x->data.input_port.stream
 #define OUTPUT(x) x->data.output_port.stream

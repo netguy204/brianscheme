@@ -1,4 +1,4 @@
-TARGETS = main test
+TARGETS = main test vm
 
 default: $(TARGETS)
 
@@ -18,6 +18,9 @@ main: $(OBJECTS) main.o $(HEADERS)
 
 test: $(OBJECTS) test.o $(HEADERS)
 	$(CC) -o $@ $(OBJECTS) test.o
+
+vm: $(OBJECTS) vm.o $(HEADERS)
+	$(CC) -o $@ $(OBJECTS) vm.o
 
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)

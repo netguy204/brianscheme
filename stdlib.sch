@@ -408,7 +408,7 @@
   (open-output-port0 name))
 
 (define (close-output-port port)
-  (assert-input-port port)
+  (assert-output-port port)
   (assert-none-following port)
 
   (close-output-port0 port))

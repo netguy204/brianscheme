@@ -70,9 +70,12 @@
       (seq (comp (first exps) env #t #t)
 	   (comp-list (rest exps) env))))
 
+(define (bytecode-literal? x)
+  (or (integer? x) (boolean? x)))
+
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
-  (when val? (seq (if (member? x '(#t #f nil -1 0 1 2))
+  (when val? (seq (if (bytecode-literal? x)
 		      (gen x)
 		      (gen 'const x))
 		  (unless more? (gen 'return)))))
@@ -196,6 +199,9 @@
 (define (fn-args fn)
   (fourth (cdr fn)))
 
+(define (fn-bytecode fn)
+  (fifth (cdr fn)))
+
 (define (make-prim symbol n-args opcode always? side-effects?)
   (list 'prim symbol n-args opcode always? side-effects?))
 
@@ -222,7 +228,7 @@
        '((+ 2 + #t #f) (- 2 - #t #f) (* 2 * #t #f) (/ 2 / #t #f)
 	 (< 2 < #f #f) (> 2 > #f #f)
 	 (= 2 = #f #f) (eq? 2 eq? #f #f)
-	 (car 1 car #f #f) (cdr 1 cdr #f #f)
+	 (car 1 car #f #f) (cdr 1 cdr #f #f) (cons 2 cons #f #f)
 	 (null? 1 null? #f #f))))
 
 ;; f is primitive if it's in the table and not shadowed in the
