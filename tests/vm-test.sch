@@ -41,3 +41,6 @@
 		   (lambda (y) (+ y y)))) #t) 5))
 				      
 
+(set! f (compiler '(lambda (x) (+ x 1))))
+
+(set! f2 ((compiler '(lambda (x y) (cons x (+ x y))))))

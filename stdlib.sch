@@ -16,7 +16,7 @@
 
 (set! define0
       (macro (name vars body)
-	`(set-local! ,name (lambda ,vars ,body))))
+	`(set! ,name (lambda ,vars ,body))))
 	
 (set! define-syntax0
       (macro (name vars body)
@@ -61,22 +61,22 @@
 ;; define that too. Note that these functions are not type-safe. We
 ;; should probably override them later with versions that are.
 (define0 reverse (l)
-  (begin
-    (define0 iter (in out)
-      (if (pair? in)
-	  (iter (cdr0 in) (cons (car0 in) out))
-	  out))
+  ((lambda (iter)
+     (define0 iter (in out)
+       (if (pair? in)
+	   (iter (cdr0 in) (cons (car0 in) out))
+	   out))
     
-    (iter l nil)))
+     (iter l nil)) nil))
 
 (define0 mapr (fn lst)
-  (begin
-    (define0 iter (done rest)
-      (if (null? rest)
-	  done
-	  (iter (cons (fn (car0 rest)) done) (cdr0 rest))))
+  ((lambda (iter)
+     (define0 iter (done rest)
+       (if (null? rest)
+	   done
+	   (iter (cons (fn (car0 rest)) done) (cdr0 rest))))
     
-    (iter nil lst)))
+     (iter nil lst)) nil))
 
 (define0 map (fn lst)
   (reverse (mapr fn lst)))
@@ -102,22 +102,26 @@
 ;; nicer versions of define-syntax and define that support &rest
 ;; arguments and allow the user to define functions that do the same.
 (define0 index-of (fn lst)
-  (begin
-    (define0 iter (n rest)
-      (if (null? rest)
-	  nil
-	  (if (fn (car0 rest))
-	      n
-	      (iter (prim-+ n 1) (cdr0 rest)))))
-    (iter 0 lst)))
+  (let0 ((iter nil))
+	(begin
+	  (define0 iter (n rest)
+	    (if (null? rest)
+		nil
+		(if (fn (car0 rest))
+		    n
+		    (iter (prim-+ n 1) (cdr0 rest)))))
+
+	  (iter 0 lst))))
 
 (define0 nth (lst n)
-  (begin
-    (define0 iter (i rest)
-      (if (prim-= i n)
-	  (car0 rest)
-	  (iter (prim-+ i 1) (cdr0 rest))))
-    (iter 0 lst)))
+  (let0 ((iter nil))
+	(begin
+	  (define0 iter (i rest)
+	    (if (prim-= i n)
+		(car0 rest)
+		(iter (prim-+ i 1) (cdr0 rest))))
+
+	  (iter 0 lst))))
 
 (define0 index-eq (val lst)
   (index-of (lambda (x) (eq? x val)) lst))
@@ -143,12 +147,10 @@
 (define-syntax define (name &rest body)
   `(begin
      ,(if (symbol? name)
-	  `(set-local! ,name nil)
-	  `(set-local! ,(car0 name) nil))
-     ,(if (symbol? name)
 	  `(set! ,name . ,body)
 	  `(set! ,(car0 name)
 	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
+
 
 ;; Finally! Now we can get to work defining our standard conditional
 ;; constructs and other basic functionality that everyone expects to
@@ -176,6 +178,14 @@
       `(let (,(first bindings))
 	 (let* ,(cdr bindings) . ,body))))
 
+(define-syntax letrec (bindings &rest body)
+  `(let ,(map (lambda (b) (list (first b) 'nil))
+	      bindings)
+     (begin
+       . ,(map (lambda (b) (list 'set! (first b) (second b)))
+	       bindings))
+     (begin . ,body)))
+	    
 (define-syntax when (pred &rest conseq)
   `(if ,pred
        (begin . ,conseq)
@@ -253,12 +263,13 @@
 ;; Whenever the hook returns the interpreter will make the exit system
 ;; call for real and everything will disappear.
 (define (print-backtrace)
-  (define (iter rest)
-    (unless (null? rest)
-	    (write (car0 rest))
-	    (iter (cdr0 rest))))
-  (let ((cs (car0 callstack)))
-    (iter (cdr0 (cdr0 cs)))))
+  (letrec ((iter (lambda (rest)
+		   (unless (null? rest)
+			   (write (car0 rest))
+			   (iter (cdr0 rest))))))
+
+    (let ((cs (car0 callstack)))
+      (iter (cdr0 (cdr0 cs))))))
 
 (define (debug-repl)
   (write-port stdout 'debug-repl>)
@@ -440,14 +451,14 @@
       #t))
 
 (define (every? fn lst)
-  (define (iter rest)
-    (if (null? rest)
-	#t
-	(if (fn (car rest))
-	    (iter (cdr rest))
-	    #f)))
+  (letrec ((iter (lambda (rest)
+		   (if (null? rest)
+		       #t
+		       (if (fn (car rest))
+			   (iter (cdr rest))
+			   #f)))))
 
-  (iter lst))
+    (iter lst)))
 
 (define (member? val lst)
   (if (pair? lst)
@@ -457,24 +468,24 @@
       (eq? val lst)))
 
 (define (length items)
-  (define (iter a count)
-    (if (null? a)
-	count
-	(iter (cdr a) (prim-+ 1 count))))
-  (iter items 0))
+  (letrec ((iter (lambda (a count)
+		   (if (null? a)
+		       count
+		       (iter (cdr a) (prim-+ 1 count))))))
+    (iter items 0)))
 
 (define (append-all lists)
-  (define (iter result current-list remaining-lists)
-    (if (null? current-list)
-	(if (null? remaining-lists)
-	    result
-	    (iter result
-		  (car remaining-lists)
-		  (cdr remaining-lists)))
-	(iter (cons (car current-list) result)
-	      (cdr current-list)
-	      remaining-lists)))
-  (reverse (iter nil nil lists)))
+  (letrec ((iter (lambda (result current-list remaining-lists)
+		   (if (null? current-list)
+		       (if (null? remaining-lists)
+			   result
+			   (iter result
+				 (car remaining-lists)
+				 (cdr remaining-lists)))
+		       (iter (cons (car current-list) result)
+			     (cdr current-list)
+			     remaining-lists)))))
+    (reverse (iter nil nil lists))))
 	      
 (define (append &rest lists)
   (append-all lists))
@@ -498,12 +509,12 @@
 
 ; read and evaluate all forms from name
 (define (load name)
-  (let ((in (open-input-port name))
-	(eval0 eval))
-    (define (iter form)
-      (unless (eof-object? form)
-	      (write (eval0 form base-env))
-	      (iter (read-port in))))
+  (letrec ((in (open-input-port name))
+	   (eval0 eval)
+	   (iter (lambda (form)
+		   (unless (eof-object? form)
+			   (write (eval0 form base-env))
+			   (iter (read-port in))))))
     (iter (read-port in))
     #t))
 

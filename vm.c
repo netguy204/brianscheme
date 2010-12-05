@@ -94,19 +94,24 @@ object *cons_impl(object *a, object *b) {
     fprintf(stdout, "\n");			\
   } while(0)
 
-object *vm_execute(object *fn) {
+object *vm_execute(object *fn, object *stack) {
   object *code_array;
   object *env;
   object *instr;
   object *opcode;
-  long n_args;
+  long n_args = 0;
   long pc = 0;
+
+  /* count the args */
+  object *next = stack;
+  while(!is_the_empty_list(next)) {
+    ++n_args;
+    next = cdr(next);
+  }
 
   env = the_empty_list;
   instr = the_empty_list;
-  n_args = 0;
 
-  object *stack = the_empty_list;
   push_root(&stack);
 
   object *top = the_empty_list;
@@ -129,7 +134,7 @@ object *vm_execute(object *fn) {
   opcode = OPCODE(instr);
 
   VM_DEBUG("dispatching", instr);
-  /* VM_DEBUG("stack", stack); */
+  VM_DEBUG("stack", stack);
 
   switch(opcode->type) {
   case BOOLEAN:
