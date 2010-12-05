@@ -467,6 +467,18 @@ DEFUN1(string_to_uninterned_symbol_proc) {
   return make_uninterned_symbol(STRING(FIRST));
 }
 
+DEFUN1(make_compiled_proc_proc) {
+  return make_compiled_proc(FIRST, SECOND);
+}
+
+DEFUN1(compiled_bytecode_proc) {
+  return BYTECODE(FIRST);
+}
+
+DEFUN1(compiled_environment_proc) {
+  return CENV(FIRST);
+}
+
 DEFUN1(make_vector_proc) {
   object *obj = make_vector(FIRST, LONG(SECOND));
   return obj;
@@ -662,6 +674,9 @@ void write(FILE *out, object *obj) {
     break;
   case COMPOUND_PROC:
     fprintf(out, "#<compound-procedure>");
+    break;
+  case COMPILED_PROC:
+    fprintf(out, "#<compiled-procedure>");
     break;
   case SYNTAX_PROC:
     fprintf(out, "#<syntax-procedure>");
@@ -1016,6 +1031,9 @@ void init_prim_environment(object *env) {
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
   add_procedure("vm-execute", vm_execute_proc);
+  add_procedure("make-compiled-proc", make_compiled_proc_proc);
+  add_procedure("compiled-bytecode", compiled_bytecode_proc);
+  add_procedure("compiled-environment", compiled_environment_proc);
 
   define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,

@@ -182,6 +182,19 @@ char is_syntax_proc(object *obj) {
   return obj->type == SYNTAX_PROC;
 }
 
+object *make_compiled_proc(object *bytecode, object *env) {
+  object *obj = alloc_object();
+
+  obj->type = COMPILED_PROC;
+  obj->data.compiled_proc.bytecode = bytecode;
+  obj->data.compiled_proc.env = env;
+  return obj;
+}
+
+char is_compiled_proc(object *obj) {
+  return obj->type == COMPILED_PROC;
+}
+
 object *make_input_port(FILE *stream) {
   object *obj = alloc_object();
 

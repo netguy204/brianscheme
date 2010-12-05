@@ -278,8 +278,6 @@
 
 (define (optimize code) code)
 
-(define (assemble fn) fn)
-	       
 (define label-num 0)
 
 (define (compiler x)
@@ -374,7 +372,7 @@
 			      (first r1)
 			      (second r1))))
     ;; stick the result on the end
-    (reverse (cons r2 (reverse fn)))))
+    (make-compiled-proc r2 nil)))
 
 (define (asm-first-pass code)
   (let ((length 0)

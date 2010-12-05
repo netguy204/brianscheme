@@ -15,17 +15,22 @@
 	 (comp nil)
 	 (evres nil)
 	 (vmres nil))
+
      (write 'expression exp)
      (set! comp (compiler exp))
 
-     (write 'bytecode (fn-bytecode comp))
+     (write 'bytecode (compiled-bytecode comp))
      (set! evres (eval exp))
 
      (write 'eval-result evres)
      (set! vmres (vm-execute comp))
 
      (write 'vm-result vmres)
-     (assert (equal? evres vmres))))
+     (assert (equal? evres vmres))
+     
+     comp))
+
+(macroexpand0 '(vm-test (begin (+ 1 (+ 2 (+ 3 4))))))
 
 (vm-test (begin (+ 1 (+ 2 (+ 3 4)))))
 (vm-test ((lambda (x) (cons 1 x)) 5))
@@ -35,4 +40,4 @@
 		   (lambda (y) (cons x y))
 		   (lambda (y) (+ y y)))) #t) 5))
 				      
-(vm-execute fn3)
+

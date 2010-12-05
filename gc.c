@@ -134,6 +134,10 @@ void mark_reachable(object *root) {
       mark_reachable(VARRAY(root)[ii]);
     }
     break;
+  case COMPILED_PROC:
+    mark_reachable(BYTECODE(root));
+    mark_reachable(CENV(root));
+    break;
   default:
     break;
   }

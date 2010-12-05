@@ -10,7 +10,7 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      VECTOR} object_type;
+	      VECTOR, COMPILED_PROC} object_type;
 
 typedef struct object {
   object_type type;
@@ -47,6 +47,10 @@ typedef struct object {
       struct object *body;
       struct object *env;
     } compound_proc; /* also syntax */
+    struct {
+      struct object *bytecode;
+      struct object *env;
+    } compiled_proc;
     struct {
       FILE *stream;
     } input_port;
@@ -148,6 +152,8 @@ long get_cons_count();
 #define OUTPUT(x) x->data.output_port.stream
 #define VARRAY(obj) (obj->data.vector.objects)
 #define VSIZE(obj) (obj->data.vector.size)
+#define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
+#define CENV(obj) (obj->data.compiled_proc.env)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);
@@ -157,6 +163,9 @@ char is_compound_proc(object *obj);
 
 object *make_syntax_proc(object *parameters, object *body);
 char is_syntax_proc(object *obj);
+
+object *make_compiled_proc(object *bytecode, object *env);
+char is_compiled_proc(object *obj);
 
 object *make_input_port(FILE *stream);
 object *make_output_port(FILE *stream);

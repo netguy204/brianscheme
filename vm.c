@@ -13,13 +13,6 @@
 #define ARG1(x) second(x)
 #define ARG2(x) third(x)
 
-#define fn_tag(x) first(x)
-#define fn_unassembled(x) first(cdr(x))
-#define fn_env(x) second(cdr(x))
-#define fn_name(x) third(cdr(x))
-#define fn_args(x) fourth(cdr(x))
-#define fn_bytecode(x) fifth(cdr(x))
-
 #define length1(x) (cdr(x) == the_empty_list)
 
 object *args_op;
@@ -109,6 +102,7 @@ object *vm_execute(object *fn) {
   long n_args;
   long pc = 0;
 
+  env = the_empty_list;
   instr = the_empty_list;
   n_args = 0;
 
@@ -118,12 +112,11 @@ object *vm_execute(object *fn) {
   object *top = the_empty_list;
   push_root(&top);
 
- vm_fn_begin:
+  VM_ASSERT(is_compiled_proc(fn),
+	    "object is not compiled-procedure");
 
-  code_array = fn_bytecode(fn);
-  env = fn_env(fn);
-  pc = 0;
-  VM_DEBUG("environment", env);
+ vm_fn_begin:
+  code_array = BYTECODE(fn);
 
   object **codes = VARRAY(code_array);
   long num_codes = VSIZE(code_array);
@@ -178,12 +171,20 @@ object *vm_execute(object *fn) {
       }
     }
     else if(opcode == fn_op) {
-      PUSH(ARG1(instr), stack);
+      object *fn_arg = ARG1(instr);
+      object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
+					  env);
+      push_root(&new_fn);
+      PUSH(new_fn, stack);
+      pop_root(&new_fn);
     }
     else if(opcode == callj_op) {
       POP(top, stack);
       fn = top;
+      env = CENV(fn);
+      pc = 0;
       n_args = LONG(ARG1(instr));
+
       goto vm_fn_begin;
     }
     else if(opcode == lvar_op) {
@@ -216,14 +217,15 @@ object *vm_execute(object *fn) {
       } else {
 	object *val = first(stack);
 	object *ret_addr = second(stack);
+
+	/* retore what we stashed away in save */
 	fn = car(cdr(ret_addr));
 	pc = LONG(car(ret_addr));
 	env = cdr(cdr(ret_addr));
 
-	code_array = fn_bytecode(fn);
-	codes = VARRAY(code_array);
-	num_codes = VSIZE(code_array);
+	/* setup for the next loop */
 	stack = cons(val, cdr(cdr(stack)));
+	goto vm_fn_begin;
       }
     }
     else {
