@@ -3,15 +3,20 @@ TARGETS = main test
 default: $(TARGETS)
 
 SOURCES = interp.c types.c read.c gc.c
+HEADERS = interp.h types.h read.h gc.h
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
-CC = gcc -g -W -Wall -ansi
+ifeq ($(FAST),1)
+	CC = gcc -O3 -W -Wall -ansi
+else
+	CC = gcc -g -W -Wall -ansi
+endif
 
-main: ${OBJECTS} main.o
+main: $(OBJECTS) main.o $(HEADERS)
 	$(CC) -o $@ $(OBJECTS) main.o
 
-test: ${OBJECTS} test.o
+test: $(OBJECTS) test.o $(HEADERS)
 	$(CC) -o $@ $(OBJECTS) test.o
 
 check-syntax:

@@ -69,14 +69,17 @@
     
     (iter l nil)))
 
-(define0 map (fn lst)
+(define0 mapr (fn lst)
   (begin
     (define0 iter (done rest)
       (if (null? rest)
 	  done
 	  (iter (cons (fn (car0 rest)) done) (cdr0 rest))))
     
-    (reverse (iter nil lst))))
+    (iter nil lst)))
+
+(define0 map (fn lst)
+  (reverse (mapr fn lst)))
 
 (define0 cadr0 (x) (car0 (cdr0 x)))
 (define0 second0 (x) (cadr0 x))

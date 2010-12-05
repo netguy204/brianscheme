@@ -755,13 +755,14 @@ void pop_callstack() {
  * during interp1. We rebind to temp to force the evalation of result
  * if it's an exp
  */
-#define INTERP_RETURN(result) \
-  do {			      \
-    object *temp = result;    \
-    pop_root(&env);	      \
-    pop_root(&exp);	      \
-    pop_callstack();	      \
-    return temp;	      \
+#define INTERP_RETURN(result)			\
+  do {						\
+    object *temp = result;			\
+    D1("result", temp, level);			\
+    pop_root(&env);				\
+    pop_root(&exp);				\
+    pop_callstack();				\
+    return temp;				\
   } while(0)
 
 
@@ -827,6 +828,7 @@ object *interp1(object *exp, object *env, int level) {
       object *predicate = interp1(first(args), env, level + 1);
 
       if(predicate == false || is_the_empty_list(predicate)) {
+	/* else is optional, if none return #f */
 	if(is_the_empty_list(cdr(cdr(args)))) {
 	  INTERP_RETURN(false);
 	} else {
@@ -894,10 +896,11 @@ object *interp1(object *exp, object *env, int level) {
     
       /* dispatch the call */
       if(is_primitive_proc(fn)) {
+	result = fn->data.primitive_proc.fn(evald_args, env);
 	pop_root(&result);
 	pop_root(&evald_args);
 	pop_root(&fn);
-	INTERP_RETURN(fn->data.primitive_proc.fn(evald_args, env));
+	INTERP_RETURN(result);
       } else if(is_compound_proc(fn)) {
 	env = extend_environment(fn->data.compound_proc.parameters,
 				 evald_args,

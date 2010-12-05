@@ -124,10 +124,10 @@ void mark_reachable(object *root) {
     mark_reachable(cdr(root));
     break;
   case COMPOUND_PROC:
+    mark_reachable(root->data.compound_proc.env);
   case SYNTAX_PROC:
     mark_reachable(root->data.compound_proc.parameters);
     mark_reachable(root->data.compound_proc.body);
-    mark_reachable(root->data.compound_proc.env);
     break;
   case VECTOR:
     for(ii = 0; ii < VSIZE(root); ++ii) {
