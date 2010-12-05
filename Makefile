@@ -1,9 +1,9 @@
-TARGETS = main test vm
+TARGETS = main test
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c
-HEADERS = interp.h types.h read.h gc.h
+SOURCES = interp.c types.c read.c gc.c vm.c
+HEADERS = interp.h types.h read.h gc.h vm.h
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
@@ -18,9 +18,6 @@ main: $(OBJECTS) main.o $(HEADERS)
 
 test: $(OBJECTS) test.o $(HEADERS)
 	$(CC) -o $@ $(OBJECTS) test.o
-
-vm: $(OBJECTS) vm.o $(HEADERS)
-	$(CC) -o $@ $(OBJECTS) vm.o
 
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)

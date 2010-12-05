@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "vm.h"
+#include "types.h"
 #include "symbols.h"
 #include "interp.h"
 #include "read.h"
@@ -9,6 +11,7 @@
 #define OPCODE(x) first(x)
 #define ARGS(x) cdr(x)
 #define ARG1(x) second(x)
+#define ARG2(x) third(x)
 
 #define fn_tag(x) first(x)
 #define fn_unassembled(x) first(cdr(x))
@@ -24,15 +27,23 @@ object *return_op;
 object *fn_op;
 object *fjump_op;
 object *tjump_op;
+object *callj_op;
+object *lvar_op;
+object *save_op;
+
 object *plus_op;
 object *numeq_op;
+object *cons_op;
 
-void vm_assert(char test, char *msg) {
-  if(!test) {
-    fprintf(stderr, "%s\n", msg);
-    exit(1);
-  }
-}
+object *error_sym;
+
+#define VM_ASSERT(test, msg)			\
+  do {						\
+    if(!(test)) {				\
+      fprintf(stderr, "%s\n", msg);		\
+      VM_RETURN(error_sym);			\
+    }						\
+  } while(0)
 
 object *plus_impl(object *a, object *b) {
   return make_fixnum(LONG(a) + LONG(b));
@@ -42,12 +53,17 @@ object *numeq_impl(object *a, object *b) {
   return AS_BOOL(LONG(a) == LONG(b));
 }
 
-#define PUSH_STACK(obj)				\
+object *cons_impl(object *a, object *b) {
+  return cons(a, b);
+}
+
+
+#define PUSH(obj, stack)			\
   do {						\
     stack = cons(obj, stack);			\
   } while(0)
 
-#define POP_STACK(top)				\
+#define POP(top, stack)				\
   do {						\
     top = car(stack);				\
     stack = cdr(stack);				\
@@ -56,20 +72,19 @@ object *numeq_impl(object *a, object *b) {
 #define RESET_TOP(pos, obj)			\
   object *p1 = pos;				\
   set_car(p1, obj);				\
-  set_cdr(p1, the_empty_list);			\
   stack = pos
 
 #define CALL1(fn)				\
   do {						\
     object *result = fn(first(stack));		\
-    RESET_TOP(cdr(stack), result);		\
+    RESET_TOP(stack, result);			\
   } while(0)
 
 #define CALL2(fn)				\
   do {						\
     object *result = fn(second(stack),		\
 			first(stack));		\
-    RESET_TOP(cddr(stack), result);		\
+    RESET_TOP(cdr(stack), result);		\
   } while(0)
 
 #define VM_RETURN(obj)				\
@@ -79,13 +94,23 @@ object *numeq_impl(object *a, object *b) {
     return obj;					\
   } while(0)
 
+#define VM_DEBUG(msg, obj)			\
+  do {						\
+    fprintf(stdout, "%s: ", msg);		\
+    write(stdout, obj);				\
+    fprintf(stdout, "\n");			\
+  } while(0)
+
 object *vm_execute(object *fn) {
-  object *code_array = fn_bytecode(fn);
-  object *env = fn_env(fn);
-  object *instr = the_empty_list;
+  object *code_array;
+  object *env;
+  object *instr;
   object *opcode;
-  long n_args = 0;
+  long n_args;
   long pc = 0;
+
+  instr = the_empty_list;
+  n_args = 0;
 
   object *stack = the_empty_list;
   push_root(&stack);
@@ -93,36 +118,52 @@ object *vm_execute(object *fn) {
   object *top = the_empty_list;
   push_root(&top);
 
+ vm_fn_begin:
+
+  code_array = fn_bytecode(fn);
+  env = fn_env(fn);
+  pc = 0;
+  VM_DEBUG("environment", env);
+
   object **codes = VARRAY(code_array);
   long num_codes = VSIZE(code_array);
 
  vm_begin:
-  vm_assert(pc < num_codes,
+  VM_ASSERT(pc < num_codes,
 	    "pc flew off the end of memory");
 
   instr = codes[pc++];
   opcode = OPCODE(instr);
 
+  VM_DEBUG("dispatching", instr);
+  /* VM_DEBUG("stack", stack); */
+
   switch(opcode->type) {
   case BOOLEAN:
   case FIXNUM:
-    PUSH_STACK(opcode);
+    PUSH(opcode, stack);
     break;
 
   case SYMBOL:
     if(opcode == args_op) {
-      vm_assert(n_args == LONG(ARG1(instr)),
+      VM_ASSERT(n_args == LONG(ARG1(instr)),
 		"wrong number of args");
-    }
-    else if(opcode == return_op) {
-      /* if there's only one value on the stack,
-       * we're done */
-      if(length1(stack)) {
-	VM_RETURN(car(stack));
-      } else {
-	vm_assert(0, "can't handle a vm return yet");
-	VM_RETURN(NULL);
+      
+      int ii;
+      int num_args = LONG(ARG1(instr));
+      object *vector = make_vector(the_empty_list,
+				   num_args);
+      push_root(&vector);
+      PUSH(vector, env);
+      pop_root(&vector);
+
+      object **vdata = VARRAY(vector);
+      for(ii = num_args - 1; ii >= 0; --ii) {
+	POP(top, stack);
+	vdata[ii] = top;
       }
+
+      VM_DEBUG("after_args environment", env);
     }
     else if(opcode == plus_op) {
       CALL2(plus_impl);
@@ -131,16 +172,65 @@ object *vm_execute(object *fn) {
       CALL2(numeq_impl);
     }
     else if(opcode == fjump_op) {
-      POP_STACK(top);
+      POP(top, stack);
       if(top == false) {
 	pc = LONG(ARG1(instr));
+      }
+    }
+    else if(opcode == fn_op) {
+      PUSH(ARG1(instr), stack);
+    }
+    else if(opcode == callj_op) {
+      POP(top, stack);
+      fn = top;
+      n_args = LONG(ARG1(instr));
+      goto vm_fn_begin;
+    }
+    else if(opcode == lvar_op) {
+      int env_num = LONG(ARG1(instr));
+      int idx = LONG(ARG2(instr));
+
+      object *next = env;
+      while(env_num-- > 0) {
+	next = cdr(next);
+      }
+
+      object *data = VARRAY(car(next))[idx];
+      PUSH(data, stack);
+    }
+    else if(opcode == cons_op) {
+      CALL2(cons_impl);
+    }
+    else if(opcode == save_op) {
+      object *ret_addr = cons(fn, env);
+      push_root(&ret_addr);
+      ret_addr = cons(ARG1(instr), ret_addr);
+      PUSH(ret_addr, stack);
+      pop_root(&ret_addr);
+    }
+    else if(opcode == return_op) {
+      /* if there's only one value on the stack,
+       * we're done */
+      if(length1(stack)) {
+	VM_RETURN(car(stack));
+      } else {
+	object *val = first(stack);
+	object *ret_addr = second(stack);
+	fn = car(cdr(ret_addr));
+	pc = LONG(car(ret_addr));
+	env = cdr(cdr(ret_addr));
+
+	code_array = fn_bytecode(fn);
+	codes = VARRAY(code_array);
+	num_codes = VSIZE(code_array);
+	stack = cons(val, cdr(cdr(stack)));
       }
     }
     else {
       fprintf(stderr, "don't know how to process ");
       write(stderr, opcode);
       fprintf(stderr, "\n");
-      vm_assert(0, "strange opcode");
+      VM_ASSERT(0, "strange opcode");
     }
     break;
 
@@ -148,12 +238,12 @@ object *vm_execute(object *fn) {
     fprintf(stderr, "don't know how to process ");
     write(stderr, opcode);
     fprintf(stderr, "\n");
-    vm_assert(0, "strange opcode");
+    VM_ASSERT(0, "strange opcode");
   }
 
   goto vm_begin;
-  vm_assert(0, "don't know how I got here");
-  VM_RETURN(NULL);
+
+  VM_RETURN(error_sym);
 }
 
 void vm_init(void) {
@@ -162,43 +252,13 @@ void vm_init(void) {
   fn_op = make_symbol("fn");
   fjump_op = make_symbol("fjump");
   tjump_op = make_symbol("tjump");
+  callj_op = make_symbol("callj");
+  lvar_op = make_symbol("lvar");
+  save_op = make_symbol("save");
+
   plus_op = make_symbol("+");
   numeq_op = make_symbol("=");
-}
+  cons_op = make_symbol("cons");
 
-int main(int argc, char** argv) {
-  init();
-  vm_init();
-
-  if(argc != 2) {
-    fprintf(stderr, "usage: %s bytecode\n", argv[0]);
-    exit(1);
-  }
-
-  char *bfilename = argv[1];
-  FILE *bfile = fopen(bfilename, "r");
-
-  if(bfile == NULL) {
-    fprintf(stderr, "failed to open %s\n", bfilename);
-    exit(1);
-  }
-
-  object *bc = read(bfile);
-  fclose(bfile);
-
-  if(bc == NULL) {
-    fprintf(stderr, "failed to read bytecode from %s\n",
-	    bfilename);
-    exit(1);
-  }
-
-  write(stdout, bc);
-  printf("\n");
-
-  object *result = vm_execute(bc);
-  printf("result: ");
-  write(stdout, result);
-  printf("\n");
-
-  return 0;
+  error_sym = make_symbol("error");
 }

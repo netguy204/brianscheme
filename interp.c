@@ -7,6 +7,7 @@
 #include "types.h"
 #include "interp.h"
 #include "gc.h"
+#include "vm.h"
 
 static const int DEBUG_LEVEL = 1;
 static char debug_enabled = 0;
@@ -541,6 +542,10 @@ DEFUN1(compound_env_proc) {
   return FIRST->data.compound_proc.env;
 }
 
+DEFUN1(vm_execute_proc) {
+  return vm_execute(FIRST);
+}
+
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -1010,6 +1015,7 @@ void init_prim_environment(object *env) {
   add_procedure("compound-body", compound_body_proc);
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
+  add_procedure("vm-execute", vm_execute_proc);
 
   define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol,
@@ -1084,6 +1090,7 @@ void init() {
   the_call_stack = cons(the_empty_list, the_empty_list);
   push_root(&the_call_stack);
 
+  vm_init();
   init_prim_environment(the_global_environment);
 }
 
