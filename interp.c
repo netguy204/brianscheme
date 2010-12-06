@@ -940,7 +940,17 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&fn);
 	goto interp_restart;
       } else if(is_compiled_proc(fn)) {
-	result = vm_execute(fn, evald_args, env);
+	/* need to reverse the arguments */
+	object *stack = the_empty_list;
+	push_root(&stack);
+	while(!is_the_empty_list(evald_args)) {
+	  stack = cons(car(evald_args), stack);
+	  evald_args = cdr(evald_args);
+	}
+
+	result = vm_execute(fn, stack, env);
+	pop_root(&stack);
+
 	pop_root(&result);
 	pop_root(&evald_args);
 	pop_root(&fn);

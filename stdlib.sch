@@ -63,9 +63,10 @@
 (define0 reverse (l)
   ((lambda (iter)
      (define0 iter (in out)
-       (if (pair? in)
-	   (iter (cdr0 in) (cons (car0 in) out))
-	   out))
+       (if (null? in)
+	   out
+	   (iter (cdr0 in) (cons (car0 in) out))))
+
     
      (iter l nil)) nil))
 

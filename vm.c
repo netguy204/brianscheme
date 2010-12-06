@@ -123,7 +123,7 @@ object *vm_execute(object *fn, object *stack,
     next = cdr(next);
   }
 
-  env = the_empty_list;
+  env = CENV(fn);
   instr = the_empty_list;
   top = the_empty_list;
 
@@ -201,12 +201,23 @@ object *vm_execute(object *fn, object *stack,
     }
     else if(opcode == callj_op) {
       POP(top, stack);
-      fn = top;
-      env = CENV(fn);
-      pc = 0;
-      n_args = LONG(ARG1(instr));
+      if(is_compiled_proc(top)) {
+	fn = top;
+	env = CENV(fn);
+	pc = 0;
+	n_args = LONG(ARG1(instr));
 
-      goto vm_fn_begin;
+	goto vm_fn_begin;
+
+      } else if(is_primitive_proc(top)) {
+	VM_ASSERT(0, "primitive invocation not implemented");
+	/* generate return */
+      } else if(is_compound_proc(top)) {
+	VM_ASSERT(0, "compound invocation not implemented");
+	/* generate return */
+      } else {
+	VM_ASSERT(0, "unrecognized invocation");
+      }
     }
     else if(opcode == lvar_op) {
       int env_num = LONG(ARG1(instr));
