@@ -227,6 +227,10 @@ DEFUN1(is_eof_proc) {
   return AS_BOOL(is_eof_object(FIRST));
 }
 
+DEFUN1(is_compiled_proc_proc) {
+  return AS_BOOL(is_compiled_proc(FIRST));
+}
+
 DEFUN1(add_proc) {
   long result = 0;
   while(!is_the_empty_list(arguments)) {
@@ -997,6 +1001,7 @@ void init_prim_environment(object *env) {
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
   add_procedure("eof-object?", is_eof_proc);
+  add_procedure("compiled-procedure?", is_compiled_proc_proc);
 
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
@@ -1056,6 +1061,7 @@ void init_prim_environment(object *env) {
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
   add_procedure("vm-execute", vm_execute_proc);
+
   add_procedure("make-compiled-proc", make_compiled_proc_proc);
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);

@@ -53,5 +53,4 @@
 (set! m2 nil)
 (time (set! m2 (map2 f big-list)) 'done)
 
-(assert (equal? m1 m2))
 

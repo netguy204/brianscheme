@@ -409,6 +409,18 @@
 		    fns))
      ,(first fns)))
 
+(define (dump-compiled-fn fn &rest indent)
+  (let ((indent (if (null? indent)
+		    0
+		    (car indent))))
+    (show-fn fn indent)
+    (write "environment")
+    (dolist (e (compiled-environment fn))
+	    (dovector (p e)
+		      (if (compiled-procedure? p)
+			  (dump-compiled-fn p (+ indent 4))
+			  (write (make-space indent) p))))))
+
 ; now we can compile functions to bytecode and print the results like
 ; this:
 ; (comp-show '(if (= x y) (f (g x)) (h x y (h 1 2))))
