@@ -42,7 +42,7 @@
 
 'make-big-list
 (set! big-list nil)
-(time (set! big-list (make-list 1000)) nil)
+(time (set! big-list (make-list 10000)) nil)
 
 'big-map
 (set! m1 nil)

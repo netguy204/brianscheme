@@ -1069,6 +1069,8 @@ void init_prim_environment(object *env) {
 }
 
 void init() {
+  gc_init();
+
   the_empty_list = alloc_object();
   the_empty_list->type = THE_EMPTY_LIST;
   push_root(&the_empty_list);

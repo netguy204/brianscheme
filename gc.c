@@ -55,7 +55,7 @@ void debug_gc(char *msg, ...) {
   va_end(args);
 }
 #else
-void print_backtrace() {}
+#define print_backtrace()
 #define debug_gc(msg, ...)
 #endif
 
@@ -69,9 +69,11 @@ void ensure_root_objects(void) {
   }
 }
 
-object *push_root(object **stack) {
+void gc_init(void) {
   ensure_root_objects();
+}
 
+object *push_root(object **stack) {
   /* grow the stack if we need to */
 
   /* FIXME: why doesn't this work?
@@ -184,8 +186,6 @@ long sweep_unmarked() {
 }
 
 long mark_and_sweep() {
-  ensure_root_objects();
-
   /* mark everything reachable from root */
   int ii = 0;
   for(ii = 0; ii < Root_Objects->top; ++ii) {

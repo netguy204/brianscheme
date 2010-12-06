@@ -89,6 +89,7 @@ object *cons_impl(object *a, object *b) {
 #define VM_RETURN(obj)				\
   do {						\
     pop_root(&top);				\
+    pop_root(&env);				\
     pop_root(&stack);				\
     return obj;					\
   } while(0)
@@ -110,6 +111,8 @@ object *vm_execute(object *fn, object *stack,
   object *env;
   object *instr;
   object *opcode;
+  object *top;
+
   long n_args = 0;
   long pc = 0;
 
@@ -122,10 +125,10 @@ object *vm_execute(object *fn, object *stack,
 
   env = the_empty_list;
   instr = the_empty_list;
+  top = the_empty_list;
 
   push_root(&stack);
-
-  object *top = the_empty_list;
+  push_root(&env);
   push_root(&top);
 
   VM_ASSERT(is_compiled_proc(fn),
