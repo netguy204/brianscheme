@@ -329,20 +329,6 @@
 	nil
 	(list (index-eq frame env) (index-eq symbol frame)))))
 
-(define (make-space spaces)
-  (reduce concat (duplicate " " spaces) ""))
-
-(define (show-fn fn indent)
-  (if (not (fn? fn))
-      (write "#  " fn)
-      (begin
-	(newline)
-	(dolist (instr (fn-code fn))
-		(if (symbol? instr)
-		    (write instr ":")
-		    (dolist (arg instr)
-			    (show-fn arg (+ indent 4))))))))
-
 (define (label? obj)
   (symbol? obj))
 
@@ -396,6 +382,15 @@
 		    (set-vector! code-vector addr instr)
 		    (inc! addr)))
     code-vector))
+
+(define (make-space spaces)
+  (reduce concat (duplicate " " spaces) ""))
+
+(define (show-fn fn indent)
+  (dovector (instr (compiled-bytecode fn))
+	  (if (is instr 'fn)
+	      (show-fn (second instr) (+ indent 4))
+	      (write (make-space indent) instr))))
 
 (define (comp-show fn)
   (show-fn (compiler fn) 0))

@@ -493,6 +493,10 @@ DEFUN1(set_vector_element_proc) {
   return THIRD;
 }
 
+DEFUN1(vector_length_proc) {
+  return make_fixnum(VSIZE(FIRST));
+}
+
 DEFUN1(exit_proc) {
   eval_exit_hook(environment);
   exit((int)LONG(FIRST));
@@ -999,6 +1003,7 @@ void init_prim_environment(object *env) {
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
   add_procedure("make-vector", make_vector_proc);
+  add_procedure("vector-length", vector_length_proc);
   add_procedure("get-vector", get_vector_element_proc);
   add_procedure("set-vector!", set_vector_element_proc);
 

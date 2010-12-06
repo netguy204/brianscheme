@@ -46,7 +46,7 @@
 
 'big-map
 (set! m1 nil)
-(time (set! m1 (mapr (lambda (x) (+ 1 x)) big-list)) 'done)
+(time (set! m1 (mapr (lambda (x) (prim-+ 1 x)) big-list)) 'done)
 
 'compiled-big-map
 (set! m2 nil)

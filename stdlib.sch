@@ -547,13 +547,13 @@
       (string? obj)))
 
 (define (do-times fn times)
-  (define (iter n)
-    (if (< n times)
-	(begin
-	  (fn n)
-	  (iter (+ n 1)))
-	#t))
-  (iter 0))
+  (letrec ((iter (lambda (n)
+		   (if (< n times)
+		       (begin
+			 (fn n)
+			 (iter (+ n 1)))
+		       #t))))
+    (iter 0)))
 
 (define-syntax dotimes (args &rest body)
   `(do-times (lambda (,(first args)) . ,body)
@@ -564,14 +564,14 @@
        (eq? (first lst) val)))
 
 (define (find fn lst)
-  (define (iter rest)
-    (if (null? rest)
-	nil
-	(let ((res (fn (car rest))))
-	  (if res
-	      (car rest)
-	      (iter (cdr rest))))))
-  (iter lst))
+  (letrec ((iter (lambda (rest)
+		   (if (null? rest)
+		       nil
+		       (let ((res (fn (car rest))))
+			 (if res
+			     (car rest)
+			     (iter (cdr rest))))))))
+    (iter lst)))
 
 (define (starts-with? exp val)
   (and (pair? exp) (eq? (car exp) val)))
@@ -588,24 +588,32 @@
       (eq? a b)))
 
 (define (reduce fn lst &rest init)
-  (define (iter last rest)
-    (if (null? rest)
-	last
-	(iter (fn last (car rest)) (cdr rest))))
-  (if (null? init)
-      (iter (car lst) (cdr lst))
-      (iter (car init) lst)))
+  (letrec ((iter (lambda (last rest)
+		   (if (null? rest)
+		       last
+		       (iter (fn last (car rest)) (cdr rest))))))
+    (if (null? init)
+	(iter (car lst) (cdr lst))
+	(iter (car init) lst))))
 
 (define (duplicate obj n)
-  (define result nil)
-  (dotimes (x n)
-	   (set! result (cons obj result)))
-  result)
+  (let ((result nil))
+    (dotimes (x n)
+	     (set! result (cons obj result)))
+    result))
 
 (define-syntax dolist (args &rest body)
   `(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
+(define-syntax dovector (args &rest body)
+  (let ((n (gensym))
+	(idx (gensym)))
+
+    `(let ((,n (vector-length ,(second args))))
+       (dotimes (,idx ,n)
+		(let ((,(first args) (get-vector ,(second args) ,idx)))
+		  . ,body)))))
 
 ;; Implement the classic delay/force combo directly by representing a
 ;; delay as the cons of its value (nil of not yet forced) and the
