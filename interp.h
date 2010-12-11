@@ -40,6 +40,7 @@ void init_prim_environment(object *env);
 void init();
 
 void write(FILE *out, object *obj);
+char is_falselike(object *obj);
 object *expand_macro(object *macro, object *args,
 		     object *env, int level);
 object *interp(object *exp, object *env);

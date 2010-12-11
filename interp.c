@@ -721,6 +721,10 @@ object *debug_write(char * msg, object *obj, int level) {
   return obj;
 }
 
+char is_falselike(object *obj) {
+  return obj == false || is_the_empty_list(obj);
+}
+
 #ifdef NODEBUG
 #define DN(msg, obj, level, n) obj
 #else
@@ -859,7 +863,7 @@ object *interp1(object *exp, object *env, int level) {
       object *args = cdr(exp);
       object *predicate = interp1(first(args), env, level + 1);
 
-      if(predicate == false || is_the_empty_list(predicate)) {
+      if(is_falselike(predicate)) {
 	/* else is optional, if none return #f */
 	if(is_the_empty_list(cdr(cdr(args)))) {
 	  INTERP_RETURN(false);

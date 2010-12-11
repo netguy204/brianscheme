@@ -224,14 +224,14 @@
 (define (prim-side-effects? prim)
   (fifth (rest prim)))
 
-(define *primitive-fns*
-  (map (lambda (fn) (cons 'prim fn))
-       '((+ 2 + #t #f) (- 2 - #t #f) (* 2 * #t #f) (/ 2 / #t #f)
-	 (< 2 < #f #f) (> 2 > #f #f)
-	 (= 2 = #f #f) (eq? 2 eq? #f #f)
-	 (car 1 car #f #f) (cdr 1 cdr #f #f) (cons 2 cons #f #f)
-	 (car0 1 car #f #f) (cdr0 1 cdr #f #f)
-	 (null? 1 null? #f #f))))
+(define *primitive-fns* '())
+;  (map (lambda (fn) (cons 'prim fn))
+;       '((+ 2 + #t #f) (- 2 - #t #f) (* 2 * #t #f) (/ 2 / #t #f)
+;	 (< 2 < #f #f) (> 2 > #f #f)
+;	 (= 2 = #f #f) (eq? 2 eq? #f #f)
+;	 (car 1 car #f #f) (cdr 1 cdr #f #f) (cons 2 cons #f #f)
+;	 (car0 1 car #f #f) (cdr0 1 cdr #f #f)
+;	 (null? 1 null? #f #f))))
 
 ;; f is primitive if it's in the table and not shadowed in the
 ;; environment and has the right number of arguments.
@@ -408,6 +408,9 @@
 			  `(set! ,fn ,efn)))))
 		    fns))
      ,(first fns)))
+
+(define-syntax replace-with-compiled (fn)
+  `(set! ,fn ((compiler (compound->lambda ,fn)))))
 
 (define (dump-compiled-fn fn &rest indent)
   (let ((indent (if (null? indent)

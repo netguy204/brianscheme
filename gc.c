@@ -22,7 +22,7 @@ typedef struct object_pointer_list {
   object ***objs;
   long top;
   long size;
-} object_list;
+} object_pointer_list;
 
 /* initialized to the_empty_list */
 static object *Free_Objects = NULL;
@@ -75,18 +75,12 @@ void gc_init(void) {
 
 object *push_root(object **stack) {
   /* grow the stack if we need to */
-
-  /* FIXME: why doesn't this work?
   if(Root_Objects->top == Root_Objects->size) {
-    long new_size = Root_Objects->size * 2 + 100;
-    debug_gc("growing root stack to %ld\n", new_size);
-    Root_Objects->objs = realloc(Root_Objects->objs, new_size);
+    long new_size = Root_Objects->size * 2;
+    Root_Objects->objs = realloc(Root_Objects->objs, 
+				 sizeof(object**) * new_size);
     Root_Objects->size = new_size;
-  }
-  */
-  if(Root_Objects->top == Root_Objects->size) {
-    throw_gc("exceeded the maximum number (%d) of gc roots\n",
-	     Root_Objects->size);
+    debug_gc("grew root stack to %ld objects\n", new_size);
   }
 
   Root_Objects->objs[Root_Objects->top++] = stack;

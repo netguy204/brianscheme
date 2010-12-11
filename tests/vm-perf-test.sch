@@ -30,7 +30,7 @@
      
      comp))
 
-(set! f ((compiler '(lambda (x) (+ x 1)))))
+(set! f ((compiler '(lambda (x) (prim-+ x 1)))))
 (set! map2 ((compiler (compile-together 'map 'mapr
 					'reverse 'nil))))
 
@@ -43,7 +43,7 @@
 
 'make-big-list
 (set! big-list nil)
-(time (set! big-list (make-list 10000)) nil)
+(time (set! big-list (make-list 3000)) nil)
 
 'big-map
 (set! m1 nil)
@@ -55,4 +55,9 @@
 
 'hybrid-big-map
 (time (map2 (lambda (x) (prim-+ 1 x)) big-list) 'done)
+
+'mark-and-sweep
+(mark-and-sweep)
+
+(exit 0)
 

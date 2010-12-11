@@ -17,22 +17,17 @@
 
 object *args_op;
 object *return_op;
+object *const_op;
 object *fn_op;
 object *fjump_op;
 object *tjump_op;
+object *jump_op;
 object *callj_op;
 object *lvar_op;
 object *save_op;
 object *gvar_op;
 object *lset_op;
 object *pop_op;
-
-object *plus_op;
-object *numeq_op;
-object *cons_op;
-object *null_op;
-object *car_op;
-object *cdr_op;
 
 object *error_sym;
 
@@ -199,17 +194,19 @@ object *vm_execute(object *fn, object *stack,
 
       VM_DEBUG("after_args environment", env);
     }
-    else if(opcode == plus_op) {
-      CALL2(plus_impl);
-    }
-    else if(opcode == numeq_op) {
-      CALL2(numeq_impl);
-    }
     else if(opcode == fjump_op) {
       POP(top, stack);
-      if(top == false) {
+      if(is_falselike(top)) {
 	pc = LONG(ARG1(instr));
       }
+    }
+    else if(opcode == tjump_op) {
+      if(!is_falselike(top)) {
+	pc = LONG(ARG1(instr));
+      }
+    }
+    else if(opcode == jump_op) {
+      pc = LONG(ARG1(instr));
     }
     else if(opcode == fn_op) {
       object *fn_arg = ARG1(instr);
@@ -304,25 +301,6 @@ object *vm_execute(object *fn, object *stack,
     else if(opcode == pop_op) {
       POP(top, stack);
     }
-    else if(opcode == cons_op) {
-      CALL2(cons_impl);
-    }
-    else if(opcode == null_op) {
-      POP(top, stack);
-      if(is_the_empty_list(top)) {
-	PUSH(true, stack);
-      } else {
-	PUSH(false, stack);
-      }
-    }
-    else if(opcode == car_op) {
-      set_car(stack,
-	      car(car(stack)));
-    }
-    else if(opcode == cdr_op) {
-      set_car(stack,
-	      cdr(car(stack)));
-    }
     else if(opcode == save_op) {
       object *ret_addr = cons(fn, env);
       push_root(&ret_addr);
@@ -332,6 +310,9 @@ object *vm_execute(object *fn, object *stack,
     }
     else if(opcode == return_op) {
       RETURN_OPCODE_INSTRUCTIONS;
+    }
+    else if(opcode == const_op) {
+      PUSH(ARG1(instr), stack);
     }
     else {
       fprintf(stderr, "don't know how to process ");
@@ -356,22 +337,17 @@ object *vm_execute(object *fn, object *stack,
 void vm_init(void) {
   args_op = make_symbol("args");
   return_op = make_symbol("return");
+  const_op = make_symbol("const");
   fn_op = make_symbol("fn");
   fjump_op = make_symbol("fjump");
   tjump_op = make_symbol("tjump");
+  jump_op = make_symbol("jump");
   callj_op = make_symbol("callj");
   lvar_op = make_symbol("lvar");
   save_op = make_symbol("save");
   gvar_op = make_symbol("gvar");
   lset_op = make_symbol("lset");
   pop_op = make_symbol("pop");
-
-  plus_op = make_symbol("+");
-  numeq_op = make_symbol("=");
-  cons_op = make_symbol("cons");
-  null_op = make_symbol("null?");
-  car_op = make_symbol("car");
-  cdr_op = make_symbol("cdr");
 
   error_sym = make_symbol("error");
 }
