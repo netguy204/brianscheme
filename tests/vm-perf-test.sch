@@ -47,10 +47,12 @@
 
 'big-map
 (set! m1 nil)
-(time (set! m1 (map (lambda (x) (prim-+ 1 x)) big-list)) 'done)
+(time (map (lambda (x) (prim-+ 1 x)) big-list) 'done)
 
 'compiled-big-map
 (set! m2 nil)
-(time (set! m2 (map2 f big-list)) 'done)
+(time (map2 f big-list) 'done)
 
+'hybrid-big-map
+(time (map2 (lambda (x) (prim-+ 1 x)) big-list) 'done)
 

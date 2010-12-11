@@ -94,6 +94,26 @@ object *cons_impl(object *a, object *b) {
     return obj;					\
   } while(0)
 
+/** this code needs to be spliced into several
+ *  locations so we just define it once here
+ */
+#define RETURN_OPCODE_INSTRUCTIONS		\
+  /* if there's only one value on the stack,	\
+   * we're done */                              \
+  if(length1(stack)) {				\
+    VM_RETURN(car(stack));			\
+  } else {					\
+    object *val = first(stack);			\
+    object *ret_addr = second(stack);		\
+    /* retore what we stashed away in save */	\
+    fn = car(cdr(ret_addr));			\
+    pc = LONG(car(ret_addr));			\
+    env = cdr(cdr(ret_addr));			\
+    /* setup for the next loop */		\
+    stack = cons(val, cdr(cdr(stack)));		\
+    goto vm_fn_begin;				\
+  }
+
 #ifdef VM_DEBUGGING
 #define VM_DEBUG(msg, obj)			\
   do {						\
@@ -209,9 +229,42 @@ object *vm_execute(object *fn, object *stack,
 
 	goto vm_fn_begin;
 
-      } else if(is_primitive_proc(top)) {
-	VM_ASSERT(0, "primitive invocation not implemented");
+      } else if(is_primitive_proc(top)
+		|| is_compound_proc(top)) {
+
+	/* push the stack arguments onto a new list
+	   to hand off to the primitive */
+	int args_for_call = LONG(ARG1(instr));
+	int ii;
+
+	object *pfn = top;
+	push_root(&fn);
+	object *arglist = the_empty_list;
+	push_root(&arglist);
+
+	for(ii = 0; ii < args_for_call; ++ii) {
+	  POP(top, stack);
+	  arglist = cons(top, arglist);
+	}
+
+	if(is_primitive_proc(pfn)) {
+	    top = pfn->data.primitive_proc.fn(arglist, ienv);
+	} else {
+	  object *call_env = extend_environment(pfn->data.compound_proc.parameters,
+						arglist,
+						pfn->data.compound_proc.env);
+	  push_root(&call_env);
+	  top = interp(pfn->data.compound_proc.body, call_env);
+	  pop_root(&call_env);
+	}
+
+	PUSH(top, stack);
+
+	pop_root(&arglist);
+	pop_root(&fn);
+
 	/* generate return */
+	RETURN_OPCODE_INSTRUCTIONS;
       } else if(is_compound_proc(top)) {
 	VM_ASSERT(0, "compound invocation not implemented");
 	/* generate return */
@@ -278,23 +331,7 @@ object *vm_execute(object *fn, object *stack,
       pop_root(&ret_addr);
     }
     else if(opcode == return_op) {
-      /* if there's only one value on the stack,
-       * we're done */
-      if(length1(stack)) {
-	VM_RETURN(car(stack));
-      } else {
-	object *val = first(stack);
-	object *ret_addr = second(stack);
-
-	/* retore what we stashed away in save */
-	fn = car(cdr(ret_addr));
-	pc = LONG(car(ret_addr));
-	env = cdr(cdr(ret_addr));
-
-	/* setup for the next loop */
-	stack = cons(val, cdr(cdr(stack)));
-	goto vm_fn_begin;
-      }
+      RETURN_OPCODE_INSTRUCTIONS;
     }
     else {
       fprintf(stderr, "don't know how to process ");
