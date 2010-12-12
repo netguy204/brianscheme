@@ -52,61 +52,45 @@ object *cons_impl(object *a, object *b) {
 }
 
 
-#define PUSH(obj, stack)			\
-  do {						\
-    stack = cons(obj, stack);			\
+#define VPUSH(obj, stack, top)				\
+  do {							\
+    VM_ASSERT(top < VSIZE(stack), "vm outgrew stack");	\
+    VARRAY(stack)[top++] = obj;				\
   } while(0)
 
-#define POP(top, stack)				\
+#define VPOP(tgt, stack, top)			\
   do {						\
-    top = car(stack);				\
-    stack = cdr(stack);				\
+    tgt = VARRAY(stack)[--top];			\
   } while(0)
 
-#define RESET_TOP(pos, obj)			\
-  object *p1 = pos;				\
-  set_car(p1, obj);				\
-  stack = pos
-
-#define CALL1(fn)				\
-  do {						\
-    object *result = fn(first(stack));		\
-    RESET_TOP(stack, result);			\
-  } while(0)
-
-#define CALL2(fn)				\
-  do {						\
-    object *result = fn(second(stack),		\
-			first(stack));		\
-    RESET_TOP(cdr(stack), result);		\
-  } while(0)
 
 #define VM_RETURN(obj)				\
   do {						\
     pop_root(&top);				\
     pop_root(&env);				\
-    pop_root(&stack);				\
     return obj;					\
   } while(0)
 
 /** this code needs to be spliced into several
  *  locations so we just define it once here
  */
-#define RETURN_OPCODE_INSTRUCTIONS		\
-  /* if there's only one value on the stack,	\
-   * we're done */                              \
-  if(length1(stack)) {				\
-    VM_RETURN(car(stack));			\
-  } else {					\
-    object *val = first(stack);			\
-    object *ret_addr = second(stack);		\
-    /* retore what we stashed away in save */	\
-    fn = car(cdr(ret_addr));			\
-    pc = LONG(car(ret_addr));			\
-    env = cdr(cdr(ret_addr));			\
-    /* setup for the next loop */		\
-    stack = cons(val, cdr(cdr(stack)));		\
-    goto vm_fn_begin;				\
+#define RETURN_OPCODE_INSTRUCTIONS			\
+  /* if there's only one value on the stack,		\
+   * we're done */                                      \
+  if(stack_top == 1) {					\
+    VM_RETURN(VARRAY(stack)[0]);			\
+  } else {						\
+    object *val;					\
+    VPOP(val, stack, stack_top);			\
+    object *ret_addr;					\
+    VPOP(ret_addr, stack, stack_top);			\
+    /* retore what we stashed away in save */		\
+    fn = car(cdr(ret_addr));				\
+    pc = LONG(car(ret_addr));				\
+    env = cdr(cdr(ret_addr));				\
+    /* setup for the next loop */			\
+    VPUSH(val, stack, stack_top);			\
+    goto vm_fn_begin;					\
   }
 
 #ifdef VM_DEBUGGING
@@ -121,6 +105,7 @@ object *cons_impl(object *a, object *b) {
 #endif
 
 object *vm_execute(object *fn, object *stack,
+		   long n_args,
 		   object *ienv) {
   object *code_array;
   object *env;
@@ -128,21 +113,13 @@ object *vm_execute(object *fn, object *stack,
   object *opcode;
   object *top;
 
-  long n_args = 0;
   long pc = 0;
-
-  /* count the args */
-  object *next = stack;
-  while(!is_the_empty_list(next)) {
-    ++n_args;
-    next = cdr(next);
-  }
+  long stack_top = n_args;
 
   env = CENV(fn);
   instr = the_empty_list;
   top = the_empty_list;
 
-  push_root(&stack);
   push_root(&env);
   push_root(&top);
 
@@ -165,12 +142,11 @@ object *vm_execute(object *fn, object *stack,
   opcode = OPCODE(instr);
 
   VM_DEBUG("dispatching", instr);
-  /* VM_DEBUG("stack", stack); */
 
   switch(opcode->type) {
   case BOOLEAN:
   case FIXNUM:
-    PUSH(opcode, stack);
+    VPUSH(opcode, stack, stack_top);
     break;
 
   case SYMBOL:
@@ -183,19 +159,19 @@ object *vm_execute(object *fn, object *stack,
       object *vector = make_vector(the_empty_list,
 				   num_args);
       push_root(&vector);
-      PUSH(vector, env);
+      env = cons(vector, env);
       pop_root(&vector);
 
       object **vdata = VARRAY(vector);
       for(ii = num_args - 1; ii >= 0; --ii) {
-	POP(top, stack);
+	VPOP(top, stack, stack_top);
 	vdata[ii] = top;
       }
 
       VM_DEBUG("after_args environment", env);
     }
     else if(opcode == fjump_op) {
-      POP(top, stack);
+      VPOP(top, stack, stack_top);
       if(is_falselike(top)) {
 	pc = LONG(ARG1(instr));
       }
@@ -213,11 +189,11 @@ object *vm_execute(object *fn, object *stack,
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
 					  env);
       push_root(&new_fn);
-      PUSH(new_fn, stack);
+      VPUSH(new_fn, stack, stack_top);
       pop_root(&new_fn);
     }
     else if(opcode == callj_op) {
-      POP(top, stack);
+      VPOP(top, stack, stack_top);
       if(is_compiled_proc(top)) {
 	fn = top;
 	env = CENV(fn);
@@ -240,7 +216,7 @@ object *vm_execute(object *fn, object *stack,
 	push_root(&arglist);
 
 	for(ii = 0; ii < args_for_call; ++ii) {
-	  POP(top, stack);
+	  VPOP(top, stack, stack_top);
 	  arglist = cons(top, arglist);
 	}
 
@@ -255,7 +231,7 @@ object *vm_execute(object *fn, object *stack,
 	  pop_root(&call_env);
 	}
 
-	PUSH(top, stack);
+	VPUSH(top, stack, stack_top);
 
 	pop_root(&arglist);
 	pop_root(&fn);
@@ -279,7 +255,7 @@ object *vm_execute(object *fn, object *stack,
       }
 
       object *data = VARRAY(car(next))[idx];
-      PUSH(data, stack);
+      VPUSH(data, stack, stack_top);
     }
     else if(opcode == lset_op) {
       int env_num = LONG(ARG1(instr));
@@ -290,29 +266,29 @@ object *vm_execute(object *fn, object *stack,
 	next = cdr(next);
       }
 
-      VARRAY(car(next))[idx] = first(stack);
+      VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
     }
     else if(opcode == gvar_op) {
       object *var = lookup_variable_value(ARG1(instr), ienv);
       push_root(&var);
-      PUSH(var, stack);
+      VPUSH(var, stack, stack_top);
       pop_root(&var);
     }
     else if(opcode == pop_op) {
-      POP(top, stack);
+      VPOP(top, stack, stack_top);
     }
     else if(opcode == save_op) {
       object *ret_addr = cons(fn, env);
       push_root(&ret_addr);
       ret_addr = cons(ARG1(instr), ret_addr);
-      PUSH(ret_addr, stack);
+      VPUSH(ret_addr, stack, stack_top);
       pop_root(&ret_addr);
     }
     else if(opcode == return_op) {
       RETURN_OPCODE_INSTRUCTIONS;
     }
     else if(opcode == const_op) {
-      PUSH(ARG1(instr), stack);
+      VPUSH(ARG1(instr), stack, stack_top);
     }
     else {
       fprintf(stderr, "don't know how to process ");

@@ -562,14 +562,6 @@ DEFUN1(compound_env_proc) {
   return FIRST->data.compound_proc.env;
 }
 
-DEFUN1(vm_execute_proc) {
-  if(is_the_empty_list(cdr(arguments))) {
-    return vm_execute(FIRST, the_empty_list, environment);
-  } else {
-    return vm_execute(FIRST, SECOND, environment);
-  }
-}
-
 void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -949,14 +941,17 @@ object *interp1(object *exp, object *env, int level) {
 	goto interp_restart;
       } else if(is_compiled_proc(fn)) {
 	/* need to reverse the arguments */
-	object *stack = the_empty_list;
+	object *stack = make_vector(the_empty_list, 30);
+	long stack_top = 0;
+
 	push_root(&stack);
+
 	while(!is_the_empty_list(evald_args)) {
-	  stack = cons(car(evald_args), stack);
+	  VARRAY(stack)[stack_top++] = car(evald_args);
 	  evald_args = cdr(evald_args);
 	}
 
-	result = vm_execute(fn, stack, env);
+	result = vm_execute(fn, stack, stack_top, env);
 	pop_root(&stack);
 
 	pop_root(&result);
@@ -1064,7 +1059,6 @@ void init_prim_environment(object *env) {
   add_procedure("compound-body", compound_body_proc);
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
-  add_procedure("vm-execute", vm_execute_proc);
 
   add_procedure("make-compiled-proc", make_compiled_proc_proc);
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
