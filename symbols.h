@@ -14,7 +14,6 @@ object *quote_symbol;
 object *quasiquote_symbol;
 object *unquote_symbol;
 object *set_symbol;
-object *setlocal_symbol;
 object *if_symbol;
 object *begin_symbol;
 object *lambda_symbol;

@@ -137,6 +137,15 @@ void set_variable_value(object *var, object *new_val, object *env) {
   set_car(val, new_val);
 }
 
+void define_global_variable(object *var, object *new_val, object *env) {
+  while(!is_the_empty_list(enclosing_environment(env))) {
+    env = enclosing_environment(env);
+  }
+
+  object *frame = first_frame(env);
+  add_binding_to_frame(var, new_val, frame);
+}
+
 /**
  * like set_variable_value but we define the variable if it doesn't
  * exist in a reachable frame.
@@ -144,20 +153,8 @@ void set_variable_value(object *var, object *new_val, object *env) {
 void define_variable(object *var, object *new_val, object *env) {
   object *val = find_variable_value(var, env, 1);
   if(is_the_empty_list(val)) {
-    add_binding_to_frame(var, new_val, first_frame(env));
-  } else {
-    set_car(val, new_val);
-  }
-}
-
-/**
- * like set_variable_value but we define the variable if it doesn't
- * exist in the given frame.
- */
-void define_local_variable(object *var, object *new_val, object *env) {
-  object *val = find_variable_value(var, env, 0);
-  if(is_the_empty_list(val)) {
-    add_binding_to_frame(var, new_val, first_frame(env));
+    /* we define at the global level */
+    define_global_variable(var, new_val, env);
   } else {
     set_car(val, new_val);
   }
@@ -657,8 +654,10 @@ void write(FILE *out, object *obj) {
     break;
   case PAIR:
     head = car(obj);
-    /* it's a bug to assume this object has a cadr but I'm
-     * not sure what to do instead.
+    /* only the reader produces these and the reader always
+     * makes them like (thing affected-thing) therefore it
+     * should be safe to assume that if obj's head is one of
+     * these things then that obj has a cadr
      */
     if(head == quote_symbol) {
       fprintf(out, "'");
@@ -666,6 +665,10 @@ void write(FILE *out, object *obj) {
     }
     else if(head == unquote_symbol) {
       fprintf(out, ",");
+      write(out, cadr(obj));
+    } 
+    else if(head == quasiquote_symbol) {
+      fprintf(out, "`");
       write(out, cadr(obj));
     } else {
       fprintf(out, "(");
@@ -835,17 +838,12 @@ object *interp1(object *exp, object *env, int level) {
       exp = car(exp);
       goto interp_restart;
     }
-    else if(head == set_symbol ||
-	    head == setlocal_symbol) {
+    else if(head == set_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
       push_root(&val);
 
-      if(head == set_symbol) {
-	define_variable(first(args), val, env);
-      } else {
-	define_local_variable(first(args), val, env);
-      }
+      define_variable(first(args), val, env);
 
       pop_root(&val);
 
@@ -1116,7 +1114,6 @@ void init() {
   quote_symbol = make_symbol("quote");
   quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
-  setlocal_symbol = make_symbol("set-local!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
