@@ -10,7 +10,11 @@ OBJECTS = $(subst .c,.o,$(SOURCES))
 ifeq ($(FAST),1)
 	CC = gcc -O3 -W -Wall -ansi
 else
+ifeq ($(PROF),1)
+	CC = gcc -g -pg -W -Wall -ansi
+else
 	CC = gcc -g -W -Wall -ansi
+endif
 endif
 
 main: $(OBJECTS) main.o $(HEADERS)

@@ -320,38 +320,22 @@
       #t
       (throw-error "a pair was expected" obj)))
 
-; This is a cute trick to verify num-args. If we obtain a list of
-; values that begins at the last argument we expected to get then the
-; cdr of that list better be nil.
-(define-syntax assert-none-following (arg)
-  `(if (eq? (cdr0 (find-variable ',arg)) nil)
-       #t
-       (throw-error ',arg "should be the last argument")))
-
 (define (car lst)
   (assert-pair lst)
-  (assert-none-following lst)
-
   (car0 lst))
 
 (define (cdr lst)
   (assert-pair lst)
-  (assert-none-following lst)
-
   (cdr0 lst))
 
 (define set-car!0 set-car!)
 (define (set-car! obj new-car)
   (assert-pair obj)
-  (assert-none-following new-car)
-
   (set-car!0 obj new-car))
 
 (define set-cdr!0 set-cdr!)
 (define (set-cdr! obj new-cdr)
   (assert-pair obj)
-  (assert-none-following new-cdr)
-
   (set-cdr!0 obj new-cdr))
 
 (define (assert-numbers values)
@@ -415,14 +399,10 @@
 
 (define (open-output-port name)
   (assert-string 'open-output-port name)
-  (assert-none-following name)
-
   (open-output-port0 name))
 
 (define (close-output-port port)
   (assert-output-port port)
-  (assert-none-following port)
-
   (close-output-port0 port))
 
 ; input ports
@@ -431,14 +411,10 @@
 
 (define (open-input-port name)
   (assert-string 'open-input-port name)
-  (assert-none-following name)
-
   (open-input-port0 name))
 
 (define (close-input-port port)
   (assert-input-port port)
-  (assert-none-following port)
-
   (close-input-port0 port))
 
 
@@ -545,7 +521,10 @@
   (or (boolean? obj)
       (integer? obj)
       (char? obj)
-      (string? obj)))
+      (string? obj)
+      (compound-procedure? obj)
+      (compiled-procedure? obj)
+      (primitive-procedure? obj)))
 
 (define (do-times fn times)
   (letrec ((iter (lambda (n)
@@ -573,6 +552,15 @@
 			     (car rest)
 			     (iter (cdr rest))))))))
     (iter lst)))
+
+(define (filter fn lst)
+  (letrec ((iter (lambda (lst result)
+		   (cond
+		    ((null? lst) result)
+		    ((fn (car lst))
+		     (iter (cdr lst) (cons (car lst) result)))
+		    (else (iter (cdr lst) result))))))
+    (reverse (iter lst nil))))
 
 (define (starts-with? exp val)
   (and (pair? exp) (eq? (car exp) val)))

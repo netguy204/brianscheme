@@ -32,7 +32,8 @@
 
 (set! f ((compiler '(lambda (x) (prim-+ x 1)))))
 (set! map2 ((compiler (compile-together 'map 'mapr
-					'reverse 'nil))))
+					'reverse 'cons 'car
+					'cdr 'null? 'nil))))
 
 (define (make-list max-n)
   (let ((result nil))
@@ -59,5 +60,7 @@
 'mark-and-sweep
 (mark-and-sweep)
 
-(exit 0)
+(dump-compiled-fn map2)
+
+;(exit 0)
 
