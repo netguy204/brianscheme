@@ -268,6 +268,15 @@
     (gen-args (rest args) (+ n-so-far 1)))
    (else (throw-error "illegal argument list" args))))
 
+;; this doesn't do error checking like the method before
+(define (num-args args)
+  (letrec ((iter (lambda (lst count)
+		   (cond
+		    ((null? lst) count)
+		    ((symbol? lst) (+ count 1))
+		    (else (iter (rest lst) (+ count 1)))))))
+    (iter args 0)))
+
 (define (make-true-list dotted-list)
   (cond
    ((null? dotted-list) nil)
@@ -358,9 +367,12 @@
   (let* ((r1 (asm-first-pass (fn-code fn)))
 	 (r2 (asm-second-pass (fn-code fn)
 			      (first r1)
-			      (second r1))))
-    ;; stick the result on the end
-    (make-compiled-proc r2 nil)))
+			      (second r1)))
+	 (nargs (num-args (fn-args fn)))
+	 (result 
+	  (make-compiled-proc r2 nil)))
+
+    result))
 
 (define (asm-first-pass code)
   (let ((length 0)
@@ -387,11 +399,15 @@
   (reduce concat (duplicate " " spaces) ""))
 
 (define (show-fn fn indent)
-  (dovector (instr (compiled-bytecode fn))
-	  (if (is instr 'fn)
-	      (show-fn (second instr) (+ indent 4))
-	      (write (make-space indent) instr))))
+  (write (make-space indent)
+	 "environment" (compiled-environment fn))
 
+  (write (make-space indent) "fn")
+  (dovector (instr (compiled-bytecode fn))
+	    (if (is instr 'fn)
+		(show-fn (second instr) (+ indent 4))
+		(write (make-space indent) instr))))
+  
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
@@ -416,13 +432,8 @@
   (let ((indent (if (null? indent)
 		    0
 		    (car indent))))
-    (show-fn fn indent)
-    (write "environment")
-    (dolist (e (compiled-environment fn))
-	    (dovector (p e)
-		      (if (compiled-procedure? p)
-			  (dump-compiled-fn p (+ indent 4))
-			  (write (make-space indent) p))))))
+    (show-fn fn indent)))
+
 
 ; now we can compile functions to bytecode and print the results like
 ; this:
