@@ -72,12 +72,7 @@ object *extend_environment(object *vars, object *vals,
   return result;
 }
 
-/**
- * PRIVATE
- * @return cons cell where car(v) is variable value, nil on fail
- */
-object *find_variable_value(object *var, object *env,
-			    char search_enclosing) {
+object *lookup_variable_value(object *var, object *env) {
   object *frame;
   object *vars;
   object *vals;
@@ -86,10 +81,21 @@ object *find_variable_value(object *var, object *env,
     frame = first_frame(env);
     vars = frame_variables(frame);
     vals = frame_values(frame);
-    while(!is_the_empty_list(vars)) {
+
+    /* handles (lambda foo ...) */
+    if(var == vars) {
+      return vals;
+    }
+
+    while(is_pair(vars)) {
       if(var == car(vars)) {
-	return vals;
+	return car(vals);
       }
+      /* handles (lambda ( foo . rest ) ..) */
+      if(var == cdr(vars)) {
+	return cdr(vals);
+      }
+
       vars = cdr(vars);
 
       /* since these may not be the same length
@@ -98,43 +104,12 @@ object *find_variable_value(object *var, object *env,
 	vals = cdr(vals);
       }
     }
-    if(!search_enclosing) return the_empty_list;
     env = enclosing_environment(env);
   }
 
-  return the_empty_list;
-}
-
-/**
- * It turns out that find_variable_value is very useful for
- * implementing &rest args in userspace
- */
-DEFUN1(find_variable_proc) {
-  if(is_the_empty_list(cdr(arguments)) || SECOND == false) {
-    return find_variable_value(FIRST, environment, 0);
-  } else {
-    return find_variable_value(FIRST, environment, 1);
-  }
-}
-
-object *lookup_variable_value(object *var, object *env) {
-  object *val = find_variable_value(var, env, 1);
-  if(is_the_empty_list(val)) {
-    throw_interp("lookup failed. variable %s is unbound\n",
-		 STRING(var));
-  }
-
-  return car(val);
-}
-
-void set_variable_value(object *var, object *new_val, object *env) {
-  object *val = find_variable_value(var, env, 1);
-  if(is_the_empty_list(val)) {
-    throw_interp("set failed. variable %s is unbound\n",
-		 STRING(var));
-  }
-
-  set_car(val, new_val);
+  throw_interp("lookup failed. variable %s is unbound\n",
+	       STRING(var));
+  return NULL;
 }
 
 void define_global_variable(object *var, object *new_val, object *env) {
@@ -151,13 +126,37 @@ void define_global_variable(object *var, object *new_val, object *env) {
  * exist in a reachable frame.
  */
 void define_variable(object *var, object *new_val, object *env) {
-  object *val = find_variable_value(var, env, 1);
-  if(is_the_empty_list(val)) {
-    /* we define at the global level */
-    define_global_variable(var, new_val, env);
-  } else {
-    set_car(val, new_val);
+  object *frame;
+  object *vars;
+  object *vals;
+
+  object *senv = env;
+  while(!is_the_empty_list(senv)) {
+    frame = first_frame(senv);
+    vars = frame_variables(frame);
+    vals = frame_values(frame);
+    while(is_pair(vars)) {
+      if(var == car(vars)) {
+	set_car(vals, new_val);
+	return;
+      }
+      if(var == cdr(vars)) {
+	set_cdr(vals, new_val);
+	return;
+      }
+      vars = cdr(vars);
+
+      /* since these may not be the same length
+       * we need to check again */
+      if(!is_the_empty_list(vals)) {
+	vals = cdr(vals);
+      }
+    }
+    senv = enclosing_environment(senv);
   }
+
+  /* we define at the global level */
+  define_global_variable(var, new_val, env);
 }
 
 /**
@@ -1045,7 +1044,6 @@ void init_prim_environment(object *env) {
 
   add_procedure("concat", concat_proc);
 
-  add_procedure("find-variable", find_variable_proc);
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
   add_procedure("mark-and-sweep", mark_and_sweep_proc);

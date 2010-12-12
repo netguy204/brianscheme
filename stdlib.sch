@@ -14,14 +14,18 @@
 
 (set! nil '())
 
-(set! define0
-      (macro (name vars body)
-	`(set! ,name (lambda ,vars ,body))))
-	
-(set! define-syntax0
-      (macro (name vars body)
-	`(set! ,name (macro ,vars ,body))))
+(set! define-syntax
+      (macro (name-and-vars . body)
+	`(set! ,(car name-and-vars)
+	       (macro ,(cdr name-and-vars)
+		 (begin . ,body)))))
 
+(define-syntax (define name . value-or-body)
+  (if (symbol? name)
+      `(set! ,name . ,value-or-body)
+      `(set! ,(car name) (lambda ,(cdr name)
+			   (begin . ,value-or-body)))))
+	
 
 ;; We're going to override these names later so I'm stashing away the
 ;; original primitive versions so that we can refer to those
@@ -35,151 +39,56 @@
 (set! prim-< <)
 (set! prim-> >)
 (set! prim-= =)
-(set! car0 car)
-(set! cdr0 cdr)
-
-;; The first thing we'll be doing is defining the define-syntax
-;; macro. We're going to need a basic let functionality first so lets
-;; define that. This initial let0 is so-called because it doesn't
-;; support automatically wrapping all of its arguments after the first
-;; in an implicit (begin..). We'll need to add support for &rest
-;; before we can make an appropriate let definition.
 
 (set! next-gensym 0)
-(define0 gensym ()
+(define (gensym)
   (begin
     (set! next-gensym (+ next-gensym 1))
     (string->uninterned-symbol
      (concat "#" (number->string next-gensym)))))
 
-(define-syntax0 let0 (bindings body)
-  `((lambda ,(map car0 bindings)
-      ,body)
-    . ,(map second0 bindings)))
-
-;; We used map in our definition of let0 so we had better go ahead and
-;; define that too. Note that these functions are not type-safe. We
-;; should probably override them later with versions that are.
-(define0 reverse (l)
-  ((lambda (iter)
-     (define0 iter (in out)
-       (if (null? in)
-	   out
-	   (iter (cdr0 in) (cons (car0 in) out))))
-
-    
-     (iter l nil)) nil))
-
-(define0 mapr (fn lst)
-  ((lambda (iter)
-     (define0 iter (done rest)
-       (if (null? rest)
-	   done
-	   (iter (cons (fn (car0 rest)) done) (cdr0 rest))))
-    
-     (iter nil lst)) nil))
-
-(define0 map (fn lst)
-  (reverse (mapr fn lst)))
-
-(define0 cadr0 (x) (car0 (cdr0 x)))
-(define0 second0 (x) (cadr0 x))
-
-(define0 cadr (x) (car (cdr x)))
-(define0 caddr (x) (car (cdr (cdr x))))
-(define0 cadddr (x) (car (cdr (cdr (cdr x)))))
-(define0 caddddr (x) (car (cdr (cdr (cdr (cdr x))))))
-
-(define0 first (x) (car x))
-(define0 second (x) (cadr x))
-(define0 third (x) (caddr x))
-(define0 fourth (x) (cadddr x))
-(define0 fifth (x) (caddddr x))
-
-(define0 rest (x) (cdr x))
-
-;; Defining some more convenience routines so that we can eventially
-;; define the wrap-rest macro which will be very useful for defining
-;; nicer versions of define-syntax and define that support &rest
-;; arguments and allow the user to define functions that do the same.
-(define0 index-of (fn lst)
-  (let0 ((iter nil))
-	(begin
-	  (define0 iter (n rest)
-	    (if (null? rest)
-		nil
-		(if (fn (car0 rest))
-		    n
-		    (iter (prim-+ n 1) (cdr0 rest)))))
-
-	  (iter 0 lst))))
-
-(define0 nth (lst n)
-  (let0 ((iter nil))
-	(begin
-	  (define0 iter (i rest)
-	    (if (prim-= i n)
-		(car0 rest)
-		(iter (prim-+ i 1) (cdr0 rest))))
-
-	  (iter 0 lst))))
-
-(define0 index-eq (val lst)
-  (index-of (lambda (x) (eq? x val)) lst))
-
-;; now building up function definition with &rest
-(define-syntax0 wrap-rest (type args fbody)
-  (let0 ((idx (index-eq '&rest args)))
-	(if (null? idx)
-	    `(,type ,args ,fbody)
-	    `(,type ,args
-		    (let0 ((,(nth args (prim-+ 1 idx)) (find-variable '&rest)))
-			  ,fbody)))))
-
-
-;; now we can define a proper define-syntax and use it to
-;; build a proper define
-(define-syntax0 define-syntax1 (name args fbody)
-  `(set! ,name (wrap-rest macro ,args ,fbody)))
-
-(define-syntax1 define-syntax (name args &rest fbody)
-  `(set! ,name (wrap-rest macro ,args (begin . ,fbody))))
-
-(define-syntax define (name &rest body)
-  `(begin
-     ,(if (symbol? name)
-	  `(set! ,name . ,body)
-	  `(set! ,(car0 name)
-	     (wrap-rest lambda ,(cdr0 name) (begin . ,body))))))
-
-
-;; Finally! Now we can get to work defining our standard conditional
-;; constructs and other basic functionality that everyone expects to
-;; have available.
-(define-syntax not (pred)
-  `(if ,pred
-       #f
-       #t))
-
-(define (length=1 lst)
-  (if (not (null? (car0 lst)))
-      (if (null? (cdr0 lst))
-	  #t
-	  #f)
-      #f))
-
-(define-syntax let (bindings &rest body)
-  `((lambda ,(map first bindings)
+(define-syntax (let bindings . body)
+  `((lambda ,(map car bindings)
       (begin . ,body))
     . ,(map second bindings)))
 
-(define-syntax let* (bindings &rest body)
+;; We used map in our definition of let so we had better go ahead and
+;; define that too. Note that these functions are not type-safe. We
+;; should probably override them later with versions that are.
+;;
+;; Note the trick to confine the scope of iter. Normally we'd use 
+;; let/letrec here but their definition depends on map so we better not
+;; touch them yet.
+(define (reverse l)
+  ((lambda (iter)
+     (define (iter in out)
+       (if (null? in)
+	   out
+	   (iter (cdr in) (cons (car in) out))))
+     
+     (iter l nil)) nil))
+
+(define (mapr fn lst)
+  ((lambda (iter)
+     (define (iter done rest)
+       (if (null? rest)
+	   done
+	   (iter (cons (fn (car rest)) done) (cdr rest))))
+    
+     (iter nil lst)) nil))
+
+(define (map fn lst)
+  (reverse (mapr fn lst)))
+
+;; now we can define let* and letrec and we don't really have to do any
+;; strange trickery anymore
+(define-syntax (let* bindings . body)
   (if (null? bindings)
       `(begin . ,body)
       `(let (,(first bindings))
 	 (let* ,(cdr bindings) . ,body))))
 
-(define-syntax letrec (bindings &rest body)
+(define-syntax (letrec bindings . body)
   `(let ,(map (lambda (b) (list (first b) 'nil))
 	      bindings)
      (begin
@@ -187,17 +96,73 @@
 	       bindings))
      (begin . ,body)))
 	    
-(define-syntax when (pred &rest conseq)
+(define (cadr x) (car (cdr x)))
+(define (cadr x) (car (cdr x)))
+(define (caddr x) (car (cdr (cdr x))))
+(define (cadddr x) (car (cdr (cdr (cdr x)))))
+(define (caddddr x) (car (cdr (cdr (cdr (cdr x))))))
+
+(define (first x) (car x))
+(define (rest x) (cdr x))
+(define (second x) (cadr x))
+(define (third x) (caddr x))
+(define (fourth x) (cadddr x))
+(define (fifth x) (caddddr x))
+
+(define (index-of fn lst)
+  (letrec ((iter (lambda (n rest)
+		   (if (null? rest)
+		       nil
+		       (if (fn (car rest))
+			   n
+			   (iter (prim-+ n 1) (cdr rest)))))))
+
+    (iter 0 lst)))
+
+(define (nth lst n)
+  (letrec ((iter (lambda (i rest)
+		   (if (prim-= i n)
+		       (car rest)
+		       (iter (prim-+ i 1) (cdr rest))))))
+		 
+    (iter 0 lst)))
+
+(define (index-eq val lst)
+  (index-of (lambda (x) (eq? x val)) lst))
+
+
+
+;; Now we get to work defining our standard conditional
+;; constructs and other basic functionality that everyone expects to
+;; have available.
+(define-syntax (not pred)
+  `(if ,pred
+       #f
+       #t))
+
+(define (length=1 lst)
+  (if (not (null? (car lst)))
+      (if (null? (cdr lst))
+	  #t
+	  #f)
+      #f))
+
+(define-syntax (let bindings . body)
+  `((lambda ,(map first bindings)
+      (begin . ,body))
+    . ,(map second bindings)))
+
+(define-syntax (when pred . conseq)
   `(if ,pred
        (begin . ,conseq)
        nil))
 
-(define-syntax unless (pred &rest conseq)
+(define-syntax (unless pred . conseq)
   `(if ,pred
        nil
        (begin . ,conseq)))
 
-(define-syntax cond (&rest clauses)
+(define-syntax (cond . clauses)
   (if (null? clauses)
       #f
       (if (eq? (first (car clauses)) 'else)
@@ -206,7 +171,7 @@
 	       (begin . ,(rest (car clauses)))
 	       (cond . ,(cdr clauses))))))
 
-(define-syntax and (&rest clauses)
+(define-syntax (and . clauses)
   (cond
    ((null? clauses) #t)
    ((length=1 clauses) (car clauses))
@@ -214,7 +179,7 @@
 	    (and . ,(cdr clauses))
 	    #f))))
 
-(define-syntax or (&rest clauses)
+(define-syntax (or . clauses)
   (cond
    ((null? clauses) #f)
    ((length=1 clauses) (car clauses))
@@ -222,7 +187,7 @@
 	    #t
 	    (or . ,(cdr clauses))))))
 
-(define-syntax case (key &rest clauses)
+(define-syntax (case key . clauses)
   (let ((key-val (gensym)))
     `(let ((,key-val ,key))
        (cond . ,(map (lambda (c)
@@ -232,24 +197,24 @@
 			     . ,(cdr c))))
 		     clauses)))))
 
-(define-syntax push! (obj dst)
+(define-syntax (push! obj dst)
   `(set! ,dst (cons ,obj ,dst)))
 
-(define-syntax pop! (dst)
+(define-syntax (pop! dst)
   `((lambda (top)
      (set! ,dst (cdr ,dst))
      top) (car ,dst)))
 
-(define-syntax inc! (dst)
+(define-syntax (inc! dst)
   `(set! ,dst (+ 1 ,dst)))
 
 ;; I'm pretty sure this is a fully legit version of apply. Let me know
 ;; if you disagree... I'm a little surprised this can be implemented
 ;; in userspace.
-(define-syntax apply (fn args)
+(define-syntax (apply fn args)
   `(,fn . ,(map (lambda (x) `',x) (eval args))))
 
-(define-syntax funcall (fn &rest args)
+(define-syntax (funcall fn . args)
   `(apply ,fn ',args))
  
 ;; The exit-hook variable is looked up (in the current environment)
@@ -266,11 +231,11 @@
 (define (print-backtrace)
   (letrec ((iter (lambda (rest)
 		   (unless (null? rest)
-			   (write (car0 rest))
-			   (iter (cdr0 rest))))))
+			   (write (car rest))
+			   (iter (cdr rest))))))
 
-    (let ((cs (car0 callstack)))
-      (iter (cdr0 (cdr0 cs))))))
+    (let ((cs (car callstack)))
+      (iter (cdr (cdr cs))))))
 
 (define (debug-repl)
   (write-port stdout 'debug-repl>)
@@ -301,7 +266,7 @@
 ;; one and replace it.
 (define throw-exit exit)
 
-(define-syntax throw-error (&rest objs)
+(define-syntax (throw-error nil . objs)
   `(begin
      (error . ,objs)
      (throw-exit 1)))
@@ -320,57 +285,39 @@
       #t
       (throw-error "a pair was expected" obj)))
 
-(define (car lst)
-  (assert-pair lst)
-  (car0 lst))
-
-(define (cdr lst)
-  (assert-pair lst)
-  (cdr0 lst))
-
-(define set-car!0 set-car!)
-(define (set-car! obj new-car)
-  (assert-pair obj)
-  (set-car!0 obj new-car))
-
-(define set-cdr!0 set-cdr!)
-(define (set-cdr! obj new-cdr)
-  (assert-pair obj)
-  (set-cdr!0 obj new-cdr))
-
 (define (assert-numbers values)
   (if (any? (lambda (x) (not (integer? x))) values)
       (throw-error "tried to do math on non-integers" values)
       #t))
 
-(define (+ &rest values)
+(define (+ . values)
   (assert-numbers values)
   (apply prim-+ values))
 
-(define (- &rest values)
+(define (- . values)
   (assert-numbers values)
   (apply prim-- values))
 
-(define (* &rest values)
+(define (* . values)
   (assert-numbers values)
   (apply prim-* values))
 
-(define (< &rest values)
+(define (< . values)
   (assert-numbers values)
   (apply prim-< values))
 
-(define (> &rest values)
+(define (> . values)
   (assert-numbers values)
   (apply prim-> values))
 
-(define (= &rest values)
+(define (= . values)
   (assert-numbers values)
   (apply prim-= values))
 
 (define (<=2 a b)
   (or (< a b) (= a b)))
 
-(define-syntax <= (&rest values)
+(define-syntax (<= . values)
   (if (or (null? values)
 	  (null? (cdr values)))
       #t
@@ -464,7 +411,7 @@
 			     remaining-lists)))))
     (reverse (iter nil nil lists))))
 	      
-(define (append &rest lists)
+(define (append . lists)
   (append-all lists))
 
 (define (mappend fn lst)
@@ -504,11 +451,11 @@
 	  (write-char port #\space)
 	  (write-with-spaces port (cdr lst))))
 
-(define (write &rest objs)
+(define (write . objs)
   (write-with-spaces stdout objs)
   (newline))
 
-(define (error &rest objs)
+(define (error . objs)
   (write-with-spaces stderr objs)
   (newline))
 
@@ -535,7 +482,7 @@
 		       #t))))
     (iter 0)))
 
-(define-syntax dotimes (args &rest body)
+(define-syntax (dotimes args . body)
   `(do-times (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
@@ -576,7 +523,7 @@
 	   (equal? (cdr a) (cdr b)))
       (eq? a b)))
 
-(define (reduce fn lst &rest init)
+(define (reduce fn lst . init)
   (letrec ((iter (lambda (last rest)
 		   (if (null? rest)
 		       last
@@ -591,11 +538,11 @@
 	     (set! result (cons obj result)))
     result))
 
-(define-syntax dolist (args &rest body)
+(define-syntax (dolist args . body)
   `(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
-(define-syntax dovector (args &rest body)
+(define-syntax (dovector args . body)
   (let ((n (gensym))
 	(idx (gensym)))
 
@@ -607,7 +554,7 @@
 ;; Implement the classic delay/force combo directly by representing a
 ;; delay as the cons of its value (nil of not yet forced) and the
 ;; closure that computes it (nil if it has been forced)
-(define-syntax delay (&rest body)
+(define-syntax (delay . body)
   `(cons nil (lambda () . ,body)))
 
 (define (force fn)
@@ -618,7 +565,7 @@
 
 ;; For really simple performance testing: Print out the time it takes
 ;; to execute a set of forms.
-(define-syntax time (&rest body)
+(define-syntax (time . body)
   (let ((start (gensym))
 	(result (gensym))
 	(end (gensym)))

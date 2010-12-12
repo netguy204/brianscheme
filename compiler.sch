@@ -12,10 +12,10 @@
 ;; information. I should really write a real trace macro at some
 ;; point.
 
-(define-syntax write-dbg (&rest args)
+(define-syntax (write-dbg . args)
   `(write . ,args))
 
-(define-syntax write-dbg (&rest args)
+(define-syntax (write-dbg . args)
   #t)
 
 (define (comp x env val? more?)
@@ -157,7 +157,7 @@
   (and (procedure? obj)
        (not (compound-procedure? obj))))
 
-(define (environment-names &rest env)
+(define (environment-names . env)
   (cond
    ((or (null? env) 
 	(primitive-procedure? (car env)))
@@ -171,10 +171,9 @@
       ,(compound-body comp)))
 
 (define (sym-is-syntax? sym)
-  (let ((val (find-variable sym #t)))
-    (if (null? val)
-	#f
-	(syntax-procedure? (car val)))))
+  (if (index-eq sym (append-all (map car base-env)))
+      (syntax-procedure? (eval sym))
+      #f))
 
 (define (comp-macroexpand0 exp)
   (eval `(macroexpand0 '(,(car exp) . ,(cdr exp)))))
@@ -295,11 +294,11 @@
   (set! label-num 0)
   (comp-lambda nil (list x) nil))
 
-(define (gen opcode &rest args)
+(define (gen opcode . args)
   (write-dbg 'gen opcode 'args args)
   (list (cons opcode args)))
 
-(define (seq &rest code)
+(define (seq . code)
   (append-all code))
 
 (define (string obj)
@@ -308,7 +307,7 @@
    ((symbol? obj) (symbol->string obj))
    (else (throw-error "can't make" obj "a string"))))
 
-(define (gen-label &rest opt)
+(define (gen-label . opt)
   (let ((prefix (if (pair? opt)
 		    (string (car opt))
 		    "L")))
@@ -411,7 +410,7 @@
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
-(define (compile-together &rest fns)
+(define (compile-together . fns)
   `(let ,(map (lambda (fn) (list fn 'nil)) fns)
      (begin . ,(map (lambda (fn)
 		      (let ((efn (eval fn)))
@@ -425,10 +424,10 @@
 		    fns))
      ,(first fns)))
 
-(define-syntax replace-with-compiled (fn)
+(define-syntax (replace-with-compiled fn)
   `(set! ,fn ((compiler (compound->lambda ,fn)))))
 
-(define (dump-compiled-fn fn &rest indent)
+(define (dump-compiled-fn fn . indent)
   (let ((indent (if (null? indent)
 		    0
 		    (car indent))))
