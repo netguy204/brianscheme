@@ -1088,6 +1088,8 @@ void init() {
 
   the_empty_list = alloc_object();
   the_empty_list->type = THE_EMPTY_LIST;
+  the_empty_list->data.pair.car = the_empty_list;
+  the_empty_list->data.pair.cdr = the_empty_list;
   push_root(&the_empty_list);
 
   the_empty_vector = alloc_object();

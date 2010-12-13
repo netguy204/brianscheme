@@ -56,7 +56,17 @@ object *cons_impl(object *a, object *b) {
 
 #define VPUSH(obj, stack, top)				\
   do {							\
-    VM_ASSERT(top < VSIZE(stack), "vm outgrew stack");	\
+    if(top == VSIZE(stack)) {				\
+      long old_size = VSIZE(stack);			\
+      VSIZE(stack) = old_size * 1.8;			\
+      VARRAY(stack) = realloc(VARRAY(stack),		\
+			      sizeof(object*)		\
+			      * VSIZE(stack));		\
+      int ii;						\
+      for(ii = old_size; ii < VSIZE(stack); ++ii) {	\
+	VARRAY(stack)[ii] = the_empty_list;		\
+      }							\
+    }							\
     VARRAY(stack)[top++] = obj;				\
   } while(0)
 
@@ -94,8 +104,6 @@ object *cons_impl(object *a, object *b) {
     VPUSH(val, stack, stack_top);			\
     goto vm_fn_begin;					\
   }
-
-#define VM_DEBUGGING
 
 #ifdef VM_DEBUGGING
 #define VM_DEBUG(msg, obj)			\

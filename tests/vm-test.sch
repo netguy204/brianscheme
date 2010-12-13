@@ -12,7 +12,9 @@
 	       (write ,ires "!=" ,cres)
 	       (write ',exp)
 	       (show-fn ,cexp 0)
-	       (throw-exit "test failed")))))
+	       (throw-exit "test failed"))
+
+       (list ,ires "=" ,cres))))
 
 ; test the const opcode
 (assert-compiles-same
@@ -73,21 +75,51 @@
 ; truthy-ness
 (assert-compiles-same
  (lambda ()
-   (let ((result nil))
-     (when #t
-	   (push! 'a result))
-     (when #f
-	   (push! 'b result))
-     (when (cons 1 2)
-	   (push! 'c result))
-     (when nil
-	   (push! 'd result))
-     (when '()
-	   (push! 'e result))
+   (let ((result nil)
+	 (truth #t)
+	 (lie #f))
+     (if #t
+	 (push! 'a result))
+     (if #f
+	 (push! 'b result))
+     (if (cons 1 2)
+	 (push! 'c result))
+     (if nil
+	 (push! 'd result))
+     (if '()
+	 (push! 'e result))
+     (if truth
+	 (push! 'f result))
+     (if lie
+	 (push! 'g result))
 
      result)))
 
-;; note, previous test won't compile with ifs...
-;; but it should be able to... fixme.
+; complex if/else
+(assert-compiles-same
+ (lambda ()
+   (letrec ((check
+	     (lambda (n)
+	       (cons 'foo
+		     (case n
+		       (0 1)
+		       (1 2)
+		       (2 3)
+		       (3 4)
+		       ('a 'b)
+		       ('b 'c)
+		       ('c 'd)
+		       (else 'q))))))
+
+     (list (check 1)
+	   (check 2)
+	   (check 3)
+	   (check 4)
+	   (check 'a)
+	   (check 'b)
+	   (check 'c)
+	   (check 5)))))
+
+
 
 'tests-finished

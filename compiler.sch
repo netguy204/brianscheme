@@ -90,7 +90,7 @@
   (or (null? exp) (eq? exp #f) (eq? exp 'nil)))
 
 (define (true? exp)
-  (and (atom? exp) (not (false? exp))))
+  (eq? exp #t))
 
 (define (comp-if pred then else env val? more?)
   (write-dbg 'comp-if pred 'then then 'else else
