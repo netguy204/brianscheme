@@ -16,6 +16,7 @@
 #define length1(x) (cdr(x) == the_empty_list)
 
 object *args_op;
+object *argsdot_op;
 object *return_op;
 object *const_op;
 object *fn_op;
@@ -27,6 +28,7 @@ object *lvar_op;
 object *save_op;
 object *gvar_op;
 object *lset_op;
+object *gset_op;
 object *pop_op;
 
 object *error_sym;
@@ -92,6 +94,8 @@ object *cons_impl(object *a, object *b) {
     VPUSH(val, stack, stack_top);			\
     goto vm_fn_begin;					\
   }
+
+#define VM_DEBUGGING
 
 #ifdef VM_DEBUGGING
 #define VM_DEBUG(msg, obj)			\
@@ -164,6 +168,34 @@ object *vm_execute(object *fn, object *stack,
 
       object **vdata = VARRAY(vector);
       for(ii = num_args - 1; ii >= 0; --ii) {
+	VPOP(top, stack, stack_top);
+	vdata[ii] = top;
+      }
+
+      VM_DEBUG("after_args environment", env);
+    }
+    else if(opcode == argsdot_op) {
+      VM_ASSERT(n_args >= LONG(ARG1(instr)),
+		"wrong number of args");
+      
+      int ii;
+      long req_args = LONG(ARG1(instr));
+      long array_size = req_args + 1;
+      object *vector = make_vector(the_empty_list,
+				   array_size);
+      push_root(&vector);
+      env = cons(vector, env);
+      pop_root(&vector);
+
+      object **vdata = VARRAY(vector);
+      /* push the excess args onto the last position */
+      for(ii = 0; ii < n_args - req_args; ++ii) {
+	VPOP(top, stack, stack_top);
+	vdata[array_size - 1] = cons(top, vdata[array_size-1]);
+      }
+
+      /* now pop off the required args into their positions */
+      for(ii = req_args - 1; ii >= 0; --ii) {
 	VPOP(top, stack, stack_top);
 	vdata[ii] = top;
       }
@@ -274,6 +306,11 @@ object *vm_execute(object *fn, object *stack,
       VPUSH(var, stack, stack_top);
       pop_root(&var);
     }
+    else if(opcode == gset_op) {
+      object *var = ARG1(instr);
+      object *val = VARRAY(stack)[stack_top - 1];
+      define_variable(var, val, ienv);
+    }
     else if(opcode == pop_op) {
       VPOP(top, stack, stack_top);
     }
@@ -312,6 +349,7 @@ object *vm_execute(object *fn, object *stack,
 
 void vm_init(void) {
   args_op = make_symbol("args");
+  argsdot_op = make_symbol("args.");
   return_op = make_symbol("return");
   const_op = make_symbol("const");
   fn_op = make_symbol("fn");
@@ -323,6 +361,7 @@ void vm_init(void) {
   save_op = make_symbol("save");
   gvar_op = make_symbol("gvar");
   lset_op = make_symbol("lset");
+  gset_op = make_symbol("gset");
   pop_op = make_symbol("pop");
 
   error_sym = make_symbol("error");

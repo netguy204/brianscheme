@@ -465,13 +465,7 @@
     ch))
 
 (define (atom? obj)
-  (or (boolean? obj)
-      (integer? obj)
-      (char? obj)
-      (string? obj)
-      (compound-procedure? obj)
-      (compiled-procedure? obj)
-      (primitive-procedure? obj)))
+  (not (pair? obj)))
 
 (define (do-times fn times)
   (letrec ((iter (lambda (n)

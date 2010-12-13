@@ -44,7 +44,7 @@
 
 'make-big-list
 (set! big-list nil)
-(time (set! big-list (make-list 3000)) nil)
+(time (set! big-list (make-list 10000)) nil)
 
 'big-map
 (set! m1 nil)
@@ -61,6 +61,9 @@
 (mark-and-sweep)
 
 (dump-compiled-fn map2)
+
+(dotimes (i 1000)
+	 (time (map2 f big-list)))
 
 ;(exit 0)
 

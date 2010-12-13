@@ -87,7 +87,7 @@
 		  (unless more? (gen 'return)))))
 
 (define (false? exp)
-  (or (null? exp) (eq? exp #f)))
+  (or (null? exp) (eq? exp #f) (eq? exp 'nil)))
 
 (define (true? exp)
   (and (atom? exp) (not (false? exp))))
