@@ -215,7 +215,7 @@
   `(,fn . ,(map (lambda (x) `',x) (eval args))))
 
 (define-syntax (funcall fn . args)
-  `(apply ,fn ',args))
+  `(,fn . ,args))
  
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
@@ -274,45 +274,6 @@
 (define (exit val)
   (set! exit-hook nil)
   (throw-exit val))
-
-;; Now we start defining the type-safer versions of the primitives
-;; that we started out with. We must be very careful in our
-;; type-checking to only use code that doesn't use the same
-;; type-checking methods. There are so many wonderful ways to mess
-;; this up.
-(define (assert-pair obj)
-  (if (pair? obj)
-      #t
-      (throw-error "a pair was expected" obj)))
-
-(define (assert-numbers values)
-  (if (any? (lambda (x) (not (integer? x))) values)
-      (throw-error "tried to do math on non-integers" values)
-      #t))
-
-(define (+ . values)
-  (assert-numbers values)
-  (apply prim-+ values))
-
-(define (- . values)
-  (assert-numbers values)
-  (apply prim-- values))
-
-(define (* . values)
-  (assert-numbers values)
-  (apply prim-* values))
-
-(define (< . values)
-  (assert-numbers values)
-  (apply prim-< values))
-
-(define (> . values)
-  (assert-numbers values)
-  (apply prim-> values))
-
-(define (= . values)
-  (assert-numbers values)
-  (apply prim-= values))
 
 (define (<=2 a b)
   (or (< a b) (= a b)))

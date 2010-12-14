@@ -433,6 +433,14 @@
 		    (car indent))))
     (show-fn fn indent)))
 
+(define (comp-repl)
+  (write-port stdout 'comp-repl>)
+  (write-char stdout #\space)
+  (let ((result ((compiler (read-port stdin)))))
+    (write-port stdout result)
+    (write-char stdout #\newline)
+    (unless (eq? result 'quit)
+	    (comp-repl))))
 
 ; now we can compile functions to bytecode and print the results like
 ; this:

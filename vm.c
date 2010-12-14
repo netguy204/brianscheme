@@ -41,18 +41,6 @@ object *error_sym;
     }						\
   } while(0)
 
-object *plus_impl(object *a, object *b) {
-  return make_fixnum(LONG(a) + LONG(b));
-}
-
-object *numeq_impl(object *a, object *b) {
-  return AS_BOOL(LONG(a) == LONG(b));
-}
-
-object *cons_impl(object *a, object *b) {
-  return cons(a, b);
-}
-
 
 #define VPUSH(obj, stack, top)				\
   do {							\
@@ -73,6 +61,7 @@ object *cons_impl(object *a, object *b) {
 #define VPOP(tgt, stack, top)			\
   do {						\
     tgt = VARRAY(stack)[--top];			\
+    VARRAY(stack)[top] = the_empty_list;	\
   } while(0)
 
 
@@ -80,6 +69,7 @@ object *cons_impl(object *a, object *b) {
   do {						\
     pop_root(&top);				\
     pop_root(&env);				\
+    pop_root(&fn);				\
     return obj;					\
   } while(0)
 
@@ -132,6 +122,7 @@ object *vm_execute(object *fn, object *stack,
   instr = the_empty_list;
   top = the_empty_list;
 
+  push_root(&fn);
   push_root(&env);
   push_root(&top);
 

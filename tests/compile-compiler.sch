@@ -1,13 +1,28 @@
 (load "compiler.sch")
 
-(replace-with-compiled comp-funcall)
-(replace-with-compiled comp-if)
-(replace-with-compiled comp-lambda)
-(replace-with-compiled comp-begin)
 (replace-with-compiled comp)
+(replace-with-compiled arg-count)
+(replace-with-compiled comp-begin)
 (replace-with-compiled comp-list)
+(replace-with-compiled bytecode-literal?)
 (replace-with-compiled comp-const)
 (replace-with-compiled comp-var)
+(replace-with-compiled false?)
+(replace-with-compiled true?)
+(replace-with-compiled comp-if)
+(replace-with-compiled comp-funcall)
+(replace-with-compiled primitive-procedure?)
+; compound->lambda
+(replace-with-compiled sym-is-syntax?)
+; comp-macroexpand0
+
+(replace-with-compiled make-fn)
+(replace-with-compiled fn?)
+(replace-with-compiled comp-lambda)
+(replace-with-compiled gen-args)
+(replace-with-compiled num-args)
+
+; unsorted
 (replace-with-compiled make-true-list)
 (replace-with-compiled assemble)
 (replace-with-compiled optimize)
