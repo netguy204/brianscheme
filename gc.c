@@ -4,6 +4,7 @@
 
 #include "types.h"
 #include "symbols.h"
+#include "hashtab.h"
 
 /* enable gc debuging by defining
  * DEBUG_GC
@@ -108,6 +109,7 @@ void extend_heap(long extension) {
 
 void mark_reachable(object *root) {
   int ii;
+  hashtab_iter_t htab_iter;
 
   if(root == NULL) return;
   if(root->mark) return;
@@ -134,6 +136,13 @@ void mark_reachable(object *root) {
     mark_reachable(BYTECODE(root));
     mark_reachable(CENV(root));
     break;
+  case HASH_TABLE:
+    ht_iter_init(HTAB(root), &htab_iter);
+    while(htab_iter.key != NULL) {
+      mark_reachable((object*)htab_iter.key);
+      mark_reachable((object*)htab_iter.value);
+      ht_iter_inc(&htab_iter);
+    }
   default:
     break;
   }
@@ -158,6 +167,8 @@ long sweep_unmarked() {
       case VECTOR:
 	free(VARRAY(head));
 	break;
+      case HASH_TABLE:
+	ht_destroy(HTAB(head));
       default:
 	break;
       }

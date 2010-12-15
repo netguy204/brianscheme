@@ -2,8 +2,8 @@ TARGETS = main test
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c
-HEADERS = interp.h types.h read.h gc.h vm.h
+SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c
+HEADERS = interp.h types.h read.h gc.h vm.h hashtab.h
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 

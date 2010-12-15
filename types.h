@@ -2,6 +2,7 @@
 #define TYPES_H
 
 #include <stdio.h>
+#include "hashtab.h"
 
 /* first implementing the classic tagged type. This specific
    inplementation is stolen from Peter Michaux's bootstrap-scheme. */
@@ -10,7 +11,7 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      VECTOR, COMPILED_PROC} object_type;
+	      VECTOR, COMPILED_PROC, HASH_TABLE} object_type;
 
 typedef struct object {
   object_type type;
@@ -38,6 +39,9 @@ typedef struct object {
       struct object **objects;
       long size;
     } vector;
+    struct {
+      struct hashtab_t* hash_table;
+    } hash_table;
     struct {
       struct object *(*fn)(struct object *arguments,
 			   struct object *environment);
@@ -115,6 +119,18 @@ object *make_vector(object *fill, long size);
 
 object *list_to_vector(object *list);
 
+object *make_hashtab(long size);
+
+char is_hashtab(object *obj);
+
+void set_hashtab(object *table, object *key, object *value);
+
+object *get_hashtab(object *table, object *key, object *fail);
+
+object *get_hashtab_keys(object *table);
+
+void remkey_hashtab(object *table, object *key);
+
 char is_vector(object *obj);
 
 /* statistics */
@@ -154,6 +170,7 @@ long get_cons_count();
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
 #define CENV(obj) (obj->data.compiled_proc.env)
+#define HTAB(obj) (obj->data.hash_table.hash_table)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

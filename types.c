@@ -142,6 +142,104 @@ object *list_to_vector(object *list) {
   return vector;
 }
 
+int hash_function(void *key, size_t keylen, size_t ht_size) {
+  object *obj = (object*)key;
+  long temp;
+  int temp2;
+  hashtab_iter_t htab_iter;
+
+  switch(obj->type) {
+  case BOOLEAN:
+    return ht_hash(&obj->data.boolean.value, sizeof(char), ht_size);
+  case SYMBOL:
+    /* hash the address since it's intern'd */
+    return ht_hash(&obj, sizeof(object*), ht_size);
+  case FIXNUM:
+    return ht_hash(&obj->data.fixnum.value, sizeof(long), ht_size);
+  case CHARACTER:
+    return ht_hash(&obj->data.character.value, sizeof(char), ht_size);
+  case STRING:
+    temp = strlen(obj->data.string.value);
+    return ht_hash(obj->data.string.value, temp, ht_size);
+  case PAIR:
+    return hash_function(obj->data.pair.car, keylen, ht_size) +
+      hash_function(obj->data.pair.cdr, keylen, ht_size);
+  case VECTOR:
+    temp2 = 0;
+    for(temp = 0; temp < VSIZE(obj); ++temp) {
+      temp2 += hash_function(VARRAY(obj)[temp], keylen, ht_size);
+    }
+    return temp2;
+  case HASH_TABLE:
+    ht_iter_init(HTAB(obj), &htab_iter);
+    temp2 = 0;
+    while(htab_iter.key != NULL) {
+      temp2 += hash_function(htab_iter.key, keylen, ht_size) +
+	hash_function(htab_iter.value, keylen, ht_size);
+      ht_iter_inc(&htab_iter);
+    }
+    return temp2;
+  case PRIMITIVE_PROC:
+    return ht_hash(&obj->data.primitive_proc.fn,
+		   sizeof(obj->data.primitive_proc.fn), ht_size);
+  case COMPOUND_PROC:
+    return hash_function(obj->data.compound_proc.parameters, keylen, ht_size) +
+      hash_function(obj->data.compound_proc.body, keylen, ht_size) +
+      hash_function(obj->data.compound_proc.env, keylen, ht_size);
+  case COMPILED_PROC:
+    return hash_function(BYTECODE(obj), keylen, ht_size) +
+      hash_function(CENV(obj), keylen, ht_size);
+  case INPUT_PORT:
+  case OUTPUT_PORT:
+    return ht_hash(&obj->data.input_port.stream, sizeof(FILE*), ht_size);
+  default:
+    return 0;
+  }
+}
+
+object *make_hashtab(long size) {
+  object *obj = alloc_object();
+  obj->type = HASH_TABLE;
+  HTAB(obj) = ht_init(size, hash_function);
+  return obj;
+}
+
+char is_hashtab(object *obj) {
+  return obj->type == HASH_TABLE;
+}
+
+void set_hashtab(object *tab, object *key, object *val) {
+  ht_insert(HTAB(tab), key, sizeof(object*),
+	    val, sizeof(object*));
+}
+
+void remkey_hashtab(object *tab, object *key) {
+  ht_remove(HTAB(tab), key, sizeof(object*));
+}
+
+object *get_hashtab(object *tab, object *key, object *fail) {
+  object *val = ht_search(HTAB(tab), key, sizeof(object*));
+  if(val == NULL) {
+    return fail;
+  } else {
+    return val;
+  }
+}
+
+object *get_hashtab_keys(object *table) {
+  object *result = the_empty_list;
+  push_root(&result);
+
+  hashtab_iter_t iter;
+  ht_iter_init(HTAB(table), &iter);
+  while(iter.key != NULL) {
+    result = cons((object*)iter.key, result);
+    ht_iter_inc(&iter);
+  }
+  pop_root(&result);
+  return result;
+}
+
 object *make_primitive_proc(prim_proc fn) {
   object *obj = alloc_object();
   obj->type = PRIMITIVE_PROC;

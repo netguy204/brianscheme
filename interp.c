@@ -493,6 +493,32 @@ DEFUN1(set_vector_element_proc) {
   return THIRD;
 }
 
+DEFUN1(is_hashtab_proc) {
+  return AS_BOOL(is_hashtab(FIRST));
+}
+
+DEFUN1(make_hashtab_proc) {
+  return make_hashtab(LONG(FIRST));
+}
+
+DEFUN1(set_hashtab_proc) {
+  set_hashtab(FIRST, SECOND, THIRD);
+  return THIRD;
+}
+
+DEFUN1(get_hashtab_proc) {
+  return get_hashtab(FIRST, SECOND, THIRD);
+}
+
+DEFUN1(get_hashtab_keys_proc) {
+  return get_hashtab_keys(FIRST);
+}
+
+DEFUN1(remkey_hashtab_proc) {
+  remkey_hashtab(FIRST, SECOND);
+  return true;
+}
+
 DEFUN1(vector_length_proc) {
   return make_fixnum(VSIZE(FIRST));
 }
@@ -686,6 +712,9 @@ void write(FILE *out, object *obj) {
     break;
   case SYNTAX_PROC:
     fprintf(out, "#<syntax-procedure>");
+    break;
+  case HASH_TABLE:
+    fprintf(out, "#<hash-table>");
     break;
   case INPUT_PORT:
     fprintf(out, "#<input-port>");
@@ -1017,6 +1046,12 @@ void init_prim_environment(object *env) {
   add_procedure("vector-length", vector_length_proc);
   add_procedure("get-vector", get_vector_element_proc);
   add_procedure("set-vector!", set_vector_element_proc);
+  add_procedure("make-hashtab", make_hashtab_proc);
+  add_procedure("hashtab?", is_hashtab_proc);
+  add_procedure("set-hashtab!", set_hashtab_proc);
+  add_procedure("get-hashtab", get_hashtab_proc);
+  add_procedure("remkey-hashtab!", remkey_hashtab_proc);
+  add_procedure("keys-hashtab", get_hashtab_keys_proc);
 
   add_procedure("eq?", is_eq_proc);
 
