@@ -448,7 +448,7 @@
 (define (find fn lst)
   (letrec ((iter (lambda (rest)
 		   (if (null? rest)
-		       nil
+		       #f
 		       (let ((res (fn (car rest))))
 			 (if res
 			     (car rest)

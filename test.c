@@ -7,6 +7,8 @@
 
 int main(int argc, char ** argv) {
   object *env;
+  (void) argc;
+  (void) argv;
 
   init();
 
