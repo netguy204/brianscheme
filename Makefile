@@ -7,13 +7,14 @@ HEADERS = interp.h types.h read.h gc.h vm.h hashtab.h
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
+CC = gcc
 ifeq ($(FAST),1)
-	CC = gcc -O3 -W -Wall -ansi
+	CFLAGS = -O3 -W -Wall -ansi
 else
 ifeq ($(PROF),1)
-	CC = gcc -g -pg -W -Wall -ansi
+	CFLAGS = -g -pg -W -Wall -ansi
 else
-	CC = gcc -g -W -Wall -ansi
+	CFLAGS = -g -W -Wall -ansi
 endif
 endif
 
