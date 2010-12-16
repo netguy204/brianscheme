@@ -469,7 +469,7 @@ DEFUN1(char_to_integer_proc) {
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];
-  sprintf(buffer, "%ld", LONG(FIRST));
+  snprintf(buffer, 100, "%ld", LONG(FIRST));
   return make_string(buffer);
 }
 
@@ -586,7 +586,7 @@ DEFUN1(concat_proc) {
 
   char *str1 = STRING(FIRST);
   char *str2 = STRING(SECOND);
-  sprintf(buffer, "%s%s", str1, str2);
+  snprintf(buffer, 100, "%s%s", str1, str2);
   return make_string(buffer);
 }
 

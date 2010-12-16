@@ -45,17 +45,21 @@ void xfree (void *p)
 
 char *xstrdup (char *str)
 {
-  char *newstr = xmalloc (strlen (str) + 1);
-  strcpy (newstr, str);
+  size_t len = strlen (str) + 1;
+  char *newstr = xmalloc (len);
+  strncpy (newstr, str, len);
   return newstr;
 }
 
 char *pathcat (char *prefix, char *path)
 {
-  char *str = xmalloc (strlen (prefix) + strlen (path) + 2);
-  strcpy (str, prefix);
-  str[strlen (prefix)] = '/';	/* Extra / don't hurt. */
-  strcpy (str + strlen (prefix) + 1, path);
+  size_t prefix_len = strlen (prefix) +1;
+  size_t path_len = strlen (path) + 1;
+  size_t len = prefix_len + path_len;
+  char *str = xmalloc (len);
+  strncpy (str, prefix, prefix_len);
+  str[prefix_len] = '/';	/* Extra / don't hurt. */
+  strncpy (str + prefix_len + 1, path, path_len);
   return str;
 }
 
@@ -93,8 +97,9 @@ char *unprocess_str (char *cleanstr)
 
   /* Two extra for quotes and one for each character that needs
      escaping. */
-  char *str = xmalloc (strlen (cleanstr) + cnt + 2 + 1);
-  strcpy (str + 1, cleanstr);
+  size_t len = strlen (cleanstr) + cnt + 2 + 1;
+  char *str = xmalloc (len);
+  strncpy (str + 1, cleanstr, len);
 
   /* Place backquotes. */
   char *c = str + 1;
