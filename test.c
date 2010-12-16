@@ -132,14 +132,14 @@ int main(int argc, char ** argv) {
 		make_symbol("y")));
   print_obj(testdef);
   print_obj(interp(testdef, env));
-  
+
   object *testinv = list3(make_symbol("test"),
 			  make_fixnum(10), make_fixnum(15));
   print_obj(testinv);
   print_obj(interp(testinv, env));
 
   while(true) {
-    object *input = read(stdin);
+    object *input = lisp_read(stdin);
     print_obj(input);
     print_obj(interp(input, env));
   }

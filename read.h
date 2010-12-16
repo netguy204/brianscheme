@@ -1,6 +1,6 @@
 #ifndef READ_H
 #define READ_H
 
-object *read(FILE *in);
+object *lisp_read(FILE *in);
 
 #endif

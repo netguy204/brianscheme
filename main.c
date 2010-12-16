@@ -12,9 +12,9 @@ void load_library(char *libname) {
 	    libname);
     exit(3);
   }
-  
+
   object *form;
-  while((form = read(stdlib)) != NULL) {
+  while((form = lisp_read(stdlib)) != NULL) {
     push_root(&form);
     print_obj(interp(form, the_global_environment));
     pop_root(&form);
@@ -43,7 +43,7 @@ int main(int argc, char ** argv) {
   }
 
   object *input;
-  while((input = read(stdin)) != NULL) {
+  while((input = lisp_read(stdin)) != NULL) {
     push_root(&input);
     print_obj(interp(input, the_global_environment));
     pop_root(&input);

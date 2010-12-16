@@ -428,10 +428,10 @@ DEFUN1(eval_proc) {
   return interp(exp, env);
 }
 
-object *read(FILE *in);
+object *lisp_read(FILE *in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
-  object *result = read(INPUT(in_port));
+  object *result = lisp_read(INPUT(in_port));
   return (result == NULL) ? eof_object : result;
 }
 
