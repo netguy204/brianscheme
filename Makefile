@@ -31,3 +31,7 @@ TAGS:
 
 clean:
 	rm -f *.o $(TARGETS) *.nul
+
+INDENT_FLAGS = -npro -npsl -npcs -nsaf -nsai -nsaw -br -brf -brs -ncs
+indent:
+	indent $(INDENT_FLAGS) $(SOURCES)
