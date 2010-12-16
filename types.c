@@ -49,10 +49,11 @@ char is_character(object *obj) {
 }
 
 object *make_string(char *value) {
+  size_t len = strlen(value) + 1;
   object *obj = alloc_object();
   obj->type = STRING;
-  obj->data.string.value = MALLOC(strlen(value) + 1);
-  strcpy(obj->data.string.value, value);
+  obj->data.string.value = MALLOC(len);
+  strncpy(obj->data.string.value, value, len);
   return obj;
 }
 
@@ -280,10 +281,11 @@ object *find_symbol(char *value) {
 }
 
 object *make_uninterned_symbol(char *value) {
+  size_t len  = strlen(value) + 1;
   object *obj = alloc_object();
   obj->type = SYMBOL;
-  obj->data.symbol.value = MALLOC(strlen(value) + 1);
-  strcpy(obj->data.symbol.value, value);
+  obj->data.symbol.value = MALLOC(len);
+  strncpy(obj->data.symbol.value, value, len);
   return obj;
 }
 

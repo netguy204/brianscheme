@@ -26,5 +26,8 @@ test: $(OBJECTS) test.o $(HEADERS)
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)
 
+TAGS:
+	find . -name "*.[chCH]" -print | etags -
+
 clean:
 	rm -f *.o $(TARGETS) *.nul

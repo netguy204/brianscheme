@@ -77,7 +77,7 @@ void peek_expected_delimiter(FILE *in) {
   }
 }
 
-object *read(FILE *in);
+object *lisp_read(FILE *in);
 
 object *read_character(FILE *in) {
   int c;
@@ -118,7 +118,7 @@ object *read_pair(FILE *in) {
   }
   ungetc(c, in);
 
-  car_obj = read(in);
+  car_obj = lisp_read(in);
   push_root(&car_obj);
 
   eat_whitespace(in);
@@ -127,7 +127,7 @@ object *read_pair(FILE *in) {
   if(c == '.') {
     peek_expected_delimiter(in);
 
-    cdr_obj = read(in);
+    cdr_obj = lisp_read(in);
     push_root(&cdr_obj);
 
     eat_whitespace(in);
@@ -168,7 +168,7 @@ object *read_vector(FILE *in) {
   }
   ungetc(c, in);
 
-  current = cons(read(in), the_empty_list);
+  current = cons(lisp_read(in), the_empty_list);
   push_root(&current);
   list_head = current;
   push_root(&list_head);
@@ -181,7 +181,7 @@ object *read_vector(FILE *in) {
   while(c != ')') {
     ungetc(c, in);
 
-    current = read(in);
+    current = lisp_read(in);
     set_cdr(list_tail, cons(current, the_empty_list));
     list_tail = cdr(list_tail);
 
@@ -196,7 +196,7 @@ object *read_vector(FILE *in) {
   return vector;
 }
 
-object *read(FILE *in) {
+object *lisp_read(FILE *in) {
   int c;
   short sign = 1;
   int i;
@@ -291,7 +291,7 @@ object *read(FILE *in) {
     return read_pair(in);
   }
   else if(c == '\'') {
-    object *quoted = read(in);
+    object *quoted = lisp_read(in);
     push_root(&quoted);
     quoted = cons(quoted, the_empty_list);
     quoted = cons(quote_symbol, quoted);
@@ -299,7 +299,7 @@ object *read(FILE *in) {
     return quoted;
   }
   else if(c == ',') {
-    object *unquoted = read(in);
+    object *unquoted = lisp_read(in);
     push_root(&unquoted);
     unquoted = cons(unquoted, the_empty_list);
     unquoted = cons(unquote_symbol, unquoted);
@@ -307,7 +307,7 @@ object *read(FILE *in) {
     return unquoted;
   }
   else if(c == '`') {
-    object *qquoted = read(in);
+    object *qquoted = lisp_read(in);
     push_root(&qquoted);
     qquoted = cons(qquoted, the_empty_list);
     qquoted = cons(quasiquote_symbol, qquoted);
