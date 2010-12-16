@@ -79,29 +79,37 @@ object *lookup_variable_value(object *var, object *env) {
 
   while(!is_the_empty_list(env)) {
     frame = first_frame(env);
-    vars = frame_variables(frame);
-    vals = frame_values(frame);
 
-    /* handles (lambda foo ...) */
-    if(var == vars) {
-      return vals;
-    }
-
-    while(is_pair(vars)) {
-      if(var == car(vars)) {
-	return car(vals);
+    if(is_hashtab(frame)) {
+      object *res = get_hashtab(frame, var, NULL);
+      if(res != NULL) {
+	return res;
       }
-      /* handles (lambda ( foo . rest ) ..) */
-      if(var == cdr(vars)) {
-	return cdr(vals);
+    } else {
+      vars = frame_variables(frame);
+      vals = frame_values(frame);
+      
+      /* handles (lambda foo ...) */
+      if(var == vars) {
+	return vals;
       }
-
-      vars = cdr(vars);
-
-      /* since these may not be the same length
-       * we need to check again */
-      if(!is_the_empty_list(vals)) {
-	vals = cdr(vals);
+      
+      while(is_pair(vars)) {
+	if(var == car(vars)) {
+	  return car(vals);
+	}
+	/* handles (lambda ( foo . rest ) ..) */
+	if(var == cdr(vars)) {
+	  return cdr(vals);
+	}
+	
+	vars = cdr(vars);
+	
+	/* since these may not be the same length
+	 * we need to check again */
+	if(!is_the_empty_list(vals)) {
+	  vals = cdr(vals);
+	}
       }
     }
     env = enclosing_environment(env);
@@ -118,7 +126,11 @@ void define_global_variable(object *var, object *new_val, object *env) {
   }
 
   object *frame = first_frame(env);
-  add_binding_to_frame(var, new_val, frame);
+  if(is_hashtab(frame)) {
+    set_hashtab(frame, var, new_val);
+  } else {
+    add_binding_to_frame(var, new_val, frame);
+  }
 }
 
 /**
@@ -133,23 +145,31 @@ void define_variable(object *var, object *new_val, object *env) {
   object *senv = env;
   while(!is_the_empty_list(senv)) {
     frame = first_frame(senv);
-    vars = frame_variables(frame);
-    vals = frame_values(frame);
-    while(is_pair(vars)) {
-      if(var == car(vars)) {
-	set_car(vals, new_val);
+    if(is_hashtab(frame)) {
+      object* obj = get_hashtab(frame, var, NULL);
+      if(obj != NULL) {
+	set_hashtab(frame, var, new_val);
 	return;
       }
-      if(var == cdr(vars)) {
-	set_cdr(vals, new_val);
-	return;
-      }
-      vars = cdr(vars);
-
-      /* since these may not be the same length
-       * we need to check again */
-      if(!is_the_empty_list(vals)) {
-	vals = cdr(vals);
+    } else {
+      vars = frame_variables(frame);
+      vals = frame_values(frame);
+      while(is_pair(vars)) {
+	if(var == car(vars)) {
+	  set_car(vals, new_val);
+	  return;
+	}
+	if(var == cdr(vars)) {
+	  set_cdr(vals, new_val);
+	  return;
+	}
+	vars = cdr(vars);
+	
+	/* since these may not be the same length
+	 * we need to check again */
+	if(!is_the_empty_list(vals)) {
+	  vals = cdr(vals);
+	}
       }
     }
     senv = enclosing_environment(senv);
@@ -163,9 +183,11 @@ void define_variable(object *var, object *new_val, object *env) {
  * create a complete empty and unrooted environment
  */
 object *setup_environment(void) {
-  return extend_environment(the_empty_list,
-			    the_empty_list,
-			    the_empty_environment);
+  object *table = make_hashtab(100);
+  push_root(&table);
+  object *env = cons(table, the_empty_environment);
+  pop_root(&table);
+  return env;
 }
 
 

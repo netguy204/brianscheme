@@ -171,7 +171,7 @@
       ,(compound-body comp)))
 
 (define (sym-is-syntax? sym)
-  (if (index-eq sym (append-all (map car base-env)))
+  (if (index-eq sym (all-symbols))
       (syntax-procedure? (eval sym))
       #f))
 

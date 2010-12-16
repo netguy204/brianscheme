@@ -518,6 +518,15 @@
 	(set-cdr! fn nil))
   (car fn))
 
+(define (all-symbols)
+  (append-all
+   (map (lambda (x)
+	  (cond
+	   ((pair? x) (car x))
+	   ((hashtab? x) (keys-hashtab x))
+	   (else (throw-error "giving up"))))
+	base-env)))
+
 ;; For really simple performance testing: Print out the time it takes
 ;; to execute a set of forms.
 (define-syntax (time . body)

@@ -122,7 +122,7 @@ void error (char *str)
   printf ("%s\n", str);
 }
 
-hashtab_t *ht_init (size_t size, int (*hash_func) (void *, size_t, size_t))
+hashtab_t *ht_init (size_t size, int (*hash_func) (void *, size_t))
 {
   hashtab_t *new_ht = (hashtab_t *) xmalloc (sizeof (hashtab_t));
   new_ht->arr =
@@ -143,27 +143,26 @@ hashtab_t *ht_init (size_t size, int (*hash_func) (void *, size_t, size_t))
   return new_ht;
 }
 
-void *ht_search (hashtab_t * hashtable, void *key, size_t keylen)
+void *ht_search (hashtab_t * hashtable, void *key)
 {
-  int index = ht_hash (key, keylen, hashtable->size);
+  int index = ht_hash (key, hashtable->size);
   if (hashtable->arr[index] == NULL)
     return NULL;
 
   hashtab_node_t *last_node = hashtable->arr[index];
   while (last_node != NULL)
     {
-      if (last_node->keylen == keylen)
-	if (memcmp (key, last_node->key, keylen) == 0)
-	  return last_node->value;
+      if (key == last_node->key)
+	return last_node->value;
       last_node = last_node->next;
     }
   return NULL;
 }
 
 void *ht_insert (hashtab_t * hashtable,
-		 void *key, size_t keylen, void *value, size_t vallen)
+		 void *key, void *value)
 {
-  int index = ht_hash (key, keylen, hashtable->size);
+  int index = ht_hash (key, hashtable->size);
 
   hashtab_node_t *next_node, *last_node;
   next_node = hashtable->arr[index];
@@ -172,14 +171,10 @@ void *ht_insert (hashtab_t * hashtable,
   /* Search for an existing key. */
   while (next_node != NULL)
     {
-      if (next_node->keylen == keylen)
+      if (key == next_node->key)
 	{
-	  if (memcmp (key, next_node->key, keylen) == 0)
-	    {
-	      next_node->value = value;
-	      next_node->vallen = vallen;
-	      return next_node->value;
-	    }
+	  next_node->value = value;
+	  return next_node->value;
 	}
       last_node = next_node;
       next_node = next_node->next;
@@ -190,8 +185,6 @@ void *ht_insert (hashtab_t * hashtable,
   new_node = (hashtab_node_t *) xmalloc (sizeof (hashtab_node_t));
   new_node->key = key;
   new_node->value = value;
-  new_node->keylen = keylen;
-  new_node->vallen = vallen;
   new_node->next = NULL;
 
   /* Tack the new node on the end or right on the table. */
@@ -205,29 +198,26 @@ void *ht_insert (hashtab_t * hashtable,
 }
 
 /* delete the given key from the hashtable */
-void ht_remove (hashtab_t * hashtable, void *key, size_t keylen)
+void ht_remove (hashtab_t * hashtable, void *key)
 {
   hashtab_node_t *last_node, *next_node;
-  int index = ht_hash (key, keylen, hashtable->size);
+  int index = ht_hash (key, hashtable->size);
   next_node = hashtable->arr[index];
   last_node = NULL;
 
   while (next_node != NULL)
     {
-      if (next_node->keylen == keylen)
+      if (key == next_node->key)
 	{
-	  if (memcmp (key, next_node->key, keylen) == 0)
-	    {
-	      /* adjust the list pointers */
-	      if (last_node != NULL)
-		last_node->next = next_node->next;
-	      else
-		hashtable->arr[index] = next_node->next;
-
-	      /* free the node */
-	      xfree (next_node);
-	      break;
-	    }
+	  /* adjust the list pointers */
+	  if (last_node != NULL)
+	    last_node->next = next_node->next;
+	  else
+	    hashtable->arr[index] = next_node->next;
+	  
+	  /* free the node */
+	  xfree (next_node);
+	  break;
 	}
       last_node = next_node;
       next_node = next_node->next;
@@ -246,7 +236,7 @@ hashtab_t *ht_grow (hashtab_t * old_ht, size_t new_size)
   hashtab_iter_t ii;
   ht_iter_init (old_ht, &ii);
   for (; ii.key != NULL; ht_iter_inc (&ii))
-    ht_insert (new_ht, ii.key, ii.keylen, ii.value, ii.vallen);
+    ht_insert (new_ht, ii.key, ii.value);
 
   /* Destroy the old hashtable. */
   ht_destroy (old_ht);
@@ -304,8 +294,6 @@ void ht_iter_inc (hashtab_iter_t * ii)
       ii->internal.node = ii->internal.node->next;
       ii->key = ii->internal.node->key;
       ii->value = ii->internal.node->value;
-      ii->keylen = ii->internal.node->keylen;
-      ii->vallen = ii->internal.node->vallen;
       return;
     }
 
@@ -321,8 +309,6 @@ void ht_iter_inc (hashtab_iter_t * ii)
 
       ii->key = NULL;
       ii->value = NULL;
-      ii->keylen = 0;
-      ii->vallen = 0;
       return;
     }
 
@@ -331,15 +317,13 @@ void ht_iter_inc (hashtab_iter_t * ii)
   ii->internal.index = index;
   ii->key = ii->internal.node->key;
   ii->value = ii->internal.node->value;
-  ii->keylen = ii->internal.node->keylen;
-  ii->vallen = ii->internal.node->vallen;
 }
 
-int ht_hash (void *key, size_t keylen, size_t hashtab_size)
+int ht_hash (void *key, size_t hashtab_size)
 {
   /* One-at-a-time hash */
   uint32_t hash, i;
-  for (hash = 0, i = 0; i < keylen; ++i)
+  for (hash = 0, i = 0; i < sizeof(key); ++i)
     {
       hash += ((char *) key)[i];
       hash += (hash << 10);
