@@ -119,18 +119,27 @@
 
     (iter 0 lst)))
 
-(define (nth lst n)
+(define (nth-tail lst n)
   (letrec ((iter (lambda (i rest)
 		   (if (prim-= i n)
-		       (car rest)
+		       rest
 		       (iter (prim-+ i 1) (cdr rest))))))
 		 
     (iter 0 lst)))
 
+(define (nth lst n)
+  (car (nth-tail lst n)))
+
 (define (index-eq val lst)
   (index-of (lambda (x) (eq? x val)) lst))
 
+(define (member val lst)
+  (let ((idx (index-eq val lst)))
+    (when idx
+	  (nth-tail lst idx))))
 
+(define (compliment fn)
+  (lambda (x) (not (fn x))))
 
 ;; Now we get to work defining our standard conditional
 ;; constructs and other basic functionality that everyone expects to
