@@ -333,7 +333,7 @@
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))
-    (if (null? frame)
+    (if (not frame)
 	nil
 	(list (index-eq frame env) (index-eq symbol frame)))))
 
