@@ -438,7 +438,7 @@ DEFUN1(read_proc) {
 DEFUN1(write_proc) {
   object *port = FIRST;
   object *obj = SECOND;
-  write(OUTPUT(port), obj);
+  owrite(OUTPUT(port), obj);
   return true;
 }
 
@@ -610,7 +610,7 @@ void write_pair(FILE *out, object *pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
 
-  write(out, car_obj);
+  owrite(out, car_obj);
   if(is_pair(cdr_obj)) {
     fprintf(out, " ");
     write_pair(out, cdr_obj);
@@ -620,11 +620,11 @@ void write_pair(FILE *out, object *pair) {
   }
   else {
     fprintf(out, " . ");
-    write(out, cdr_obj);
+    owrite(out, cdr_obj);
   }
 }
 
-void write(FILE *out, object *obj) {
+void owrite(FILE *out, object *obj) {
   long ii;
   char c;
   char *str;
@@ -695,7 +695,7 @@ void write(FILE *out, object *obj) {
       if(ii > 0) {
 	putc(' ', out);
       }
-      write(out, VARRAY(obj)[ii]);
+      owrite(out, VARRAY(obj)[ii]);
     }
     putc(')', out);
     break;
@@ -708,15 +708,15 @@ void write(FILE *out, object *obj) {
      */
     if(head == quote_symbol) {
       fprintf(out, "'");
-      write(out, cadr(obj));
+      owrite(out, cadr(obj));
     }
     else if(head == unquote_symbol) {
       fprintf(out, ",");
-      write(out, cadr(obj));
-    } 
+      owrite(out, cadr(obj));
+    }
     else if(head == quasiquote_symbol) {
       fprintf(out, "`");
-      write(out, cadr(obj));
+      owrite(out, cadr(obj));
     } else {
       fprintf(out, "(");
       write_pair(out, obj);
@@ -758,9 +758,9 @@ object *debug_write(char * msg, object *obj, int level) {
     for(ii = 0; ii < level; ++ii) {
       fprintf(stderr, " ");
     }
-    
+
     fprintf(stderr, "%s: ", msg);
-    write(stderr, obj);
+    owrite(stderr, obj);
     fprintf(stderr, "\n");
   }
   return obj;
@@ -1011,14 +1011,14 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&evald_args);
 	pop_root(&fn);
 
-	write(stderr, fn);
+	owrite(stderr, fn);
 	throw_interp("\ncannot apply non-function\n");
 	INTERP_RETURN(NULL);
       }
     }
   }
 
-  write(stderr, exp);
+  owrite(stderr, exp);
   throw_interp(": can't evaluate\n");
   INTERP_RETURN(NULL);
 }
@@ -1200,6 +1200,6 @@ void init() {
 /**
  * handy for user side debugging */
 void print_obj(object *obj) {
-  write(stdout, obj);
+  owrite(stdout, obj);
   printf("\n");
 }

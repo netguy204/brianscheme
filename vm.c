@@ -99,7 +99,7 @@ object *error_sym;
 #define VM_DEBUG(msg, obj)			\
   do {						\
     fprintf(stdout, "%s: ", msg);		\
-    write(stdout, obj);				\
+    owrite(stdout, obj);			\
     fprintf(stdout, "\n");			\
   } while(0)
 #else
@@ -328,7 +328,7 @@ object *vm_execute(object *fn, object *stack,
     }
     else {
       fprintf(stderr, "don't know how to process ");
-      write(stderr, opcode);
+      owrite(stderr, opcode);
       fprintf(stderr, "\n");
       VM_ASSERT(0, "strange opcode");
     }
@@ -336,7 +336,7 @@ object *vm_execute(object *fn, object *stack,
 
   default:
     fprintf(stderr, "don't know how to process ");
-    write(stderr, opcode);
+    owrite(stderr, opcode);
     fprintf(stderr, "\n");
     VM_ASSERT(0, "strange opcode");
   }
