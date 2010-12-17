@@ -61,13 +61,16 @@ int read_getc(read_buffer *in) {
     in->ungetc = -1;
     return c;
   }
-  if (in->p == NULL || *in->p == '\0') {
+  if (in->p != NULL && *in->p == '\0') {
+    in->p = NULL;
+    return '\n';
+  }
+  if (in->p == NULL) {
     free(in->buffer);
     in->buffer = in->p = readline(in->p == NULL ? prompt : "");
     grow_history(in);
     if (in->buffer == NULL)
       return EOF;
-    return '\n';
   }
   return *in->p++;
 }
