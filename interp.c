@@ -431,7 +431,7 @@ DEFUN1(eval_proc) {
 object *lisp_read(FILE *in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
-  object *result = lisp_read(INPUT(in_port));
+  object *result = obj_read(INPUT(in_port));
   return (result == NULL) ? eof_object : result;
 }
 
