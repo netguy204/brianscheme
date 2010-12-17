@@ -139,7 +139,7 @@ int main(int argc, char ** argv) {
   print_obj(interp(testinv, env));
 
   while(true) {
-    object *input = lisp_read(stdin);
+    object *input = obj_read(stdin);
     print_obj(input);
     print_obj(interp(input, env));
   }

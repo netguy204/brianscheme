@@ -7,6 +7,8 @@ HEADERS = interp.h types.h read.h gc.h vm.h hashtab.h
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
+LDFLAGS = -leditline
+
 CC = gcc
 ifeq ($(FAST),1)
 	CFLAGS = -O3 -W -Wall -ansi
@@ -19,10 +21,10 @@ endif
 endif
 
 main: $(OBJECTS) main.o $(HEADERS)
-	$(CC) -o $@ $(OBJECTS) main.o
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) main.o
 
 test: $(OBJECTS) test.o $(HEADERS)
-	$(CC) -o $@ $(OBJECTS) test.o
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) test.o
 
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)

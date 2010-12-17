@@ -1,6 +1,8 @@
 #ifndef READ_H
 #define READ_H
 
-object *lisp_read(FILE *in);
+object *obj_read(FILE *in);
+
+extern char* prompt;
 
 #endif

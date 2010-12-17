@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <editline.h>
 
 #include "types.h"
 #include "symbols.h"
@@ -10,6 +11,14 @@
 #include "gc.h"
 /*temp*/
 #include "interp.h"
+
+char *prompt = "> ";
+
+typedef struct {
+  FILE *stream;
+  char *buffer, *p;
+  int ungetc;
+} read_buffer;
 
 object *throw_read(char * msg, ...) {
   va_list args;
@@ -20,6 +29,37 @@ object *throw_read(char * msg, ...) {
   return NULL;
 }
 
+int read_getc(read_buffer *in) {
+  if (in->stream != stdin) {
+    return getc(in->stream);
+  }
+  if (in->ungetc != -1) {
+    char c = in->ungetc;
+    in->ungetc = -1;
+    return c;
+  }
+  if (in->p == NULL || *in->p == '\0') {
+    free(in->buffer);
+    in->buffer = in->p = readline(in->p == NULL ? prompt : "");
+    if (in->buffer == NULL) {
+      printf("EOF\n");
+      return EOF;
+    }
+    return '\n';
+  }
+  return *in->p++;
+}
+
+void read_ungetc(char c, read_buffer *in) {
+  if (in->stream != stdin) {
+    ungetc(c, in->stream);
+  } else {
+    if (in->ungetc != -1) {
+      printf("extra ungetc\n");
+    }
+    in->ungetc = c;
+  }
+}
 
 char is_delimiter(int c) {
   return isspace(c) || c == EOF ||
@@ -33,37 +73,37 @@ char is_initial(char c) {
     c == '?' || c == '!' || c == '&' || c == '.';
 }
 
-int peek(FILE *in) {
+int peek(read_buffer *in) {
   int c;
-  c = getc(in);
-  ungetc(c, in);
+  c = read_getc(in);
+  read_ungetc(c, in);
   return c;
 }
 
-void eat_whitespace(FILE *in) {
+void eat_whitespace(read_buffer *in) {
   int c;
 
-  while ((c = getc(in)) != EOF) {
+  while ((c = read_getc(in)) != EOF) {
     if(isspace(c)) {
       continue;
     }
     else if(c == ';') {
       /* eat until eol */
-      while (((c = getc(in)) != EOF) && (c != '\n')) {
+      while (((c = read_getc(in)) != EOF) && (c != '\n')) {
 	continue;
       }
       eat_whitespace(in);
       return;
     }
-    ungetc(c, in);
+    read_ungetc(c, in);
     break;
   }
 }
 
-void eat_expected_string(FILE *in, char *str) {
+void eat_expected_string(read_buffer *in, char *str) {
   int c;
   while(*str != '\0') {
-    c = getc(in);
+    c = read_getc(in);
     if(c != *str) {
       throw_read("unexpected character '%c'\n", c);
     }
@@ -71,18 +111,18 @@ void eat_expected_string(FILE *in, char *str) {
   }
 }
 
-void peek_expected_delimiter(FILE *in) {
+void peek_expected_delimiter(read_buffer *in) {
   if(!is_delimiter(peek(in))) {
     throw_read("character not followed by delimiter\n");
   }
 }
 
-object *lisp_read(FILE *in);
+object *lisp_read(read_buffer *in);
 
-object *read_character(FILE *in) {
+object *read_character(read_buffer *in) {
   int c;
 
-  c = getc(in);
+  c = read_getc(in);
   switch(c) {
   case EOF:
     return throw_read("incomplete character literal\n");
@@ -105,25 +145,25 @@ object *read_character(FILE *in) {
   return make_character(c);
 }
 
-object *read_pair(FILE *in) {
+object *read_pair(read_buffer *in) {
   int c;
   object *car_obj;
   object *cdr_obj;
 
   eat_whitespace(in);
 
-  c = getc(in);
+  c = read_getc(in);
   if(c == ')') {
     return the_empty_list;
   }
-  ungetc(c, in);
+  read_ungetc(c, in);
 
   car_obj = lisp_read(in);
   push_root(&car_obj);
 
   eat_whitespace(in);
 
-  c = getc(in);
+  c = read_getc(in);
   if(c == '.') {
     peek_expected_delimiter(in);
 
@@ -131,7 +171,7 @@ object *read_pair(FILE *in) {
     push_root(&cdr_obj);
 
     eat_whitespace(in);
-    c = getc(in);
+    c = read_getc(in);
     if(c != ')') {
       return throw_read("improper list missing trailing paren\n");
     }
@@ -142,7 +182,7 @@ object *read_pair(FILE *in) {
 
     return result;
   } else {
-    ungetc(c, in);
+    read_ungetc(c, in);
 
     cdr_obj = read_pair(in);
     push_root(&cdr_obj);
@@ -154,7 +194,7 @@ object *read_pair(FILE *in) {
   }
 }
 
-object *read_vector(FILE *in) {
+object *read_vector(read_buffer *in) {
   int c;
   object *list_head;
   object *list_tail;
@@ -162,11 +202,11 @@ object *read_vector(FILE *in) {
 
   eat_whitespace(in);
 
-  c = getc(in);
+  c = read_getc(in);
   if(c == ')') {
     return the_empty_vector;
   }
-  ungetc(c, in);
+  read_ungetc(c, in);
 
   current = cons(lisp_read(in), the_empty_list);
   push_root(&current);
@@ -177,16 +217,16 @@ object *read_vector(FILE *in) {
   list_tail = list_head;
 
   eat_whitespace(in);
-  c = getc(in);
+  c = read_getc(in);
   while(c != ')') {
-    ungetc(c, in);
+    read_ungetc(c, in);
 
     current = lisp_read(in);
     set_cdr(list_tail, cons(current, the_empty_list));
     list_tail = cdr(list_tail);
 
     eat_whitespace(in);
-    c = getc(in);
+    c = read_getc(in);
   }
 
   object *vector = list_to_vector(list_head);
@@ -196,7 +236,17 @@ object *read_vector(FILE *in) {
   return vector;
 }
 
-object *lisp_read(FILE *in) {
+object *obj_read(FILE *in) {
+  read_buffer r;
+  r.stream = in;
+  r.buffer = r.p = NULL;
+  r.ungetc = -1;
+  object *obj = lisp_read(&r);
+  free(r.buffer);
+  return obj;
+}
+
+object *lisp_read(read_buffer *in) {
   int c;
   short sign = 1;
   int i;
@@ -205,9 +255,9 @@ object *lisp_read(FILE *in) {
   char buffer[BUFFER_MAX];
 
   eat_whitespace(in);
-  c = getc(in);
+  c = read_getc(in);
   if(c == '#') {
-    c = getc(in);
+    c = read_getc(in);
     switch(c) {
     case 't':
       return true;
@@ -226,15 +276,15 @@ object *lisp_read(FILE *in) {
       sign = -1;
     } else {
       sign = 1;
-      ungetc(c, in);
+      read_ungetc(c, in);
     }
 
-    while(isdigit(c = getc(in))) {
+    while(isdigit(c = read_getc(in))) {
       num = (num * 10) + (c - '0');
     }
     num *= sign;
     if(is_delimiter(c)) {
-      ungetc(c, in);
+      read_ungetc(c, in);
       return make_fixnum(num);
     } else {
       return throw_read("number was not followed by delimiter");
@@ -251,11 +301,11 @@ object *lisp_read(FILE *in) {
       } else {
 	return throw_read("symbol exceeded %d chars", BUFFER_MAX);
       }
-      c = getc(in);
+      c = read_getc(in);
     }
     if(is_delimiter(c)) {
       buffer[i] = '\0';
-      ungetc(c, in);
+      read_ungetc(c, in);
       return make_symbol(buffer);
     } else {
       return throw_read("symbol not followed by delimiter. found %c\n",
@@ -264,9 +314,9 @@ object *lisp_read(FILE *in) {
   }
   else if(c == '"') {
     i = 0;
-    while((c = getc(in)) != '"') {
+    while((c = read_getc(in)) != '"') {
       if(c == '\\') {
-	c = getc(in);
+	c = read_getc(in);
 	if(c == 'n') {
 	  c = '\n';
 	}
