@@ -18,6 +18,7 @@ typedef struct {
   FILE *stream;
   char *buffer, *p;
   int ungetc;
+  char *history;
 } read_buffer;
 
 object *throw_read(char * msg, ...) {
@@ -29,6 +30,28 @@ object *throw_read(char * msg, ...) {
   return NULL;
 }
 
+char *xstrdup(char *str) {
+  char *newstr = MALLOC (strlen (str) + 1);
+  strncpy (newstr, str, strlen(str) + 1);
+  return newstr;
+}
+
+/* Append the current buffer to the history. */
+void grow_history(read_buffer *in) {
+  if (in->buffer == NULL || (strlen(in->buffer) == 0))
+    return;
+  if (in->history == NULL) {
+    in->history = xstrdup(in->buffer);
+    return;
+  }
+  size_t histlen = strlen(in->history);
+  size_t bufflen = strlen(in->buffer);
+  in->history = realloc(in->history, histlen + bufflen + 2);
+  in->history[histlen] = '\n';
+  strncpy(in->history + histlen + 1, in->buffer, bufflen + 1);
+}
+
+/* Wraps calls to getc() to work on our buffer. */
 int read_getc(read_buffer *in) {
   if (in->stream != stdin) {
     return getc(in->stream);
@@ -41,6 +64,7 @@ int read_getc(read_buffer *in) {
   if (in->p == NULL || *in->p == '\0') {
     free(in->buffer);
     in->buffer = in->p = readline(in->p == NULL ? prompt : "");
+    grow_history(in);
     if (in->buffer == NULL) {
       printf("EOF\n");
       return EOF;
@@ -50,13 +74,11 @@ int read_getc(read_buffer *in) {
   return *in->p++;
 }
 
+/* Wraps calls to ungetc() to work on our buffer. */
 void read_ungetc(char c, read_buffer *in) {
   if (in->stream != stdin) {
     ungetc(c, in->stream);
   } else {
-    if (in->ungetc != -1) {
-      printf("extra ungetc\n");
-    }
     in->ungetc = c;
   }
 }
@@ -239,10 +261,11 @@ object *read_vector(read_buffer *in) {
 object *obj_read(FILE *in) {
   read_buffer r;
   r.stream = in;
-  r.buffer = r.p = NULL;
+  r.buffer = r.p = r.history = NULL;
   r.ungetc = -1;
   object *obj = lisp_read(&r);
   free(r.buffer);
+  add_history(r.history);
   return obj;
 }
 
