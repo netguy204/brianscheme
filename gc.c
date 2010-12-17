@@ -65,8 +65,7 @@ void ensure_root_objects(void) {
     Root_Objects = MALLOC(sizeof(Root_Objects));
     Root_Objects->top = 0;
     Root_Objects->size = 400;
-    Root_Objects->objs = MALLOC(sizeof(object**) * 
-				Root_Objects->size);
+    Root_Objects->objs = MALLOC(sizeof(object **) * Root_Objects->size);
   }
 }
 
@@ -74,12 +73,12 @@ void gc_init(void) {
   ensure_root_objects();
 }
 
-object *push_root(object **stack) {
+object *push_root(object ** stack) {
   /* grow the stack if we need to */
   if(Root_Objects->top == Root_Objects->size) {
     long new_size = Root_Objects->size * 2;
-    Root_Objects->objs = realloc(Root_Objects->objs, 
-				 sizeof(object**) * new_size);
+    Root_Objects->objs = realloc(Root_Objects->objs,
+				 sizeof(object **) * new_size);
     Root_Objects->size = new_size;
     debug_gc("grew root stack to %ld objects\n", new_size);
   }
@@ -88,7 +87,7 @@ object *push_root(object **stack) {
   return *stack;
 }
 
-void pop_root(object **stack) {
+void pop_root(object ** stack) {
   if(Root_Objects->objs[--Root_Objects->top] != stack) {
     print_backtrace();
     throw_gc("pop_stack_root - object not on top\n");
@@ -99,24 +98,26 @@ void extend_heap(long extension) {
   int ii;
   object *new_heap = MALLOC(sizeof(object) * extension);
 
-  for(ii = 0; ii < extension-1; ++ii) {
-    new_heap[ii].next = &new_heap[ii+1];
+  for(ii = 0; ii < extension - 1; ++ii) {
+    new_heap[ii].next = &new_heap[ii + 1];
   }
 
-  new_heap[extension-1].next = Free_Objects;
+  new_heap[extension - 1].next = Free_Objects;
   Free_Objects = new_heap;
 }
 
-void mark_reachable(object *root) {
+void mark_reachable(object * root) {
   int ii;
   hashtab_iter_t htab_iter;
 
-  if(root == NULL) return;
-  if(root->mark) return;
+  if(root == NULL)
+    return;
+  if(root->mark)
+    return;
 
   root->mark = 1;
 
-  switch(root->type) {
+  switch (root->type) {
   case PAIR:
     mark_reachable(car(root));
     mark_reachable(cdr(root));
@@ -139,8 +140,8 @@ void mark_reachable(object *root) {
   case HASH_TABLE:
     ht_iter_init(HTAB(root), &htab_iter);
     while(htab_iter.key != NULL) {
-      mark_reachable((object*)htab_iter.key);
-      mark_reachable((object*)htab_iter.value);
+      mark_reachable((object *) htab_iter.key);
+      mark_reachable((object *) htab_iter.value);
       ht_iter_inc(&htab_iter);
     }
   default:
@@ -160,7 +161,7 @@ long sweep_unmarked() {
     /* unreached so free it */
     if(!head->mark) {
       /* free any extra memory associated with this type */
-      switch(head->type) {
+      switch (head->type) {
       case STRING:
 	free(head->data.string.value);
 	break;
@@ -172,11 +173,12 @@ long sweep_unmarked() {
       default:
 	break;
       }
-      
+
       head->next = Free_Objects;
       Free_Objects = head;
       num_freed++;
-    } else {
+    }
+    else {
       head->next = new_active;
       new_active = head;
     }
@@ -206,8 +208,8 @@ static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
   /* always sweep while we're debugging
-  mark_and_sweep();
-  */
+     mark_and_sweep();
+   */
 
   if(Free_Objects == NULL) {
     debug_gc("no space. trying mark-and-sweep\n");
@@ -240,7 +242,7 @@ object *alloc_object(void) {
 
   /* clear when we're debugging so things fail
    * quickly 
-  memset(obj, 0, sizeof(object));
+   memset(obj, 0, sizeof(object));
    */
 
   obj->next = Active_List;
@@ -254,4 +256,3 @@ object *alloc_object(void) {
 long get_alloc_count() {
   return Alloc_Count;
 }
-

@@ -106,9 +106,7 @@ object *error_sym;
 #define VM_DEBUG(msg, obj)
 #endif
 
-object *vm_execute(object *fn, object *stack,
-		   long n_args,
-		   object *ienv) {
+object *vm_execute(object * fn, object * stack, long n_args, object * ienv) {
   object *code_array;
   object *env;
   object *instr;
@@ -126,10 +124,9 @@ object *vm_execute(object *fn, object *stack,
   push_root(&env);
   push_root(&top);
 
-  VM_ASSERT(is_compiled_proc(fn),
-	    "object is not compiled-procedure");
+  VM_ASSERT(is_compiled_proc(fn), "object is not compiled-procedure");
 
- vm_fn_begin:
+vm_fn_begin:
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -137,16 +134,15 @@ object *vm_execute(object *fn, object *stack,
   object **codes = VARRAY(code_array);
   long num_codes = VSIZE(code_array);
 
- vm_begin:
-  VM_ASSERT(pc < num_codes,
-	    "pc flew off the end of memory");
+vm_begin:
+  VM_ASSERT(pc < num_codes, "pc flew off the end of memory");
 
   instr = codes[pc++];
   opcode = OPCODE(instr);
 
   VM_DEBUG("dispatching", instr);
 
-  switch(opcode->type) {
+  switch (opcode->type) {
   case BOOLEAN:
   case FIXNUM:
     VPUSH(opcode, stack, stack_top);
@@ -154,9 +150,8 @@ object *vm_execute(object *fn, object *stack,
 
   case SYMBOL:
     if(opcode == args_op) {
-      VM_ASSERT(n_args == LONG(ARG1(instr)),
-		"wrong number of args");
-      
+      VM_ASSERT(n_args == LONG(ARG1(instr)), "wrong number of args");
+
       int ii;
       int num_args = LONG(ARG1(instr));
       object *vector = make_vector(the_empty_list,
@@ -174,9 +169,8 @@ object *vm_execute(object *fn, object *stack,
       VM_DEBUG("after_args environment", env);
     }
     else if(opcode == argsdot_op) {
-      VM_ASSERT(n_args >= LONG(ARG1(instr)),
-		"wrong number of args");
-      
+      VM_ASSERT(n_args >= LONG(ARG1(instr)), "wrong number of args");
+
       int ii;
       long req_args = LONG(ARG1(instr));
       long array_size = req_args + 1;
@@ -190,7 +184,7 @@ object *vm_execute(object *fn, object *stack,
       /* push the excess args onto the last position */
       for(ii = 0; ii < n_args - req_args; ++ii) {
 	VPOP(top, stack, stack_top);
-	vdata[array_size - 1] = cons(top, vdata[array_size-1]);
+	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
       }
 
       /* now pop off the required args into their positions */
@@ -233,8 +227,9 @@ object *vm_execute(object *fn, object *stack,
 
 	goto vm_fn_begin;
 
-      } else if(is_primitive_proc(top)
-		|| is_compound_proc(top)) {
+      }
+      else if(is_primitive_proc(top)
+	      || is_compound_proc(top)) {
 
 	/* push the stack arguments onto a new list
 	   to hand off to the primitive */
@@ -252,11 +247,13 @@ object *vm_execute(object *fn, object *stack,
 	}
 
 	if(is_primitive_proc(pfn)) {
-	    top = pfn->data.primitive_proc.fn(arglist, ienv);
-	} else {
-	  object *call_env = extend_environment(pfn->data.compound_proc.parameters,
-						arglist,
-						pfn->data.compound_proc.env);
+	  top = pfn->data.primitive_proc.fn(arglist, ienv);
+	}
+	else {
+	  object *call_env =
+	    extend_environment(pfn->data.compound_proc.parameters,
+			       arglist,
+			       pfn->data.compound_proc.env);
 	  push_root(&call_env);
 	  top = interp(pfn->data.compound_proc.body, call_env);
 	  pop_root(&call_env);
@@ -269,10 +266,12 @@ object *vm_execute(object *fn, object *stack,
 
 	/* generate return */
 	RETURN_OPCODE_INSTRUCTIONS;
-      } else if(is_compound_proc(top)) {
+      }
+      else if(is_compound_proc(top)) {
 	VM_ASSERT(0, "compound invocation not implemented");
 	/* generate return */
-      } else {
+      }
+      else {
 	VM_ASSERT(0, "unrecognized invocation");
       }
     }

@@ -12,7 +12,7 @@
 static const int DEBUG_LEVEL = 1;
 static char debug_enabled = 0;
 
-void eval_exit_hook(object *environment) {
+void eval_exit_hook(object * environment) {
   object *exit_hook = lookup_variable_value(exit_hook_symbol,
 					    environment);
   if(exit_hook != the_empty_list) {
@@ -23,7 +23,7 @@ void eval_exit_hook(object *environment) {
   }
 }
 
-void throw_interp(char * msg, ...) {
+void throw_interp(char *msg, ...) {
   va_list args;
   va_start(args, msg);
   vfprintf(stderr, msg, args);
@@ -34,34 +34,32 @@ void throw_interp(char * msg, ...) {
 }
 
 /* dealing with environments */
-object *enclosing_environment(object *env) {
+object *enclosing_environment(object * env) {
   return cdr(env);
 }
 
-object *first_frame(object *env) {
+object *first_frame(object * env) {
   return car(env);
 }
 
-object *make_frame(object *variables, object *values) {
+object *make_frame(object * variables, object * values) {
   return cons(variables, values);
 }
 
-object *frame_variables(object *frame) {
+object *frame_variables(object * frame) {
   return car(frame);
 }
 
-object *frame_values(object *frame) {
+object *frame_values(object * frame) {
   return cdr(frame);
 }
 
-void add_binding_to_frame(object *var, object *val,
-			  object *frame) {
+void add_binding_to_frame(object * var, object * val, object * frame) {
   set_car(frame, cons(var, car(frame)));
   set_cdr(frame, cons(val, cdr(frame)));
 }
 
-object *extend_environment(object *vars, object *vals,
-			   object *base_env) {
+object *extend_environment(object * vars, object * vals, object * base_env) {
   object *result;
 
   result = make_frame(vars, vals);
@@ -72,7 +70,7 @@ object *extend_environment(object *vars, object *vals,
   return result;
 }
 
-object *lookup_variable_value(object *var, object *env) {
+object *lookup_variable_value(object * var, object * env) {
   object *frame;
   object *vars;
   object *vals;
@@ -85,15 +83,16 @@ object *lookup_variable_value(object *var, object *env) {
       if(res != NULL) {
 	return res;
       }
-    } else {
+    }
+    else {
       vars = frame_variables(frame);
       vals = frame_values(frame);
-      
+
       /* handles (lambda foo ...) */
       if(var == vars) {
 	return vals;
       }
-      
+
       while(is_pair(vars)) {
 	if(var == car(vars)) {
 	  return car(vals);
@@ -102,9 +101,9 @@ object *lookup_variable_value(object *var, object *env) {
 	if(var == cdr(vars)) {
 	  return cdr(vals);
 	}
-	
+
 	vars = cdr(vars);
-	
+
 	/* since these may not be the same length
 	 * we need to check again */
 	if(!is_the_empty_list(vals)) {
@@ -115,12 +114,11 @@ object *lookup_variable_value(object *var, object *env) {
     env = enclosing_environment(env);
   }
 
-  throw_interp("lookup failed. variable %s is unbound\n",
-	       STRING(var));
+  throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
   return NULL;
 }
 
-void define_global_variable(object *var, object *new_val, object *env) {
+void define_global_variable(object * var, object * new_val, object * env) {
   while(!is_the_empty_list(enclosing_environment(env))) {
     env = enclosing_environment(env);
   }
@@ -128,7 +126,8 @@ void define_global_variable(object *var, object *new_val, object *env) {
   object *frame = first_frame(env);
   if(is_hashtab(frame)) {
     set_hashtab(frame, var, new_val);
-  } else {
+  }
+  else {
     add_binding_to_frame(var, new_val, frame);
   }
 }
@@ -137,7 +136,7 @@ void define_global_variable(object *var, object *new_val, object *env) {
  * like set_variable_value but we define the variable if it doesn't
  * exist in a reachable frame.
  */
-void define_variable(object *var, object *new_val, object *env) {
+void define_variable(object * var, object * new_val, object * env) {
   object *frame;
   object *vars;
   object *vals;
@@ -146,12 +145,13 @@ void define_variable(object *var, object *new_val, object *env) {
   while(!is_the_empty_list(senv)) {
     frame = first_frame(senv);
     if(is_hashtab(frame)) {
-      object* obj = get_hashtab(frame, var, NULL);
+      object *obj = get_hashtab(frame, var, NULL);
       if(obj != NULL) {
 	set_hashtab(frame, var, new_val);
 	return;
       }
-    } else {
+    }
+    else {
       vars = frame_variables(frame);
       vals = frame_values(frame);
       while(is_pair(vars)) {
@@ -164,7 +164,7 @@ void define_variable(object *var, object *new_val, object *env) {
 	  return;
 	}
 	vars = cdr(vars);
-	
+
 	/* since these may not be the same length
 	 * we need to check again */
 	if(!is_the_empty_list(vals)) {
@@ -278,7 +278,8 @@ DEFUN1(mul_proc) {
 DEFUN1(debug_proc) {
   if(FIRST == false) {
     debug_enabled = 0;
-  } else {
+  }
+  else {
     debug_enabled = 1;
   }
   return FIRST;
@@ -334,14 +335,13 @@ DEFUN1(is_eq_proc) {
   if(FIRST->type != SECOND->type) {
     return false;
   }
-  switch(FIRST->type) {
+  switch (FIRST->type) {
   case FIXNUM:
     return (LONG(FIRST) == LONG(SECOND)) ? true : false;
   case CHARACTER:
     return (CHAR(FIRST) == CHAR(SECOND)) ? true : false;
   case STRING:
-    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ?
-      true : false;
+    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ? true : false;
   default:
     return (FIRST == SECOND) ? true : false;
   }
@@ -362,7 +362,8 @@ DEFUN1(is_less_than_proc) {
   while(!is_the_empty_list(NEXT)) {
     if(last < LONG(FIRST)) {
       last = LONG(FIRST);
-    } else {
+    }
+    else {
       return false;
     }
   }
@@ -374,7 +375,8 @@ DEFUN1(is_greater_than_proc) {
   while(!is_the_empty_list(NEXT)) {
     if(last > LONG(FIRST)) {
       last = LONG(FIRST);
-    } else {
+    }
+    else {
       return false;
     }
   }
@@ -385,8 +387,7 @@ DEFUN1(open_output_port_proc) {
   object *name = FIRST;
   FILE *out = fopen(STRING(name), "w");
   if(out == NULL) {
-    fprintf(stderr, "could not open file '%s' for output\n",
-	    STRING(name));
+    fprintf(stderr, "could not open file '%s' for output\n", STRING(name));
     return the_empty_list;
   }
   return make_output_port(out);
@@ -402,8 +403,7 @@ DEFUN1(open_input_port_proc) {
   object *name = FIRST;
   FILE *in = fopen(STRING(name), "r");
   if(in == NULL) {
-    fprintf(stderr, "could not open file '%s' for input\n",
-	    STRING(name));
+    fprintf(stderr, "could not open file '%s' for input\n", STRING(name));
     return the_empty_list;
   }
   return make_input_port(in);
@@ -421,14 +421,15 @@ DEFUN1(eval_proc) {
 
   if(cdr(arguments) == the_empty_list) {
     env = environment;
-  } else {
+  }
+  else {
     env = SECOND;
   }
 
   return interp(exp, env);
 }
 
-object *lisp_read(FILE *in);
+object *lisp_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
   object *result = obj_read(INPUT(in_port));
@@ -606,7 +607,7 @@ DEFUN1(compound_env_proc) {
   return FIRST->data.compound_proc.env;
 }
 
-void write_pair(FILE *out, object *pair) {
+void write_pair(FILE * out, object * pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
 
@@ -624,7 +625,7 @@ void write_pair(FILE *out, object *pair) {
   }
 }
 
-void owrite(FILE *out, object *obj) {
+void owrite(FILE * out, object * obj) {
   long ii;
   char c;
   char *str;
@@ -640,7 +641,7 @@ void owrite(FILE *out, object *obj) {
     return;
   }
 
-  switch(obj->type) {
+  switch (obj->type) {
   case THE_EMPTY_LIST:
     fprintf(out, "()");
     break;
@@ -656,7 +657,7 @@ void owrite(FILE *out, object *obj) {
   case CHARACTER:
     fprintf(out, "#\\");
     c = obj->data.character.value;
-    switch(c) {
+    switch (c) {
     case '\n':
       fprintf(out, "newline");
       break;
@@ -670,8 +671,8 @@ void owrite(FILE *out, object *obj) {
   case STRING:
     str = obj->data.string.value;
     putc('"', out);
-    while (*str != '\0') {
-      switch(*str) {
+    while(*str != '\0') {
+      switch (*str) {
       case '\n':
 	fprintf(out, "\\n");
 	break;
@@ -717,7 +718,8 @@ void owrite(FILE *out, object *obj) {
     else if(head == quasiquote_symbol) {
       fprintf(out, "`");
       owrite(out, cadr(obj));
-    } else {
+    }
+    else {
       fprintf(out, "(");
       write_pair(out, obj);
       fprintf(out, ")");
@@ -752,7 +754,7 @@ void owrite(FILE *out, object *obj) {
   }
 }
 
-object *debug_write(char * msg, object *obj, int level) {
+object *debug_write(char *msg, object * obj, int level) {
   if(debug_enabled) {
     int ii;
     for(ii = 0; ii < level; ++ii) {
@@ -766,7 +768,7 @@ object *debug_write(char * msg, object *obj, int level) {
   return obj;
 }
 
-char is_falselike(object *obj) {
+char is_falselike(object * obj) {
   return obj == false || is_the_empty_list(obj);
 }
 
@@ -780,7 +782,7 @@ char is_falselike(object *obj) {
 #define D1(msg, obj, level) DN(msg, obj, level, 1);
 #define D2(msg, obj, level) DN(msg, obj, level, 2);
 
-object *interp(object *exp, object *env) {
+object *interp(object * exp, object * env) {
   push_root(&exp);
   push_root(&env);
   object *result = interp1(exp, env, 0);
@@ -789,12 +791,10 @@ object *interp(object *exp, object *env) {
   return result;
 }
 
-object *expand_macro(object *macro, object *args,
-		     object *env, int level) {
-  object *new_env =
-    extend_environment(macro->data.compound_proc.parameters,
-		       args,
-		       env);
+object *expand_macro(object * macro, object * args, object * env, int level) {
+  object *new_env = extend_environment(macro->data.compound_proc.parameters,
+				       args,
+				       env);
   push_root(&new_env);
   object *expanded = interp1(macro->data.compound_proc.body,
 			     new_env, level);
@@ -803,13 +803,15 @@ object *expand_macro(object *macro, object *args,
   return expanded;
 }
 
-object *interp_unquote(object *exp, object *env, int level) {
-  if(!is_pair(exp)) return exp;
+object *interp_unquote(object * exp, object * env, int level) {
+  if(!is_pair(exp))
+    return exp;
 
   object *head = car(exp);
   if(head == unquote_symbol) {
     return interp1(second(exp), env, level);
-  } else {
+  }
+  else {
     object *h1 = interp_unquote(car(exp), env, level);
     push_root(&h1);
 
@@ -820,11 +822,11 @@ object *interp_unquote(object *exp, object *env, int level) {
 
     pop_root(&h2);
     pop_root(&h1);
-    return result;		
+    return result;
   }
 }
 
-void push_callstack(object *target) {
+void push_callstack(object * target) {
   set_car(the_call_stack, cons(target, car(the_call_stack)));
 }
 
@@ -847,7 +849,7 @@ void pop_callstack() {
   } while(0)
 
 
-object *interp1(object *exp, object *env, int level) {
+object *interp1(object * exp, object * env, int level) {
   /* we break the usual convention of assuming our own arguments are
    * protected here because the tail recursive call can rebind these
    * two items to something new
@@ -856,7 +858,7 @@ object *interp1(object *exp, object *env, int level) {
   push_root(&env);
   push_callstack(exp);
 
- interp_restart:
+interp_restart:
   D1("interpreting", exp, level);
 
   if(is_symbol(exp)) {
@@ -907,10 +909,12 @@ object *interp1(object *exp, object *env, int level) {
 	/* else is optional, if none return #f */
 	if(is_the_empty_list(cdr(cdr(args)))) {
 	  INTERP_RETURN(false);
-	} else {
+	}
+	else {
 	  exp = third(args);
 	}
-      } else {
+      }
+      else {
 	exp = second(args);
       }
       goto interp_restart;
@@ -963,13 +967,14 @@ object *interp1(object *exp, object *env, int level) {
 	if(evald_args == the_empty_list) {
 	  evald_args = cons(result, the_empty_list);
 	  last = evald_args;
-	} else {
+	}
+	else {
 	  set_cdr(last, cons(result, the_empty_list));
 	  last = cdr(last);
 	}
 	args = cdr(args);
       }
-    
+
       /* dispatch the call */
       if(is_primitive_proc(fn)) {
 	result = fn->data.primitive_proc.fn(evald_args, env);
@@ -977,17 +982,18 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&evald_args);
 	pop_root(&fn);
 	INTERP_RETURN(result);
-      } else if(is_compound_proc(fn)) {
+      }
+      else if(is_compound_proc(fn)) {
 	env = extend_environment(fn->data.compound_proc.parameters,
-				 evald_args,
-				 fn->data.compound_proc.env);
+				 evald_args, fn->data.compound_proc.env);
 	exp = fn->data.compound_proc.body;
 
 	pop_root(&result);
 	pop_root(&evald_args);
 	pop_root(&fn);
 	goto interp_restart;
-      } else if(is_compiled_proc(fn)) {
+      }
+      else if(is_compiled_proc(fn)) {
 	/* need to reverse the arguments */
 	object *stack = make_vector(the_empty_list, 30);
 	long stack_top = 0;
@@ -1006,7 +1012,8 @@ object *interp1(object *exp, object *env, int level) {
 	pop_root(&evald_args);
 	pop_root(&fn);
 	INTERP_RETURN(result);
-      } else {
+      }
+      else {
 	pop_root(&result);
 	pop_root(&evald_args);
 	pop_root(&fn);
@@ -1024,7 +1031,7 @@ object *interp1(object *exp, object *env, int level) {
 }
 
 
-void init_prim_environment(object *env) {
+void init_prim_environment(object * env) {
   /* used throughout this method to protect the thing in definition
    * from gc */
   object *curr = NULL;
@@ -1107,8 +1114,7 @@ void init_prim_environment(object *env) {
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);
-  add_procedure("current-environment",
-		current_environment_proc);
+  add_procedure("current-environment", current_environment_proc);
   add_procedure("compound-body", compound_body_proc);
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
@@ -1118,24 +1124,12 @@ void init_prim_environment(object *env) {
   add_procedure("compiled-environment", compiled_environment_proc);
 
   define_variable(debug_symbol, false, env);
-  define_variable(stdin_symbol,
-		  curr = make_input_port(stdin),
-		  env);
-  define_variable(stdout_symbol,
-		  curr = make_output_port(stdout),
-		  env);
-  define_variable(stderr_symbol,
-		  curr = make_output_port(stderr),
-		  env);
-  define_variable(make_symbol("callstack"),
-		  the_call_stack,
-		  env);
-  define_variable(make_symbol("base-env"),
-		  env,
-		  env);
-  define_variable(exit_hook_symbol,
-		  the_empty_list,
-		  env);
+  define_variable(stdin_symbol, curr = make_input_port(stdin), env);
+  define_variable(stdout_symbol, curr = make_output_port(stdout), env);
+  define_variable(stderr_symbol, curr = make_output_port(stderr), env);
+  define_variable(make_symbol("callstack"), the_call_stack, env);
+  define_variable(make_symbol("base-env"), env, env);
+  define_variable(exit_hook_symbol, the_empty_list, env);
 
   pop_root(&curr);
 }
@@ -1199,7 +1193,7 @@ void init() {
 
 /**
  * handy for user side debugging */
-void print_obj(object *obj) {
+void print_obj(object * obj) {
   owrite(stdout, obj);
   printf("\n");
 }
