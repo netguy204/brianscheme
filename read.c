@@ -65,10 +65,8 @@ int read_getc(read_buffer *in) {
     free(in->buffer);
     in->buffer = in->p = readline(in->p == NULL ? prompt : "");
     grow_history(in);
-    if (in->buffer == NULL) {
-      printf("EOF\n");
+    if (in->buffer == NULL)
       return EOF;
-    }
     return '\n';
   }
   return *in->p++;
