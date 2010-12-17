@@ -100,7 +100,7 @@ int peek(read_buffer *in) {
   return c;
 }
 
-void eat_whitespace(read_buffer *in) {
+int eat_whitespace(read_buffer *in) {
   int c;
 
   while ((c = read_getc(in)) != EOF) {
@@ -112,12 +112,14 @@ void eat_whitespace(read_buffer *in) {
       while (((c = read_getc(in)) != EOF) && (c != '\n')) {
 	continue;
       }
-      eat_whitespace(in);
-      return;
+      if (c == EOF)
+	return c;
+      return eat_whitespace(in);
     }
     read_ungetc(c, in);
     break;
   }
+  return c;
 }
 
 void eat_expected_string(read_buffer *in, char *str) {
@@ -170,7 +172,8 @@ object *read_pair(read_buffer *in) {
   object *car_obj;
   object *cdr_obj;
 
-  eat_whitespace(in);
+  if (eat_whitespace(in) == EOF)
+    return throw_read("unexpected EOF\n");
 
   c = read_getc(in);
   if(c == ')') {
@@ -181,7 +184,8 @@ object *read_pair(read_buffer *in) {
   car_obj = lisp_read(in);
   push_root(&car_obj);
 
-  eat_whitespace(in);
+  if (eat_whitespace(in) == EOF)
+    return throw_read("unexpected EOF\n");
 
   c = read_getc(in);
   if(c == '.') {
@@ -190,7 +194,8 @@ object *read_pair(read_buffer *in) {
     cdr_obj = lisp_read(in);
     push_root(&cdr_obj);
 
-    eat_whitespace(in);
+    if (eat_whitespace(in) == EOF)
+      return throw_read("unexpected EOF\n");
     c = read_getc(in);
     if(c != ')') {
       return throw_read("improper list missing trailing paren\n");
@@ -220,7 +225,8 @@ object *read_vector(read_buffer *in) {
   object *list_tail;
   object *current;
 
-  eat_whitespace(in);
+  if (eat_whitespace(in) == EOF)
+    return throw_read("unexpected EOF\n");
 
   c = read_getc(in);
   if(c == ')') {
@@ -236,7 +242,8 @@ object *read_vector(read_buffer *in) {
   /* this is protected by the head */
   list_tail = list_head;
 
-  eat_whitespace(in);
+  if (eat_whitespace(in) == EOF)
+    return throw_read("unexpected EOF\n");
   c = read_getc(in);
   while(c != ')') {
     read_ungetc(c, in);
@@ -245,7 +252,8 @@ object *read_vector(read_buffer *in) {
     set_cdr(list_tail, cons(current, the_empty_list));
     list_tail = cdr(list_tail);
 
-    eat_whitespace(in);
+    if (eat_whitespace(in) == EOF)
+      return throw_read("unexpected EOF\n");
     c = read_getc(in);
   }
 
@@ -275,7 +283,8 @@ object *lisp_read(read_buffer *in) {
 #define BUFFER_MAX 1000
   char buffer[BUFFER_MAX];
 
-  eat_whitespace(in);
+  if (eat_whitespace(in) == EOF)
+    return NULL;
   c = read_getc(in);
   if(c == '#') {
     c = read_getc(in);
@@ -323,6 +332,9 @@ object *lisp_read(read_buffer *in) {
 	return throw_read("symbol exceeded %d chars", BUFFER_MAX);
       }
       c = read_getc(in);
+      if (c == EOF) {
+	return throw_read("unexpected EOF\n");
+      }
     }
     if(is_delimiter(c)) {
       buffer[i] = '\0';
