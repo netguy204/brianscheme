@@ -19,15 +19,15 @@ void *MALLOC(long size) {
   return obj;
 }
 
-typedef struct object_pointer_list {
+typedef struct root_stack {
   object ***objs;
   long top;
   long size;
-} object_pointer_list;
+} root_stack;
 
 /* initialized to the_empty_list */
 static object *Free_Objects = NULL;
-struct object_pointer_list *Root_Objects = NULL;
+struct root_stack *Root_Objects = NULL;
 static object *Active_List = NULL;
 
 void throw_gc(char *msg, ...) {
