@@ -29,7 +29,7 @@ void xfree(void *p) {
   free(p);
 }
 
-hashtab_t *ht_init(size_t size, int (*hash_func) (void *, size_t)) {
+hashtab_t *ht_init(size_t size, int (*hash_func) (struct object *, size_t)) {
   hashtab_t *new_ht = (hashtab_t *) xmalloc(sizeof(hashtab_t));
   new_ht->arr = (hashtab_node_t **) xmalloc(sizeof(hashtab_node_t *) * size);
   new_ht->size = size;
@@ -40,15 +40,12 @@ hashtab_t *ht_init(size_t size, int (*hash_func) (void *, size_t)) {
   for(i = 0; i < (int)size; i++)
     new_ht->arr[i] = NULL;
 
-  if(hash_func == NULL)
-    new_ht->hash_func = &ht_hash;
-  else
-    new_ht->hash_func = hash_func;
+  new_ht->hash_func = hash_func;
 
   return new_ht;
 }
 
-void *ht_search(hashtab_t * hashtable, void *key) {
+struct object *ht_search(hashtab_t * hashtable, struct object *key) {
   int index = ht_hash(key, hashtable->size);
   if(hashtable->arr[index] == NULL)
     return NULL;
@@ -62,7 +59,7 @@ void *ht_search(hashtab_t * hashtable, void *key) {
   return NULL;
 }
 
-void *ht_insert(hashtab_t * hashtable, void *key, void *value) {
+struct object *ht_insert(hashtab_t * hashtable, struct object *key, struct object *value) {
   int index = ht_hash(key, hashtable->size);
 
   hashtab_node_t *next_node, *last_node;
@@ -97,7 +94,7 @@ void *ht_insert(hashtab_t * hashtable, void *key, void *value) {
 }
 
 /* delete the given key from the hashtable */
-void ht_remove(hashtab_t * hashtable, void *key) {
+void ht_remove(hashtab_t * hashtable, struct object *key) {
   hashtab_node_t *last_node, *next_node;
   int index = ht_hash(key, hashtable->size);
   next_node = hashtable->arr[index];
@@ -131,7 +128,7 @@ hashtab_t *ht_grow(hashtab_t * old_ht, size_t new_size) {
   hashtab_iter_t ii;
   ht_iter_init(old_ht, &ii);
   for(; ii.key != NULL; ht_iter_inc(&ii))
-    ht_insert(new_ht, ii.key, ii.value);
+    ht_insert(new_ht, *(ii.key), *(ii.value));
 
   /* Destroy the old hashtable. */
   ht_destroy(old_ht);
@@ -181,8 +178,8 @@ void ht_iter_inc(hashtab_iter_t * ii) {
   else {
     /* next node in the list */
     ii->internal.node = ii->internal.node->next;
-    ii->key = ii->internal.node->key;
-    ii->value = ii->internal.node->value;
+    ii->key = &(ii->internal.node->key);
+    ii->value = &(ii->internal.node->value);
     return;
   }
 
@@ -203,20 +200,7 @@ void ht_iter_inc(hashtab_iter_t * ii) {
   /* point to the next item in the hashtable */
   ii->internal.node = hashtable->arr[index];
   ii->internal.index = index;
-  ii->key = ii->internal.node->key;
-  ii->value = ii->internal.node->value;
+  ii->key = &(ii->internal.node->key);
+  ii->value = &(ii->internal.node->value);
 }
 
-int ht_hash(void *key, size_t hashtab_size) {
-  /* One-at-a-time hash */
-  uint32_t hash, i;
-  for(hash = 0, i = 0; i < sizeof(key); ++i) {
-    hash += ((char *)key)[i];
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
-  }
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
-  return (hash % hashtab_size);
-}

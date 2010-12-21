@@ -18,7 +18,6 @@ object *if_symbol;
 object *begin_symbol;
 object *lambda_symbol;
 object *macro_symbol;
-object *rest_symbol;
 object *debug_symbol;
 object *stdin_symbol;
 object *stdout_symbol;

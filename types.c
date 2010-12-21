@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "types.h"
 #include "symbols.h"
@@ -143,10 +144,25 @@ object *list_to_vector(object * list) {
   return vector;
 }
 
+int ht_hash(object *key, size_t hashtab_size) {
+  /* One-at-a-time hash */
+  uint32_t hash = 0;
+  char * symbol = SYMBOL(key);
+  for(; *symbol != 0; ++symbol) {
+    hash += (*symbol);
+    hash += (hash << 10);
+    hash ^= (hash >> 6);
+  }
+  hash += (hash << 3);
+  hash ^= (hash >> 11);
+  hash += (hash << 15);
+  return (hash % hashtab_size);
+}
+
 object *make_hashtab(long size) {
   object *obj = alloc_object();
   obj->type = HASH_TABLE;
-  HTAB(obj) = ht_init(size, NULL);
+  HTAB(obj) = ht_init(size, ht_hash);
   return obj;
 }
 

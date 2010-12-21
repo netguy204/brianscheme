@@ -11,10 +11,12 @@
 
 #include <stdlib.h>
 
+struct object;
+
 typedef struct hashtab_node_t
 {
-  void *key;			/* key for the node */
-  void *value;			/* value for this node */
+  struct object *key;	       	/* key for the node */
+  struct object *value;	  	/* value for this node */
 
   struct hashtab_node_t *next;	/* next node (open hashtable) */
 } hashtab_node_t;
@@ -24,15 +26,15 @@ typedef struct hashtab_t
   hashtab_node_t **arr;
   size_t size;			/* size of the hash */
   int count;			/* number if items in this table */
-  int (*hash_func) (void *, size_t);	/* hash function */
+  int (*hash_func) (struct object *, size_t);	/* hash function */
 } hashtab_t;
 
 /* Iterator type for iterating through the hashtable. */
 typedef struct hashtab_iter_t
 {
   /* key and value of current item */
-  void *key;
-  void *value;
+  struct object **key;
+  struct object **value;
 
   /* bookkeeping data */
   struct hashtab_internal_t
@@ -51,20 +53,20 @@ typedef struct hashtab_iter_t
  * hashtable failed due to a failed malloc(). */
 hashtab_t *ht_init (size_t size,
 		    int (*hash_func)
-		    (void *key, size_t ht_size));
+		    (struct object *key, size_t ht_size));
 
 /* Fetch a value from table matching the key. Returns a pointer to
  * the value matching the given key. */
-void *ht_search (hashtab_t * hashtable, void *key);
+struct object *ht_search (hashtab_t * hashtable, struct object *key);
 
 /* Put a value into the table with the given key. Returns NULL if
  * malloc() fails to allocate memory for the new node. */
-void *ht_insert (hashtab_t * hashtable,
-		 void *key, void *value);
+struct object *ht_insert (hashtab_t * hashtable,
+		 struct object *key, struct object *value);
 
 /* Delete the given key and value pair from the hashtable. If the key
  * does not exist, no error is given. */
-void ht_remove (hashtab_t * hashtable, void *key);
+void ht_remove (hashtab_t * hashtable, struct object *key);
 
 /* Change the size of the hashtable. It will allocate a new hashtable
  * and move all keys and values over. The pointer to the new hashtable
@@ -85,8 +87,5 @@ void ht_iter_init (hashtab_t * hashtable, hashtab_iter_t * ii);
  * value will point to NULL values when the iterator has reached the
  * end of the hashtable.  */
 void ht_iter_inc (hashtab_iter_t * ii);
-
-/* Default hashtable hash function. */
-int ht_hash (void *key, size_t hashtab_size);
 
 #endif

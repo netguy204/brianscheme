@@ -29,8 +29,9 @@ void throw_interp(char *msg, ...) {
   vfprintf(stderr, msg, args);
   va_end(args);
 
-  eval_exit_hook(the_global_environment);
+  /* FIXME: swap these after debugging */
   exit(1);
+  eval_exit_hook(the_global_environment);
 }
 
 /* dealing with environments */
@@ -429,7 +430,7 @@ DEFUN1(eval_proc) {
   return interp(exp, env);
 }
 
-object *lisp_read(FILE * in);
+object *obj_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
   object *result = obj_read(INPUT(in_port));
@@ -560,18 +561,10 @@ DEFUN1(stats_proc) {
   object *result = cons(temp, the_empty_list);
   push_root(&result);
 
-  temp = cons(make_fixnum(get_alloc_count()), the_empty_list);
-  temp = cons(make_symbol("alloc"), temp);
-  result = cons(temp, result);
-
   pop_root(&result);
   pop_root(&temp);
 
   return result;
-}
-
-DEFUN1(mark_and_sweep_proc) {
-  return make_fixnum(mark_and_sweep());
 }
 
 DEFUN1(clock_proc) {
@@ -1110,7 +1103,6 @@ void init_prim_environment(object * env) {
 
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
-  add_procedure("mark-and-sweep", mark_and_sweep_proc);
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);
@@ -1161,20 +1153,23 @@ void init() {
   symbol_table = the_empty_list;
   push_root(&symbol_table);
 
-  unquote_symbol = make_symbol("unquote");
-  quote_symbol = make_symbol("quote");
-  quasiquote_symbol = make_symbol("quasiquote");
-  set_symbol = make_symbol("set!");
-  if_symbol = make_symbol("if");
-  begin_symbol = make_symbol("begin");
-  lambda_symbol = make_symbol("lambda");
-  macro_symbol = make_symbol("macro");
-  rest_symbol = make_symbol("&rest");
-  debug_symbol = make_symbol("*debug*");
-  stdin_symbol = make_symbol("stdin");
-  stdout_symbol = make_symbol("stdout");
-  stderr_symbol = make_symbol("stderr");
-  exit_hook_symbol = make_symbol("exit-hook");
+#define DEFINE_SYM(var, name) \
+  var = make_symbol(name); \
+  push_root(&var)
+
+  DEFINE_SYM(unquote_symbol, "unquote");
+  DEFINE_SYM(quote_symbol, "quote");
+  DEFINE_SYM(quasiquote_symbol, "quasiquote");
+  DEFINE_SYM(set_symbol, "set!");
+  DEFINE_SYM(if_symbol, "if");
+  DEFINE_SYM(begin_symbol, "begin");
+  DEFINE_SYM(lambda_symbol, "lambda");
+  DEFINE_SYM(macro_symbol, "macro");
+  DEFINE_SYM(debug_symbol, "*debug*");
+  DEFINE_SYM(stdin_symbol, "stdin");
+  DEFINE_SYM(stdout_symbol, "stdout");
+  DEFINE_SYM(stderr_symbol, "stderr");
+  DEFINE_SYM(exit_hook_symbol, "exit-hook");
 
   eof_object = alloc_object();
   eof_object->type = EOF_OBJECT;

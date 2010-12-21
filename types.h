@@ -64,8 +64,7 @@ typedef struct object {
   } data;
 
   /* garbage collection data */
-  struct object* next;
-  char mark;
+  struct object* new_object_location;
 } object;
 
 typedef struct object* (prim_proc)(struct object*,
@@ -159,18 +158,23 @@ long get_cons_count();
 #define list4(a,b,c,d) cons(a,list3(b,c,d))
 #define list5(a,b,c,d,e) cons(a,list4(b,c,d,e))
 
-#define LONG(x) x->data.fixnum.value
-#define CHAR(x) x->data.character.value
-#define STRING(x) x->data.string.value
-#define SYMBOL(x) x->data.symbol.value
-#define BOOLEAN(x) x->data.boolean.value
-#define INPUT(x) x->data.input_port.stream
-#define OUTPUT(x) x->data.output_port.stream
-#define VARRAY(obj) (obj->data.vector.objects)
-#define VSIZE(obj) (obj->data.vector.size)
-#define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
-#define CENV(obj) (obj->data.compiled_proc.env)
-#define HTAB(obj) (obj->data.hash_table.hash_table)
+#define LONG(x) ((x)->data.fixnum.value)
+#define CHAR(x) ((x)->data.character.value)
+#define STRING(x) ((x)->data.string.value)
+#define SYMBOL(x) ((x)->data.symbol.value)
+#define BOOLEAN(x) ((x)->data.boolean.value)
+#define INPUT(x) ((x)->data.input_port.stream)
+#define OUTPUT(x) ((x)->data.output_port.stream)
+#define CAR(obj) ((obj)->data.pair.car)
+#define CDR(obj) ((obj)->data.pair.cdr)
+#define LBODY(obj) ((obj)->data.compound_proc.body)
+#define LARGS(obj) ((obj)->data.compound_proc.parameters)
+#define LENV(obj) ((obj)->data.compound_proc.env)
+#define VARRAY(obj) ((obj)->data.vector.objects)
+#define VSIZE(obj) ((obj)->data.vector.size)
+#define BYTECODE(obj) ((obj)->data.compiled_proc.bytecode)
+#define CENV(obj) ((obj)->data.compiled_proc.env)
+#define HTAB(obj) ((obj)->data.hash_table.hash_table)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

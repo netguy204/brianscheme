@@ -9,8 +9,21 @@
 /* enable gc debuging by defining
  * DEBUG_GC
  */
+#define DEBUG_GC
+
+#ifdef DEBUG_GC
+void debug_gc(char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  va_end(args);
+}
+#else
+#define debug_gc(msg, ...)
+#endif
 
 void *MALLOC(long size) {
+  debug_gc("malloc %ld\n", size);
   void *obj = malloc(size);
   if(obj == NULL) {
     fprintf(stderr, "out of memory\n");
@@ -25,10 +38,16 @@ typedef struct root_stack {
   long size;
 } root_stack;
 
+typedef struct object_heap {
+  object *objs;
+  long free_idx;
+  long size;
+} object_heap;
+
 /* initialized to the_empty_list */
-static object *Free_Objects = NULL;
-struct root_stack *Root_Objects = NULL;
-static object *Active_List = NULL;
+static struct root_stack *Root_Objects = NULL;
+static struct object_heap* active_objects = NULL;
+static struct object_heap* other_objects = NULL;
 
 void throw_gc(char *msg, ...) {
   va_list args;
@@ -39,38 +58,27 @@ void throw_gc(char *msg, ...) {
   exit(2);
 }
 
-#ifdef DEBUG_GC
-#include <execinfo.h>
+object_heap* create_heap(long size) {
+  object_heap * heap = MALLOC(sizeof(object_heap));
+  heap->objs = MALLOC(sizeof(object) * size);
+  heap->free_idx = 0;
+  heap->size = size;
 
-void print_backtrace() {
-#define MAX_FRAMES 30
-  void *buffer[MAX_FRAMES];
-  int frames = backtrace(buffer, MAX_FRAMES);
-  backtrace_symbols_fd(buffer, frames, 2);
-}
-
-void debug_gc(char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-}
-#else
-#define print_backtrace()
-#define debug_gc(msg, ...)
-#endif
-
-void ensure_root_objects(void) {
-  if(Root_Objects == NULL) {
-    Root_Objects = MALLOC(sizeof(Root_Objects));
-    Root_Objects->top = 0;
-    Root_Objects->size = 400;
-    Root_Objects->objs = MALLOC(sizeof(object **) * Root_Objects->size);
-  }
+  return heap;
 }
 
 void gc_init(void) {
-  ensure_root_objects();
+  debug_gc("initializing gc\n");
+
+  /* build the intial root stack */
+  Root_Objects = MALLOC(sizeof(Root_Objects));
+  Root_Objects->top = 0;
+  Root_Objects->size = 400;
+  Root_Objects->objs = MALLOC(sizeof(object **) * Root_Objects->size);
+
+  /* allocate the first active heaps */
+  active_objects = create_heap(1024);
+  other_objects = create_heap(1024);
 }
 
 object *push_root(object ** stack) {
@@ -89,59 +97,57 @@ object *push_root(object ** stack) {
 
 void pop_root(object ** stack) {
   if(Root_Objects->objs[--Root_Objects->top] != stack) {
-    print_backtrace();
     throw_gc("pop_stack_root - object not on top\n");
   }
 }
 
-void extend_heap(long extension) {
-  int ii;
-  object *new_heap = MALLOC(sizeof(object) * extension);
-
-  for(ii = 0; ii < extension - 1; ++ii) {
-    new_heap[ii].next = &new_heap[ii + 1];
-  }
-
-  new_heap[extension - 1].next = Free_Objects;
-  Free_Objects = new_heap;
-}
-
-void mark_reachable(object * root) {
+void cheney_copy_root(object ** root) {
   int ii;
   hashtab_iter_t htab_iter;
 
   if(root == NULL)
     return;
-  if(root->mark)
+
+  /* has this been relocated yet? */
+  int new_idx = (*root)->new_object_location - other_objects->objs;
+  if(new_idx >= 0 && new_idx < other_objects->size) {
+    debug_gc("encountered already migrated object\n");
+    *root = (*root)->new_object_location;
     return;
+  }
 
-  root->mark = 1;
+  debug_gc("migrating object\n");
+  /* move it, set the location, recurse */
+  object * new_address = &(other_objects->objs[other_objects->free_idx++]);
+  (*root)->new_object_location = new_address;
+  memcpy(new_address, *root, sizeof(object));
+  *root = new_address;
 
-  switch (root->type) {
+  switch ((*root)->type) {
   case PAIR:
-    mark_reachable(car(root));
-    mark_reachable(cdr(root));
+    cheney_copy_root(&CAR(*root));
+    cheney_copy_root(&CDR(*root));
     break;
   case COMPOUND_PROC:
-    mark_reachable(root->data.compound_proc.env);
+    cheney_copy_root(&LENV(*root));
   case SYNTAX_PROC:
-    mark_reachable(root->data.compound_proc.parameters);
-    mark_reachable(root->data.compound_proc.body);
+    cheney_copy_root(&LARGS(*root));
+    cheney_copy_root(&LBODY(*root));
     break;
   case VECTOR:
-    for(ii = 0; ii < VSIZE(root); ++ii) {
-      mark_reachable(VARRAY(root)[ii]);
+    for(ii = 0; ii < VSIZE((*root)); ++ii) {
+      cheney_copy_root(&(VARRAY((*root))[ii]));
     }
     break;
   case COMPILED_PROC:
-    mark_reachable(BYTECODE(root));
-    mark_reachable(CENV(root));
+    cheney_copy_root(&(BYTECODE(*root)));
+    cheney_copy_root(&(CENV(*root)));
     break;
   case HASH_TABLE:
-    ht_iter_init(HTAB(root), &htab_iter);
+    ht_iter_init(HTAB(*root), &htab_iter);
     while(htab_iter.key != NULL) {
-      mark_reachable((object *) htab_iter.key);
-      mark_reachable((object *) htab_iter.value);
+      cheney_copy_root(htab_iter.key);
+      cheney_copy_root(htab_iter.value);
       ht_iter_inc(&htab_iter);
     }
   default:
@@ -149,110 +155,43 @@ void mark_reachable(object * root) {
   }
 }
 
-long sweep_unmarked() {
-  long num_freed = 0;
-  object *head = Active_List;
-  object *next_head;
-  object *new_active = NULL;
-
-  while(head) {
-    next_head = head->next;
-
-    /* unreached so free it */
-    if(!head->mark) {
-      /* free any extra memory associated with this type */
-      switch (head->type) {
-      case STRING:
-	free(head->data.string.value);
-	break;
-      case VECTOR:
-	free(VARRAY(head));
-	break;
-      case HASH_TABLE:
-	ht_destroy(HTAB(head));
-      default:
-	break;
-      }
-
-      head->next = Free_Objects;
-      Free_Objects = head;
-      num_freed++;
-    }
-    else {
-      head->next = new_active;
-      new_active = head;
-    }
-
-    head->mark = 0;
-    head = next_head;
-  }
-
-  Active_List = new_active;
-
-  return num_freed;
-}
-
-long mark_and_sweep() {
+void cheney_copy() {
   /* mark everything reachable from root */
   int ii = 0;
   for(ii = 0; ii < Root_Objects->top; ++ii) {
     object **next = Root_Objects->objs[ii];
-    mark_reachable(*next);
+    cheney_copy_root(next);
   }
-
-  return sweep_unmarked();
 }
-
-static long Alloc_Count = 0;
-static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
-  /* always sweep while we're debugging
-     mark_and_sweep();
-   */
 
-  if(Free_Objects == NULL) {
-    debug_gc("no space. trying mark-and-sweep\n");
-    print_backtrace();
+  if(active_objects->free_idx == active_objects->size) {
+    debug_gc("starting cheney copy\n");
+    cheney_copy();
 
-    long freed = 0;
-    /* comment this out to turn off gc
-     */
-    freed = mark_and_sweep();
+    /* swap the heaps */
+    object_heap *temp = active_objects;
+    active_objects = other_objects;
+    other_objects = temp;
+    other_objects->free_idx = 0;
 
-    Alloc_Count -= freed;
-    debug_gc("mark-and-sweep freed %ld objects\n", freed);
-    debug_gc("alloc-count is now %ld\n", Alloc_Count);
-
-
-    /* did we free enough? */
-    if(freed == 0 || Next_Heap_Extension / freed > 2) {
-      debug_gc("extending the heap\n");
-      extend_heap(Next_Heap_Extension);
-      Next_Heap_Extension *= 1.8;
+    /* grow the other heap if necessary */
+    long unused = other_objects->size - other_objects->free_idx;
+    double p_full = ((double)unused) / ((double)other_objects->size);
+    if(p_full > 0.80) {
+      free(other_objects->objs);
+      other_objects->size *= 2;
+      debug_gc("resizing other heap to %ld\n", other_objects->size);
+      other_objects = MALLOC(sizeof(object) * other_objects->size);
     }
 
-    if(Free_Objects == NULL) {
-      throw_gc("extend_heap didn't work");
+    /* can we satisfy the current allocation? */
+    if(active_objects->free_idx == active_objects->size) {
+      return alloc_object();
     }
   }
-
-  object *obj = Free_Objects;
-  Free_Objects = obj->next;
-
-  /* clear when we're debugging so things fail
-   * quickly 
-   memset(obj, 0, sizeof(object));
-   */
-
-  obj->next = Active_List;
-  Active_List = obj;
-
-  ++Alloc_Count;
-
-  return obj;
+  debug_gc("allocating at index %d\n", active_objects->free_idx);
+  return &(active_objects->objs[active_objects->free_idx++]);
 }
 
-long get_alloc_count() {
-  return Alloc_Count;
-}
