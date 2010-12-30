@@ -25,7 +25,7 @@
       `(set! ,name . ,value-or-body)
       `(set! ,(car name) (lambda ,(cdr name)
 			   (begin . ,value-or-body)))))
-	
+
 
 ;; We're going to override these names later so I'm stashing away the
 ;; original primitive versions so that we can refer to those
@@ -56,7 +56,7 @@
 ;; define that too. Note that these functions are not type-safe. We
 ;; should probably override them later with versions that are.
 ;;
-;; Note the trick to confine the scope of iter. Normally we'd use 
+;; Note the trick to confine the scope of iter. Normally we'd use
 ;; let/letrec here but their definition depends on map so we better not
 ;; touch them yet.
 (define (reverse l)
@@ -65,7 +65,7 @@
        (if (null? in)
 	   out
 	   (iter (cdr in) (cons (car in) out))))
-     
+
      (iter l nil)) nil))
 
 (define (mapr fn lst)
@@ -74,7 +74,7 @@
        (if (null? rest)
 	   done
 	   (iter (cons (fn (car rest)) done) (cdr rest))))
-    
+
      (iter nil lst)) nil))
 
 (define (map fn lst)
@@ -95,7 +95,7 @@
        . ,(map (lambda (b) (list 'set! (first b) (second b)))
 	       bindings))
      (begin . ,body)))
-	    
+
 (define (cadr x) (car (cdr x)))
 (define (cadr x) (car (cdr x)))
 (define (caddr x) (car (cdr (cdr x))))
@@ -124,7 +124,7 @@
 		   (if (prim-= i n)
 		       rest
 		       (iter (prim-+ i 1) (cdr rest))))))
-		 
+
     (iter 0 lst)))
 
 (define (nth lst n)
@@ -225,7 +225,7 @@
 
 (define-syntax (funcall fn . args)
   `(,fn . ,args))
- 
+
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
 ;; executed. The interpreter also invokes this hook when it's about to
@@ -275,7 +275,7 @@
 ;; one and replace it.
 (define throw-exit exit)
 
-(define-syntax (throw-error nil . objs)
+(define-syntax (throw-error . objs)
   `(begin
      (error . ,objs)
      (throw-exit 1)))
@@ -380,7 +380,7 @@
 			     (cdr current-list)
 			     remaining-lists)))))
     (reverse (iter nil nil lists))))
-	      
+
 (define (append . lists)
   (append-all lists))
 
