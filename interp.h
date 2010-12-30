@@ -16,6 +16,8 @@ object *cdr(object *pair);
 #define FIRST car(arguments)
 #define SECOND second(arguments)
 #define THIRD third(arguments)
+#define FOURTH fourth(arguments)
+
 #define NEXT arguments = cdr(arguments)
 
 #define AS_BOOL(x) (x ? true : false)

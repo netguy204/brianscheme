@@ -4,6 +4,7 @@
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
+#include "ffi.h"
 
 void load_library(char *libname) {
   FILE * stdlib = fopen(libname, "r");
@@ -28,6 +29,7 @@ int main(int argc, char ** argv) {
   char *libname = "stdlib.sch";
 
   init();
+  init_ffi(the_global_environment);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't load the standard lib */

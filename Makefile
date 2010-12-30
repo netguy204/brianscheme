@@ -2,21 +2,23 @@ TARGETS = main test
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c
-HEADERS = interp.h types.h read.h gc.h vm.h hashtab.h
+SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c
+HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
-LDFLAGS = -leditline
+LDFLAGS = -leditline -lffi
 
 CC = gcc
+EXTFLAGS =
+
 ifeq ($(FAST),1)
-	CFLAGS = -O3 -W -Wall -ansi
+	CFLAGS = -O3 -W -Wall -ansi $(EXTFLAGS)
 else
 ifeq ($(PROF),1)
-	CFLAGS = -g -pg -W -Wall -ansi
+	CFLAGS = -g -pg -W -Wall -ansi $(EXTFLAGS)
 else
-	CFLAGS = -g -W -Wall -ansi
+	CFLAGS = -g -W -Wall -ansi $(EXTFLAGS)
 endif
 endif
 

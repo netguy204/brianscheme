@@ -117,6 +117,26 @@ char is_vector(object * obj) {
   return obj->type == VECTOR;
 }
 
+char is_alien(object * obj) {
+  return obj->type == ALIEN;
+}
+
+object *make_alien(void * ptr, object * releaser) {
+  object * obj = alloc_object();
+  obj->type = ALIEN;
+  ALIEN_PTR(obj) = ptr;
+  ALIEN_RELEASER(obj) = releaser;
+  return obj;
+}
+
+object *make_alien_fn(void (*fn)(void), object * releaser) {
+  object * obj = alloc_object();
+  obj->type = ALIEN;
+  ALIEN_FN_PTR(obj) = fn;
+  ALIEN_RELEASER(obj) = releaser;
+  return obj;
+}
+
 object *list_to_vector(object * list) {
   long length = 0;
   long position = 0;
@@ -311,5 +331,6 @@ char is_atom(object * obj) {
     is_fixnum(obj) ||
     is_character(obj) ||
     is_string(obj) ||
-    is_compound_proc(obj) || is_primitive_proc(obj) || is_syntax_proc(obj);
+    is_compound_proc(obj) || is_primitive_proc(obj) || is_syntax_proc(obj) ||
+    is_alien(obj);
 }

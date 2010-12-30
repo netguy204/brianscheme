@@ -11,7 +11,7 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      VECTOR, COMPILED_PROC, HASH_TABLE} object_type;
+	      VECTOR, COMPILED_PROC, HASH_TABLE, ALIEN} object_type;
 
 typedef struct object {
   object_type type;
@@ -61,6 +61,13 @@ typedef struct object {
     struct {
       FILE *stream;
     } output_port;
+    struct {
+      struct object *releaser;
+      union {
+	void *ptr;
+	void (*fn_ptr)(void);
+      } data;
+    } alien;
   } data;
 
   /* garbage collection data */
@@ -133,6 +140,12 @@ void remkey_hashtab(object *table, object *key);
 
 char is_vector(object *obj);
 
+char is_alien(object *obj);
+
+object *make_alien(void * ptr, object * releaser);
+
+object *make_alien_fn(void (*fn)(void), object * releaser);
+
 /* statistics */
 long get_alloc_count();
 long get_cons_count();
@@ -144,7 +157,7 @@ long get_cons_count();
 #define cddddr(obj) cdr(cdddr(obj))
 
 #define caddr(obj) car(cddr(obj))
-#define cadddr(obj) car(cdddr(obj)))
+#define cadddr(obj) car(cdddr(obj))
 #define caddddr(obj) car(cddddr(obj))
 
 #define first(obj) car(obj)
@@ -159,18 +172,21 @@ long get_cons_count();
 #define list4(a,b,c,d) cons(a,list3(b,c,d))
 #define list5(a,b,c,d,e) cons(a,list4(b,c,d,e))
 
-#define LONG(x) x->data.fixnum.value
-#define CHAR(x) x->data.character.value
-#define STRING(x) x->data.string.value
-#define SYMBOL(x) x->data.symbol.value
-#define BOOLEAN(x) x->data.boolean.value
-#define INPUT(x) x->data.input_port.stream
-#define OUTPUT(x) x->data.output_port.stream
+#define LONG(x) (x->data.fixnum.value)
+#define CHAR(x) (x->data.character.value)
+#define STRING(x) (x->data.string.value)
+#define SYMBOL(x) (x->data.symbol.value)
+#define BOOLEAN(x) (x->data.boolean.value)
+#define INPUT(x) (x->data.input_port.stream)
+#define OUTPUT(x) (x->data.output_port.stream)
 #define VARRAY(obj) (obj->data.vector.objects)
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
 #define CENV(obj) (obj->data.compiled_proc.env)
 #define HTAB(obj) (obj->data.hash_table.hash_table)
+#define ALIEN_RELEASER(obj) (obj->data.alien.releaser)
+#define ALIEN_PTR(obj) (obj->data.alien.data.ptr)
+#define ALIEN_FN_PTR(obj) (obj->data.alien.data.fn_ptr)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

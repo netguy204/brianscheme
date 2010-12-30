@@ -749,6 +749,9 @@ void owrite(FILE * out, object * obj) {
   case EOF_OBJECT:
     fprintf(out, "#<eof>");
     break;
+  case ALIEN:
+    fprintf(out, "#<alien-object>");
+    break;
   default:
     throw_interp("cannot write unknown type: %d\n", obj->type);
   }
@@ -1034,7 +1037,7 @@ interp_restart:
 void init_prim_environment(object * env) {
   /* used throughout this method to protect the thing in definition
    * from gc */
-  object *curr = NULL;
+  object *curr = the_empty_list;
   push_root(&curr);
 
 #define add_procedure(scheme_name, c_name)    \
@@ -1123,7 +1126,6 @@ void init_prim_environment(object * env) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  define_variable(debug_symbol, false, env);
   define_variable(stdin_symbol, curr = make_input_port(stdin), env);
   define_variable(stdout_symbol, curr = make_output_port(stdout), env);
   define_variable(stderr_symbol, curr = make_output_port(stderr), env);
@@ -1169,8 +1171,6 @@ void init() {
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
   macro_symbol = make_symbol("macro");
-  rest_symbol = make_symbol("&rest");
-  debug_symbol = make_symbol("*debug*");
   stdin_symbol = make_symbol("stdin");
   stdout_symbol = make_symbol("stdout");
   stderr_symbol = make_symbol("stderr");
