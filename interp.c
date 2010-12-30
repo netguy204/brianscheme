@@ -429,7 +429,7 @@ DEFUN1(eval_proc) {
   return interp(exp, env);
 }
 
-object *lisp_read(FILE * in);
+object *obj_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
   object *result = obj_read(INPUT(in_port));
