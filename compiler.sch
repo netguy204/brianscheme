@@ -13,12 +13,15 @@
 ;; point.
 
 (define-syntax (write-dbg . args)
+  "display the given forms"
   `(write . ,args))
 
 (define-syntax (write-dbg . args)
+  "do nothing."
   #t)
 
 (define (comp x env val? more?)
+  "compile an expression in the given environment optionally caring about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
   (cond
    ;; expand anything with a macro at the head
@@ -124,7 +127,7 @@
 		    (when more? (gen 'jump l2))
 		    (list l1) ecode
 		    (when more? (list l2))))))))))
-		    
+
 (define (comp-funcall f args env val? more?)
   (write-dbg 'comp-funcall f 'args args
 	     'val? val? 'more? more?)
@@ -159,7 +162,7 @@
 
 (define (environment-names . env)
   (cond
-   ((or (null? env) 
+   ((or (null? env)
 	(primitive-procedure? (car env)))
     (cdr (cdr (map first (current-environment)))))
    ((compound-procedure? (car env))
@@ -178,29 +181,12 @@
 (define (comp-macroexpand0 exp)
   (eval `(macroexpand0 '(,(car exp) . ,(cdr exp)))))
 
-;; Since we don't have defstruct we fake it with a bunch of hand
-;; written accessors
-(define (make-fn code env name args)
-  (write-dbg 'make-fn 'code code)
-  (list 'fn code env name args))
-
-(define (fn? fn)
-  (starts-with fn 'fn))
-
-(define (fn-code fn)
-  (first (cdr fn)))
-
-(define (fn-env fn)
-  (second (cdr fn)))
-
-(define (fn-name fn)
-  (third (cdr fn)))
-
-(define (fn-args fn)
-  (fourth (cdr fn)))
-
-(define (fn-bytecode fn)
-  (fifth (cdr fn)))
+(define-struct fn
+  "a structure representing a compiled function"
+  ((code)
+   (env)
+   (name)
+   (args)))
 
 (define (make-prim symbol n-args opcode always? side-effects?)
   (list 'prim symbol n-args opcode always? side-effects?))
@@ -284,7 +270,10 @@
 	       (make-true-list (rest dotted-list))))))
 
 (define (new-fun code env name args)
-  (assemble (make-fn (optimize code) env name args)))
+  (assemble (make-fn 'code (optimize code)
+		     'env env
+		     'name name
+		     'args args)))
 
 (define (optimize code) code)
 
@@ -314,7 +303,7 @@
     (write-dbg 'gen-label prefix)
     (set! label-num (+ label-num 1))
     (string->symbol (concat prefix (number->string label-num)))))
-  
+
 (define (gen-var var env)
   (write-dbg 'gen-var var)
   (let ((p (in-env? var env)))
@@ -368,7 +357,7 @@
 			      (first r1)
 			      (second r1)))
 	 (nargs (num-args (fn-args fn)))
-	 (result 
+	 (result
 	  (make-compiled-proc r2 nil)))
 
     result))
@@ -406,7 +395,7 @@
 	    (if (is instr 'fn)
 		(show-fn (second instr) (+ indent 4))
 		(write (make-space indent) instr))))
-  
+
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
@@ -425,6 +414,7 @@
      ,(first fns)))
 
 (define-syntax (replace-with-compiled fn)
+  "replace a given function with a compiled version"
   `(set! ,fn ((compiler (compound->lambda ,fn)))))
 
 (define (dump-compiled-fn fn . indent)
@@ -445,5 +435,4 @@
 ; now we can compile functions to bytecode and print the results like
 ; this:
 ; (comp-show '(if (= x y) (f (g x)) (h x y (h 1 2))))
-
-'compiler-loaded
+(provide 'compiler)

@@ -1,4 +1,4 @@
-(load "compiler.sch")
+(require 'compiler)
 
 (replace-with-compiled comp)
 (replace-with-compiled arg-count)

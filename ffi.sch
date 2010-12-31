@@ -1,12 +1,5 @@
-(define-syntax (assert cond)
-  (let ((result (gensym)))
-    `(begin
-       (let ((,result ,cond))
-	 (if (not ,result)
-	     (throw-error "assert failed" ',cond)
-	     ,result)))))
-
 (define (ffi:make-function-spec return args)
+  "create callspec for a function of the given signature"
   (let ((cif (ffi-make-cif))
 	(argspec (ffi-make-pointer-array (length args)))
 	(retspec (ffi-primitive return)))
@@ -24,6 +17,7 @@
     cif))
 
 (define (ffi:to-alien obj)
+  "convert obj to its corresponding alien representation"
   (cond
    ((string? obj) (string-to-alien obj))
    ((integer? obj) (int-to-alien obj))
@@ -31,11 +25,13 @@
    (else (throw-error "can't convert" obj "to alien"))))
 
 (define (ffi:from-alien obj type)
+  "convert obj from alien assuming that it's of the given type"
   (case type
     (ffi-uint (alien-to-int obj))
     (else (throw-error "can't convert" type "back from alien"))))
 
 (define (ffi:alien-type obj)
+  "determine the alien type tag for a given object"
   (cond
    ((string? obj) 'ffi-pointer)
    ((alien? obj) 'ffi-pointer)
@@ -43,11 +39,13 @@
    (else (throw-error "don't know ffi type for" obj))))
 
 (define (ffi:empty-alien type)
+  "allocate default initialized alien value of a given type"
   (case type
     (ffi-uint (int-to-alien 0))
     (else (throw-error "can't make empty" type))))
 
 (define (ffi:funcall fnptr result-type . args)
+  "call alien function expecting result and using default assumed alien types for the given arguments if they're not already alien"
   (let* ((values (ffi-make-pointer-array (length args)))
 	 (value-list (map ffi:to-alien args))
 	 (value-ptr-list (map address-of value-list))
@@ -71,6 +69,7 @@
       call-result)))
 
 (define-syntax (with-library handle-and-name . body)
+  "load a dynamic library while body is in scope"
   `(let ((,(first handle-and-name)
 	  (ffi-dlopen ,(second handle-and-name))))
      (let ((result (begin . ,body)))

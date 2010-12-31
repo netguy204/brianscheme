@@ -506,6 +506,10 @@ DEFUN1(compiled_environment_proc) {
   return CENV(FIRST);
 }
 
+DEFUN1(is_vector_proc) {
+  return AS_BOOL(is_vector(FIRST));
+}
+
 DEFUN1(make_vector_proc) {
   object *obj = make_vector(FIRST, LONG(SECOND));
   return obj;
@@ -1079,6 +1083,7 @@ void init_prim_environment(object * env) {
   add_procedure("set-car!", set_car_proc);
   add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("list", list_proc);
+  add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);
   add_procedure("get-vector", get_vector_element_proc);

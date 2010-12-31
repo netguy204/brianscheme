@@ -109,7 +109,58 @@
 (define (fourth x) (cadddr x))
 (define (fifth x) (caddddr x))
 
+(define-syntax (push! obj dst)
+  `(set! ,dst (cons ,obj ,dst)))
+
+(define-syntax (pop! dst)
+  `((lambda (top)
+     (set! ,dst (cdr ,dst))
+     top) (car ,dst)))
+
+(define-syntax (inc! dst)
+  `(set! ,dst (+ 1 ,dst)))
+
+;; redefine define to include a docstring
+(define define0 define)
+(define-syntax (define name . value-or-body)
+  (if (string? (car value-or-body))
+    (add-documentation (car name) (car value-or-body)))
+  `(define0 ,name . ,value-or-body))
+
+(define define-syntax0 define-syntax)
+(define-syntax (define-syntax name . value-or-body)
+  (if (string? (car value-or-body))
+    (add-documentation (car name) (car value-or-body)))
+  `(define-syntax0 ,name . ,value-or-body))
+
+
+(let ((docs nil))
+  (define (add-documentation name string)
+    (push! docs (cons name string)))
+
+  ;; now that it's bound we can define it again
+  ;; but with a docstring
+  (define (add-documentation sym string)
+    "add documentation to a symbol"
+    (push! (cons sym string) docs))
+
+  (define (get-documentation sym)
+    "retrieve documentation for a symbol"
+    (cdr (assoc sym docs))))
+
+(define-syntax (doc name)
+  "retrieve documentation for a name"
+  `(get-documentation ',name))
+
+(define-syntax (set-doc! name string)
+  "create documentation for a name"
+  `(add-documentation ',name ,string))
+
+(set-doc! define-syntax
+	  "create a new syntax procedure")
+
 (define (index-of fn lst)
+  "the first index for which fn evaluates true"
   (letrec ((iter (lambda (n rest)
 		   (if (null? rest)
 		       nil
@@ -120,6 +171,7 @@
     (iter 0 lst)))
 
 (define (nth-tail lst n)
+  "the remainder of the list after calling cdr n times"
   (letrec ((iter (lambda (i rest)
 		   (if (prim-= i n)
 		       rest
@@ -128,22 +180,24 @@
     (iter 0 lst)))
 
 (define (nth lst n)
+  "the car of the nth element of the list"
   (car (nth-tail lst n)))
 
 (define (index-eq val lst)
+  "the index that is eq? to value"
   (index-of (lambda (x) (eq? x val)) lst))
 
 (define (member val lst)
+  "the remainder of the list that begins with val"
   (let ((idx (index-eq val lst)))
     (when idx
 	  (nth-tail lst idx))))
 
 (define (compliment fn)
+  "function that returns (not (fn))"
   (lambda (x) (not (fn x))))
 
-;; Now we get to work defining our standard conditional
-;; constructs and other basic functionality that everyone expects to
-;; have available.
+;; now defining some standard conditional constructs
 (define-syntax (not pred)
   `(if ,pred
        #f
@@ -156,22 +210,20 @@
 	  #f)
       #f))
 
-(define-syntax (let bindings . body)
-  `((lambda ,(map first bindings)
-      (begin . ,body))
-    . ,(map second bindings)))
-
 (define-syntax (when pred . conseq)
+  "evaluates consequence if predicate evaluates true"
   `(if ,pred
        (begin . ,conseq)
        nil))
 
 (define-syntax (unless pred . conseq)
+  "evaluates consequence if predicate evaluates false"
   `(if ,pred
        nil
        (begin . ,conseq)))
 
 (define-syntax (cond . clauses)
+  "evaluates the cdr of the first clause whose car evaluates true"
   (if (null? clauses)
       #f
       (if (eq? (first (car clauses)) 'else)
@@ -181,6 +233,7 @@
 	       (cond . ,(cdr clauses))))))
 
 (define-syntax (and . clauses)
+  "evaluates clauses until one is false"
   (cond
    ((null? clauses) #t)
    ((length=1 clauses) (car clauses))
@@ -189,6 +242,7 @@
 	    #f))))
 
 (define-syntax (or . clauses)
+  "evaluates clauses until one is true"
   (cond
    ((null? clauses) #f)
    ((length=1 clauses) (car clauses))
@@ -197,6 +251,7 @@
 	    (or . ,(cdr clauses))))))
 
 (define-syntax (case key . clauses)
+  "evaluates the first clause whose car contains key"
   (let ((key-val (gensym)))
     `(let ((,key-val ,key))
        (cond . ,(map (lambda (c)
@@ -205,17 +260,6 @@
 			   `((member? ,key-val ',(first c))
 			     . ,(cdr c))))
 		     clauses)))))
-
-(define-syntax (push! obj dst)
-  `(set! ,dst (cons ,obj ,dst)))
-
-(define-syntax (pop! dst)
-  `((lambda (top)
-     (set! ,dst (cdr ,dst))
-     top) (car ,dst)))
-
-(define-syntax (inc! dst)
-  `(set! ,dst (+ 1 ,dst)))
 
 ;; I'm pretty sure this is a fully legit version of apply. Let me know
 ;; if you disagree... I'm a little surprised this can be implemented
@@ -238,6 +282,7 @@
 ;; Whenever the hook returns the interpreter will make the exit system
 ;; call for real and everything will disappear.
 (define (print-backtrace)
+  "print the backtrace from where we are. tail recursion hides some data"
   (letrec ((iter (lambda (rest)
 		   (unless (null? rest)
 			   (write (car rest))
@@ -247,6 +292,7 @@
       (iter (cdr (cdr cs))))))
 
 (define (debug-repl)
+  "repl that allows last-gasp debugging of a dying interpreter"
   (write-port stdout 'debug-repl>)
   (let ((result (eval (read-port stdin) base-env)))
     (write-port stdout result)
@@ -255,6 +301,7 @@
 	    (debug-repl))))
 
 (define (exit-hook)
+  "called as the last step of handling a hard interpreter exception"
   ;; turn off debug so that we don't get a lot of extra noise between
   ;; the real failure and the launch of the debug-repl.
   (set-debug! #f)
@@ -281,6 +328,7 @@
      (throw-exit 1)))
 
 (define (exit val)
+  "exit without activating the exit hook"
   (set! exit-hook nil)
   (throw-exit val))
 
@@ -294,57 +342,18 @@
       `(and (<=2 ,(first values) ,(second values))
 	    (<= . ,(cdr values)))))
 
-
-(define (assert-string name var)
-  (if (string? var)
-      #t
-      (throw-error "expected a string" var)))
-
-(define (assert-input-port var)
-  (if (input-port? var)
-      #t
-      (throw-error "expected an input port")))
-
-(define (assert-output-port var)
-  (if (output-port? var)
-      #t
-      (throw-error "expected an output port")))
-
-; output ports
-(define open-output-port0 open-output-port)
-(define close-output-port0 close-output-port)
-
-(define (open-output-port name)
-  (assert-string 'open-output-port name)
-  (open-output-port0 name))
-
-(define (close-output-port port)
-  (assert-output-port port)
-  (close-output-port0 port))
-
-; input ports
-(define open-input-port0 open-input-port)
-(define close-input-port0 close-output-port)
-
-(define (open-input-port name)
-  (assert-string 'open-input-port name)
-  (open-input-port0 name))
-
-(define (close-input-port port)
-  (assert-input-port port)
-  (close-input-port0 port))
-
-
 ;; Now go on and define a few useful higher level functions. This list
 ;; of things is largely driven by personal need at this point. Perhaps
 ;; I'll go back and try to implement whatever is in the spec more
 ;; closely.
 (define (any? fn lst)
+  "true if any of the list elements causes fn to evaluate true"
   (if (null? (index-of fn lst))
       #f
       #t))
 
 (define (every? fn lst)
+  "true if every list element causes fn to evaluate true"
   (letrec ((iter (lambda (rest)
 		   (if (null? rest)
 		       #t
@@ -355,6 +364,7 @@
     (iter lst)))
 
 (define (member? val lst)
+  "true if val is lst or if val is found eq? in list"
   (if (pair? lst)
       (if (null? (index-eq val lst))
 	  #f
@@ -362,6 +372,7 @@
       (eq? val lst)))
 
 (define (length items)
+  "number of elements in a list"
   (letrec ((iter (lambda (a count)
 		   (if (null? a)
 		       count
@@ -369,6 +380,7 @@
     (iter items 0)))
 
 (define (append-all lists)
+  "append the lists inside the argument together end-to-end"
   (letrec ((iter (lambda (result current-list remaining-lists)
 		   (if (null? current-list)
 		       (if (null? remaining-lists)
@@ -382,27 +394,30 @@
     (reverse (iter nil nil lists))))
 
 (define (append . lists)
+  "append a series of lists together"
   (append-all lists))
 
 (define (mappend fn lst)
+  "map fn over list and append the resulting lists together"
   (append-all (map fn lst)))
 
 (define (for-each f l)
+  "call fn with each element of list"
   (if (null? l)
       #t
       (begin
 	(f (car l))
 	(for-each f (cdr l)))))
 
-; read a single form from name
 (define (read name)
+  "read a single form from a file called name"
   (let* ((in (open-input-port name))
 	(result (read-port in)))
     (close-input-port in)
     result))
 
-; read and evaluate all forms from name
 (define (load name)
+  "read and evaluate all forms in a file called name"
   (letrec ((in (open-input-port name))
 	   (eval0 eval)
 	   (iter (lambda (form)
@@ -411,6 +426,23 @@
 			   (iter (read-port in))))))
     (iter (read-port in))
     #t))
+
+(let ((required nil))
+  (letrec ((sym-to-name (lambda (name)
+			  (if (symbol? name)
+			      (concat (symbol->string name) ".sch")
+			      name))))
+    (define (require name)
+      "load file name if it hasn't already been loaded"
+      (let ((name (sym-to-name name)))
+	(unless (member? name required)
+		(push! name required)
+		(load name))))
+
+    (define (provide sym)
+      "declare a given symbol as being satisfied"
+      (push! (sym-to-name sym) required)
+      sym)))
 
 (define (newline)
   (write-char stdout #\newline))
@@ -465,6 +497,7 @@
     (iter lst)))
 
 (define (filter fn lst)
+  "create a new list that includes only the elements of lst for which fn evaluates true"
   (letrec ((iter (lambda (lst result)
 		   (cond
 		    ((null? lst) result)
@@ -477,10 +510,12 @@
   (and (pair? exp) (eq? (car exp) val)))
 
 (define (assoc key list)
+  "find the first pair in list thats car is eq? to key"
   (find (lambda (e) (starts-with? e key))
 	list))
 
 (define (equal? a b)
+  "true if each node in trees a and b are eq?"
   (if (and (pair? a)
 	   (pair? b))
       (and (equal? (car a) (car b))
@@ -488,6 +523,7 @@
       (eq? a b)))
 
 (define (reduce fn lst . init)
+  "apply fn to its previous result and each value of list. return final value"
   (letrec ((iter (lambda (last rest)
 		   (if (null? rest)
 		       last
@@ -496,17 +532,26 @@
 	(iter (car lst) (cdr lst))
 	(iter (car init) lst))))
 
+(define concat0 concat)
+
+(define (concat . args)
+  "concatonate a series of strings"
+  (reduce concat0 args))
+
 (define (duplicate obj n)
+  "create a list with obj duplicated n times"
   (let ((result nil))
     (dotimes (x n)
 	     (set! result (cons obj result)))
     result))
 
 (define-syntax (dolist args . body)
+  "evaluate body with (first args) taking successive values of (second args)"
   `(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
 (define-syntax (dovector args . body)
+  "evaluate body for every element in a vector"
   (let ((n (gensym))
 	(idx (gensym)))
 
@@ -515,19 +560,31 @@
 		(let ((,(first args) (get-vector ,(second args) ,idx)))
 		  . ,body)))))
 
+(define-syntax (assert cond)
+  "verify that condition is true, throw error otherwise"
+  (let ((result (gensym)))
+    `(begin
+       (let ((,result ,cond))
+	 (if (not ,result)
+	     (throw-error "assert failed" ',cond)
+	     ,result)))))
+
 ;; Implement the classic delay/force combo directly by representing a
 ;; delay as the cons of its value (nil of not yet forced) and the
 ;; closure that computes it (nil if it has been forced)
 (define-syntax (delay . body)
+  "create a computation that can be completed later"
   `(cons nil (lambda () . ,body)))
 
 (define (force fn)
+  "compute and or return the value of a delay"
   (when (and (not (null? (cdr fn))) (null? (car fn)))
 	(set-car! fn ((cdr fn)))
 	(set-cdr! fn nil))
   (car fn))
 
 (define (all-symbols)
+  "return a list of all symbols defined in the global environment"
   (append-all
    (map (lambda (x)
 	  (cond
@@ -536,9 +593,8 @@
 	   (else (throw-error "giving up"))))
 	base-env)))
 
-;; For really simple performance testing: Print out the time it takes
-;; to execute a set of forms.
 (define-syntax (time . body)
+  "display the time required to execute body"
   (let ((start (gensym))
 	(result (gensym))
 	(end (gensym)))
@@ -549,59 +605,111 @@
 	      "/" (clocks-per-sec) "seconds")
        ,result)))
 
-(define (abs a)
-  (if (< a 0)
-      (- 0 a)
-      a))
+(define-syntax (define-struct name . docs-and-slots)
+  "create a structure of a given name with a set of slots"
+  (let* ((builder-sym (string->symbol
+		       (concat "make-"
+			       (symbol->string name))))
+	 (tester-sym (string->symbol
+		      (concat (symbol->string name) "?")))
 
-(define (min a b)
-  (if (< a b)
-      a
-      b))
+	 (slots (if (string? (car docs-and-slots))
+		    (car (cdr docs-and-slots))
+		    (car docs-and-slots)))
+	 (num-slots (length slots))
+	 (slot-numbers nil)
+	 (slot-defaults nil))
 
-(define (max a b)
-  (if (> a b)
-      a
-      b))
+    ;; add a documentation entry if we got a docstring
+    (when (string? (car docs-and-slots))
+	  (add-documentation name (car docs-and-slots)))
 
-(define (gcd a b)
-  (if (= b 0)
-      (abs a)
-      (gcd b (- a (* b (/ a b))))))
+    ;; collect data to build the slot accessors
+    (let ((idx 1))
+      (dolist (slot slots)
+	;; vector idx to find the slot
+        (push! (cons (car slot) idx)
+	       slot-numbers)
 
-(define (make-rat a b)
-  (reduce-rat (cons a b)))
+	;; default value if none given in constructor
+	(push! (cons (car slot)
+		     (if (null? (cdr slot))
+			 nil
+			 (second slot)))
+	       slot-defaults)
+	(inc! idx)))
 
-(define (numerator a)
-  (car a))
+    (letrec ((get-slot-namer (lambda (slot-name)
+			       (string->symbol
+				(concat (symbol->string name)
+					"-"
+					(symbol->string slot-name)))))
+	     (set-slot-namer (lambda (slot-name)
+			       (string->symbol
+				(concat "set-"
+					(symbol->string name)
+					"-"
+					(symbol->string slot-name)
+					"!")))))
 
-(define (denominator a)
-  (cdr a))
+      ;; define the getters, setters, and constructor
+      `(begin
+	 ;; constructor
+	 (define (,builder-sym . args)
+	   ,(concat "create a structure of type "
+		    (symbol->string name))
+	   (let ((struct (make-vector nil ,(+ 1 num-slots))))
+	     (set-vector! struct 0 ',name)
 
-(define (reduce-rat rat)
-  (let ((common (gcd (numerator rat) (denominator rat))))
-    (cons (/ (numerator rat) common) (/ (denominator rat) common))))
+	     (dolist (slot ',slots)
+	       (let ((val (member (car slot) args)))
+		 (if val
+		     (set-vector! struct
+				  (cdr (assoc (car slot)
+					      ',slot-numbers))
+				  (second val))
+		     (set-vector! struct
+				  (cdr (assoc (car slot)
+					      ',slot-numbers))
+				  (cdr (assoc (car slot)
+					      ',slot-defaults))))))
 
-(define (neg-rat rat)
-  (make-rat (- 0 (numerator rat)) (denominator rat)))
+	     struct))
 
-(define (add-rat a b)
-  (let ((na (numerator a))
-	(nb (numerator b))
-	(da (denominator a))
-	(db (denominator b)))
-    (make-rat (+ (* na db) (* nb da)) (* da db))))
+	 (define (,tester-sym struct)
+	   ,(concat "test to see if structure is of type "
+		    (symbol->string name))
+	   (and (vector? struct) (eq? (get-vector struct 0) ',name)))
 
-(define (sub-rat a b)
-  (add-rat a (neg-rat b)))
+	 ;; getters
+	 ,(map (lambda (slot)
+		 `(define (,(get-slot-namer (car slot)) struct)
+		    ,(concat "retrieve slot "
+			     (symbol->string (car slot))
+			     " of "
+			     (symbol->string name))
+		    (get-vector struct ,(cdr (assoc (car slot)
+						    slot-numbers)))))
+	       slots)
 
-(define (mul-rat a b)
-  (make-rat (* (numerator a) (numerator b))
-	    (* (denominator a) (denominator b))))
+	 ;; setters
+	 ,(map (lambda (slot)
+		 `(define (,(set-slot-namer (car slot)) struct value)
+		    ,(concat "set slot "
+			     (symbol->string (car slot))
+			     " of "
+			     (symbol->string name))
+		    (set-vector! struct
+				 ,(cdr (assoc (car slot)
+					      slot-numbers))
+				 value)))
+	       slots)))))
 
-(define (div-rat a b)
-  (make-rat (* (numerator a) (denominator b))
-	    (* (denominator a) (numerator b))))
 
-'stdlib-loaded
 
+(provide 'stdlib)
+
+;; load in a couple more useful things
+(require 'math)
+(require 'ffi)
+(require 'compiler)

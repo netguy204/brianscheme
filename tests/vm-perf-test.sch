@@ -1,4 +1,4 @@
-(load "compiler.sch")
+(require 'compiler)
 
 (define (write-bytecode fn file)
   (let ((out (open-output-port file)))
@@ -27,7 +27,7 @@
 
      (write 'vm-result vmres)
      (assert (equal? evres vmres))
-     
+
      comp))
 
 (set! f ((compiler '(lambda (x) (prim-+ x 1)))))
