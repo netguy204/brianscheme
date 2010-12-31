@@ -168,10 +168,10 @@
        (jit:context-build-end ,context)
        result)))
 
-(define-syntax (define-jit-function
+(define-syntax (jit:define
 		 name context sig fn
 		 args-and-insts args-and-body)
-
+  "compiles an instruction stream into a jit'd function and accepts frontend code to handle boxing and unboxing"
   (let ((compiled-sig (gensym)))
     `(with-locked-context ,context
        ;; create the signature and the function
@@ -195,4 +195,17 @@
 	 (define (,name . ,(first args-and-body))
 	   . ,(rest args-and-body))))))
 
+
+(define (jit:binary-int-invoke jit-func arg1 arg2)
+  "invoke a binary jit'd function of two ints that returns an int"
+  (let* ((arg-list (list (ffi:alien-uint arg1)
+			 (ffi:alien-uint arg2)))
+	 (arg-array (jit:build-arg-array arg-list))
+	 (result (ffi:int-to-alien 0)))
+
+    (jit:function-apply jit-func
+			arg-array
+			(ffi:address-of result))
+
+    (ffi:alien-to-int result)))
 

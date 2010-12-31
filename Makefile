@@ -16,6 +16,7 @@ ifeq ($(FAST),1)
 else
 ifeq ($(PROF),1)
 	CFLAGS = -g -pg -W -Wall -ansi $(EXTFLAGS)
+	LDFLAGS += -g -pg
 else
 	CFLAGS = -g -W -Wall -ansi $(EXTFLAGS)
 endif
