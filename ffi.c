@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <dlfcn.h>
 
 #include <ffi.h>
 #include "types.h"
@@ -10,7 +11,51 @@ object * free_ptr_fn;
 object * ffi_release_type_fn;
 
 object * ffi_type_pointer_sym;
+object * ffi_type_void_sym;
+object * ffi_type_uchar_sym;
+object * ffi_type_ushort_sym;
 object * ffi_type_uint_sym;
+object * ffi_type_sint_sym;
+object * ffi_type_ulong_sym;
+
+typedef void(*FN_PTR)(void);
+
+DEFUN1(dlopen_proc) {
+  void * handle;
+
+  if(FIRST == the_empty_list) {
+    handle = dlopen(NULL, RTLD_LAZY);
+  } else {
+    handle = dlopen(STRING(FIRST), RTLD_LAZY | RTLD_GLOBAL);
+  }
+
+  if(handle == NULL) {
+    return false;
+  } else {
+    return make_alien(handle, the_empty_list);
+  }
+}
+
+DEFUN1(dlsym_proc) {
+  void *handle = ALIEN_PTR(FIRST);
+
+  dlerror();
+
+  FN_PTR fn;
+  *(void **)(&fn) = dlsym(handle, STRING(SECOND));
+
+  if(dlerror() != NULL) {
+    return false;
+  }
+
+  return make_alien_fn(fn, the_empty_list);
+}
+
+DEFUN1(dlclose_proc) {
+  void *handle = ALIEN_PTR(FIRST);
+  dlclose(handle);
+  return true;
+}
 
 DEFUN1(free_ptr) {
   void * ptr = ALIEN_PTR(FIRST);
@@ -49,8 +94,23 @@ DEFUN1(ffi_primitive_type) {
   if(type == ffi_type_pointer_sym) {
     tgt_type = &ffi_type_pointer;
   }
+  else if(type == ffi_type_void_sym) {
+    tgt_type = &ffi_type_void;
+  }
+  else if(type == ffi_type_uchar_sym) {
+    tgt_type = &ffi_type_uchar;
+  }
+  else if(type == ffi_type_ushort_sym) {
+    tgt_type = &ffi_type_ushort;
+  }
   else if(type == ffi_type_uint_sym) {
     tgt_type = &ffi_type_uint;
+  }
+  else if(type == ffi_type_sint_sym) {
+    tgt_type = &ffi_type_sint;
+  }
+  else if(type == ffi_type_ulong_sym) {
+    tgt_type = &ffi_type_ulong;
   }
   else {
     /* unknown type */
@@ -116,11 +176,11 @@ DEFUN1(ffi_address_of){
   return make_alien(ptr, the_empty_list);
 }
 
-typedef void(*FN_PTR)(void);
-
 DEFUN1(puts_fn_ptr) {
   return make_alien_fn((FN_PTR)puts, the_empty_list);
 }
+
+char *strdup(const char* string);
 
 DEFUN1(string_to_alien) {
   char * str = STRING(FIRST);
@@ -133,14 +193,12 @@ DEFUN1(alien_to_string) {
 }
 
 DEFUN1(int_to_alien) {
-  int * val = MALLOC(sizeof(int));
-  *val = (int)LONG(FIRST);
-  return make_alien(val, free_ptr_fn);
+  return make_alien((void*)(int)LONG(FIRST), the_empty_list);
 }
 
 DEFUN1(alien_to_int) {
-  int * val = ALIEN_PTR(FIRST);
-  return make_fixnum(*val);
+  long val = (long)(int)ALIEN_PTR(FIRST);
+  return make_fixnum(val);
 }
 
 void init_ffi(object *env) {
@@ -155,6 +213,10 @@ void init_ffi(object *env) {
   push_root(&free_ptr_fn);
 
   push_root(&curr);
+  add_procedure("ffi-dlopen", dlopen_proc);
+  add_procedure("ffi-dlsym", dlsym_proc);
+  add_procedure("ffi-dlclose", dlclose_proc);
+
   add_procedure("ffi-make-cif", ffi_make_cif);
   add_procedure("ffi-make-pointer-array", ffi_make_pointer_array);
   add_procedure("ffi-set-pointer!", ffi_set_pointer);
@@ -173,5 +235,10 @@ void init_ffi(object *env) {
   pop_root(&curr);
 
   ffi_type_pointer_sym = make_symbol("ffi-pointer");
+  ffi_type_void_sym = make_symbol("ffi-void");
+  ffi_type_uchar_sym = make_symbol("ffi-uchar");
+  ffi_type_ushort_sym = make_symbol("ffi-ushort");
   ffi_type_uint_sym = make_symbol("ffi-uint");
+  ffi_type_sint_sym = make_symbol("ffi-sint");
+  ffi_type_ulong_sym = make_symbol("ffi-ulong");
 }

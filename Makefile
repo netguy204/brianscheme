@@ -1,4 +1,4 @@
-TARGETS = main test
+TARGETS = main
 
 default: $(TARGETS)
 
@@ -7,10 +7,9 @@ HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
-LDFLAGS = -leditline -lffi
+LDFLAGS = -leditline -lffi -ldl
 
 CC = gcc
-EXTFLAGS =
 
 ifeq ($(FAST),1)
 	CFLAGS = -O3 -W -Wall -ansi $(EXTFLAGS)
@@ -24,9 +23,6 @@ endif
 
 main: $(OBJECTS) main.o $(HEADERS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) main.o
-
-test: $(OBJECTS) test.o $(HEADERS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) test.o
 
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)

@@ -3,7 +3,10 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
+
+#ifndef NO_READLINE
 #include <editline.h>
+#endif
 
 #include "types.h"
 #include "symbols.h"
@@ -53,7 +56,11 @@ void grow_history(read_buffer * in) {
 
 /* Wraps calls to getc() to work on our buffer. */
 int read_getc(read_buffer * in) {
+#ifdef NO_READLINE
+  if(true) {
+#else
   if(in->stream != stdin) {
+#endif
     return getc(in->stream);
   }
   if(in->ungetc != -1) {
@@ -67,7 +74,9 @@ int read_getc(read_buffer * in) {
   }
   if(in->p == NULL) {
     free(in->buffer);
+#ifndef NO_READLINE
     in->buffer = in->p = readline(in->p == NULL ? prompt : "");
+#endif
     grow_history(in);
     if(in->buffer == NULL)
       return EOF;
@@ -77,7 +86,11 @@ int read_getc(read_buffer * in) {
 
 /* Wraps calls to ungetc() to work on our buffer. */
 void read_ungetc(char c, read_buffer * in) {
+#ifdef NO_READLINE
+  if(true) {
+#else
   if(in->stream != stdin) {
+#endif
     ungetc(c, in->stream);
   }
   else {
