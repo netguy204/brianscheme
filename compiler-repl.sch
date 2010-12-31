@@ -1,6 +1,4 @@
-(load "compiler.sch")
-(load "compile-baselib.sch")
+(require 'compiler)
+(require 'compile-baselib)
 
 (comp-repl)
-
-

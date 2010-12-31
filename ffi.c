@@ -83,6 +83,12 @@ DEFUN1(free_ffi_alien_object) {
   return result;
 }
 
+DEFUN1(alien_malloc) {
+  long size = LONG(FIRST);
+  void * ptr = MALLOC(size);
+  return make_alien(ptr, free_ptr_fn);
+}
+
 DEFUN1(ffi_make_cif) {
   ffi_cif * cif = MALLOC(sizeof(ffi_cif));
   return make_alien(cif, free_ptr_fn);
@@ -176,10 +182,6 @@ DEFUN1(ffi_address_of){
   return make_alien(ptr, the_empty_list);
 }
 
-DEFUN1(puts_fn_ptr) {
-  return make_alien_fn((FN_PTR)puts, the_empty_list);
-}
-
 char *strdup(const char* string);
 
 DEFUN1(string_to_alien) {
@@ -213,24 +215,24 @@ void init_ffi(object *env) {
   push_root(&free_ptr_fn);
 
   push_root(&curr);
-  add_procedure("ffi-dlopen", dlopen_proc);
-  add_procedure("ffi-dlsym", dlsym_proc);
-  add_procedure("ffi-dlclose", dlclose_proc);
+  add_procedure("ffi:dlopen", dlopen_proc);
+  add_procedure("ffi:dlsym", dlsym_proc);
+  add_procedure("ffi:dlclose", dlclose_proc);
 
-  add_procedure("ffi-make-cif", ffi_make_cif);
-  add_procedure("ffi-make-pointer-array", ffi_make_pointer_array);
-  add_procedure("ffi-set-pointer!", ffi_set_pointer);
-  add_procedure("ffi-primitive", ffi_primitive_type);
-  add_procedure("ffi-prep-cif", ffi_prep_cif_proc);
-  add_procedure("ffi-call", ffi_call_proc);
-  add_procedure("ffi-free", free_ffi_alien_object);
+  add_procedure("ffi:make-cif", ffi_make_cif);
+  add_procedure("ffi:make-pointer-array", ffi_make_pointer_array);
+  add_procedure("ffi:set-pointer!", ffi_set_pointer);
+  add_procedure("ffi:primitive", ffi_primitive_type);
+  add_procedure("ffi:prep-cif", ffi_prep_cif_proc);
+  add_procedure("ffi:call", ffi_call_proc);
+  add_procedure("ffi:free", free_ffi_alien_object);
 
-  add_procedure("puts-fn-ptr", puts_fn_ptr);
-  add_procedure("string-to-alien", string_to_alien);
-  add_procedure("alien-to-string", alien_to_string);
-  add_procedure("int-to-alien", int_to_alien);
-  add_procedure("alien-to-int", alien_to_int);
-  add_procedure("address-of", ffi_address_of);
+  add_procedure("ffi:malloc", alien_malloc);
+  add_procedure("ffi:string-to-alien", string_to_alien);
+  add_procedure("ffi:alien-to-string", alien_to_string);
+  add_procedure("ffi:int-to-alien", int_to_alien);
+  add_procedure("ffi:alien-to-int", alien_to_int);
+  add_procedure("ffi:address-of", ffi_address_of);
 
   pop_root(&curr);
 
