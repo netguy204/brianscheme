@@ -8,7 +8,8 @@
 ;; jit a function that takes two integer arguments
 ;; and shifts the first left by the second
 (with-locked-context *context*
-  (let* ((sig (jit:type-create-signature jit-int jit-int jit-int))
+  (let* ((sig (jit:type-create-signature jit-int
+					 (list jit-int jit-int)))
 	 (func (jit:function-create *context* sig))
 	 (param1 (jit:value-get-param func 0))
 	 (param2 (jit:value-get-param func 1)))
@@ -36,4 +37,28 @@
 
 (write "the answer is" (ffi:alien-to-int *result*))
 
+
+(define (binary-int-invoke jit-func arg1 arg2)
+  "invoke a binary jit'd function of two ints that returns an int"
+  (let* ((arg-list (list (ffi:alien-uint arg1)
+			 (ffi:alien-uint arg2)))
+	 (arg-array (jit:build-arg-array arg-list))
+	 (result (ffi:int-to-alien 0)))
+
+    (jit:function-apply jit-func
+			arg-array
+			(ffi:address-of result))
+
+    (ffi:alien-to-int result)))
+
+(define-jit-function left-shift *context*
+  (jit-int (jit-int jit-int))
+  jit-func
+  ((param1 param2)
+   (let ((res (jit:insn-shl jit-func param1 param2)))
+     (jit:insn-return jit-func res)))
+  ((arg1 arg2)
+   (binary-int-invoke jit-func arg1 arg2)))
+
+(left-shift 1 1)
 

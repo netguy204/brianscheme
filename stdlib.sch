@@ -545,6 +545,12 @@
 	     (set! result (cons obj result)))
     result))
 
+(define (upto n)
+  (let ((result nil))
+    (dotimes (i n)
+      (push! i result))
+    (reverse result)))
+
 (define-syntax (dolist args . body)
   "evaluate body with (first args) taking successive values of (second args)"
   `(for-each (lambda (,(first args)) . ,body)

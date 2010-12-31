@@ -66,7 +66,7 @@
       (make-jit:params 'array array
 		       'length (length types))))
 
-  (define (jit:type-create-signature return . params)
+  (define (jit:type-create-signature return params)
     "create a full function signature"
     (let ((parm-sig (jit:make-parameter-signature params)))
       (ffi:funcall type-create-signature
@@ -161,11 +161,38 @@
 
 
 (define-syntax (with-locked-context context . body)
+  "locks jit context while body executes"
   `(begin
      (jit:context-build-start ,context)
      (let ((result (begin . ,body)))
        (jit:context-build-end ,context)
        result)))
 
+(define-syntax (define-jit-function
+		 name context sig fn
+		 args-and-insts args-and-body)
+
+  (let ((compiled-sig (gensym)))
+    `(with-locked-context ,context
+       ;; create the signature and the function
+       (let* ((,compiled-sig (jit:type-create-signature
+			      ,(first sig)
+			      (list . ,(second sig))))
+	      (,fn (jit:function-create ,context
+					,compiled-sig)))
+
+	 ;; bringing the requested jit args into view
+	 (let ,(map (lambda (idx)
+		      (list (nth (car args-and-insts) idx)
+			    `(jit:value-get-param ,fn ,idx)))
+		    (upto (length (car args-and-insts))))
+
+	   . ,(rest args-and-insts))
+
+	 (assert (jit:function-compile ,fn))
+
+	 ;; now the callsite definition
+	 (define (,name . ,(first args-and-body))
+	   . ,(rest args-and-body))))))
 
 
