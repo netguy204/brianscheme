@@ -23,6 +23,13 @@
        (insn-not (ffi:dlsym libjit "jit_insn_not"))
        (insn-shl (ffi:dlsym libjit "jit_insn_shl"))
        (insn-shr (ffi:dlsym libjit "jit_insn_shr"))
+       (insn-eq (ffi:dlsym libjit "jit_insn_eq"))
+       (insn-lt (ffi:dlsym libjit "jit_insn_lt"))
+       (insn-branch-if-not
+	(ffi:dlsym libjit "jit_insn_branch_if_not"))
+       (insn-label (ffi:dlsym libjit "jit_insn_label"))
+       (insn-call (ffi:dlsym libjit "jit_insn_call"))
+       (dump-function (ffi:dlsym libjit "jit_dump_function"))
        (function-apply (ffi:dlsym libjit "jit_function_apply")))
 
   (assert libjit)
@@ -30,7 +37,6 @@
   ;; jit type constants
   (define jit-void (ffi:deref (ffi:dlsym-var libjit "jit_type_void")))
   (define jit-int (ffi:deref (ffi:dlsym-var libjit "jit_type_int")))
-
 
   (define (jit:context-create)
     "create an opaque jit context"
@@ -127,10 +133,10 @@
     (ffi:funcall insn-or 'ffi-pointer
 		 function val1 val2))
 
-  (define (jit:insn-not function val1 val2)
+  (define (jit:insn-not function val1)
     "generate a not instruction, return the result ref"
     (ffi:funcall insn-not 'ffi-pointer
-		 function val1 val2))
+		 function val1))
 
   (define (jit:insn-shl function val1 val2)
     "generate a left shift instruction, return the result ref"
@@ -141,6 +147,47 @@
     "generate a right shift instruction, return the result ref"
     (ffi:funcall insn-shr 'ffi-pointer
 		 function val1 val2))
+
+  (define (jit:insn-eq function val1 val2)
+    "generate a comparison, returns result ref"
+    (ffi:funcall insn-eq 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-lt function val1 val2)
+    "generate a comparison, returns result ref"
+    (ffi:funcall insn-lt 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-branch-if-not function cond label)
+    "branch to label if cond is false"
+    (ffi:funcall insn-branch-if-not 'ffi-uint
+		 function cond (ffi:address-of label)))
+
+  (define (jit:insn-label function label)
+    "insert a label into the function"
+    (ffi:funcall insn-label 'ffi-uint
+		 function (ffi:address-of label)))
+
+  (define (jit:insn-call
+	   function name target args)
+    "call the jit'd function target with arguments, returns result ref"
+    (let ((array (ffi:make-pointer-array (length args))))
+      (dotimes (idx (length args))
+        (ffi:set-array-pointer! array idx (nth args idx)))
+
+      (ffi:funcall insn-call 'ffi-pointer
+		   function name target
+		   (ffi:int-to-alien 0) ; signature, null works?
+		   array
+		   (ffi:alien-uint (length args))
+		   (ffi:int-to-alien 0)))) ; flags, none.
+
+  (define (jit:dump-function stream function name)
+    "dump a function to a stream"
+    (ffi:funcall dump-function 'ffi-void
+		 (ffi:stream-to-alien stream)
+		 function
+		 (ffi:alien-string name)))
 
   (define (jit:function-compile function)
     "assemble the function"
@@ -159,6 +206,8 @@
     "release the libjit library. call to free resources after no more calls will be made to jit:* methods"
     (ffi:dlclose libjit)))
 
+;; create a global context because we'll always need one
+(set! *context* (jit:context-create))
 
 (define-syntax (with-locked-context context . body)
   "locks jit context while body executes"
@@ -208,4 +257,31 @@
 			(ffi:address-of result))
 
     (ffi:alien-to-int result)))
+
+
+(define (jit:unary-int-invoke jit-func arg1)
+  "invoke a unary jit'd function of an int that returns an int"
+  (let* ((arg-list (list (ffi:alien-uint arg1)))
+	 (arg-array (jit:build-arg-array arg-list))
+	 (result (ffi:int-to-alien 0)))
+
+    (jit:function-apply jit-func
+			arg-array
+			(ffi:address-of result))
+
+    (ffi:alien-to-int result)))
+
+;; we sorta need binary-not to make fresh labels
+(jit:define binary-not *context*
+  (jit-int (jit-int))
+  fn
+  ((val)
+   (jit:insn-return fn (jit:insn-not fn val)))
+
+  ((arg1)
+   "compute the bitwise not of the argument"
+   (jit:unary-int-invoke fn arg1)))
+
+(define (jit:make-label)
+  (ffi:int-to-alien 4294967295))
 

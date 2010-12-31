@@ -223,12 +223,17 @@ DEFUN1(alien_to_string) {
   return make_string(str);
 }
 
+DEFUN1(stream_to_alien) {
+  FILE * stream = INPUT(FIRST);
+  return make_alien(stream, the_empty_list);
+}
+
 DEFUN1(int_to_alien) {
-  return make_alien((void*)(int)LONG(FIRST), the_empty_list);
+  return make_alien((void*)LONG(FIRST), the_empty_list);
 }
 
 DEFUN1(alien_to_int) {
-  long val = (long)(int)ALIEN_PTR(FIRST);
+  long val = (long)ALIEN_PTR(FIRST);
   return make_fixnum(val);
 }
 
@@ -263,6 +268,7 @@ void init_ffi(object *env) {
   add_procedure("ffi:alien-to-string", alien_to_string);
   add_procedure("ffi:int-to-alien", int_to_alien);
   add_procedure("ffi:alien-to-int", alien_to_int);
+  add_procedure("ffi:stream-to-alien", stream_to_alien);
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
 
