@@ -758,7 +758,8 @@ void owrite(FILE * out, object * obj) {
     fprintf(out, "#<eof>");
     break;
   case ALIEN:
-    fprintf(out, "#<alien-object>");
+    fprintf(out, "#<alien-object %llX>",
+	    (unsigned long long)ALIEN_PTR(obj));
     break;
   default:
     throw_interp("cannot write unknown type: %d\n", obj->type);

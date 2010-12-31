@@ -8,7 +8,7 @@
     (dotimes (idx (length args))
       (let ((arg-type (ffi:primitive (nth args idx))))
 	(assert arg-type)
-	(ffi:set-pointer! argspec idx arg-type)))
+	(ffi:set-array-pointer! argspec idx arg-type)))
 
     (assert retspec)
 
@@ -16,11 +16,41 @@
     (assert (ffi:prep-cif cif (length args) retspec argspec))
     cif))
 
+(define-struct ffi:alien-type
+  "a wrapped alien type"
+  ((type)
+   (value)))
+
+(define (ffi:alien-string str)
+  "create an alien string"
+  (make-ffi:alien-type
+   'type 'ffi-pointer
+   'value (ffi:string-to-alien str)))
+
+(define (ffi:alien-uchar val)
+  "create an alien unsigned char"
+  (make-ffi:alien-type
+   'type 'ffi-uchar
+   'value (ffi:int-to-alien val)))
+
+(define (ffi:alien-ushort val)
+  "create an alien unsigned short"
+  (make-ffi:alien-type
+   'type 'ffi-ushort
+   'value (ffi:int-to-alien val)))
+
+(define (ffi:alien-uint val)
+  "create an alien unsigned int"
+  (make-ffi:alien-type
+   'type 'ffi-uint
+   'value (ffi:int-to-alien val)))
+
 (define (ffi:to-alien obj)
   "convert obj to its corresponding alien representation"
   (cond
    ((string? obj) (ffi:string-to-alien obj))
    ((integer? obj) (ffi:int-to-alien obj))
+   ((ffi:alien-type? obj) (ffi:alien-type-value obj))
    ((alien? obj) obj)
    (else (throw-error "can't convert" obj "to alien"))))
 
@@ -28,6 +58,8 @@
   "convert obj from alien assuming that it's of the given type"
   (case type
     (ffi-uint (ffi:alien-to-int obj))
+    (ffi-pointer obj)
+    (ffi-void nil)
     (else (throw-error "can't convert" type "back from alien"))))
 
 (define (ffi:alien-type obj)
@@ -36,34 +68,50 @@
    ((string? obj) 'ffi-pointer)
    ((alien? obj) 'ffi-pointer)
    ((integer? obj) 'ffi-uint)
+   ((ffi:alien-type? obj) (ffi:alien-type-type obj))
    (else (throw-error "don't know ffi type for" obj))))
 
 (define (ffi:empty-alien type)
   "allocate default initialized alien value of a given type"
   (case type
     (ffi-uint (ffi:int-to-alien 0))
-    (ffi-pointer (ffi:malloc 8))
+    (ffi-pointer (ffi:address-of (ffi:int-to-alien 0)))
+    (ffi-void nil)
     (else (throw-error "can't make empty" type))))
+
+(define-struct ffi:values
+  "an array of alien values as void**"
+  ((array)
+   (list)
+   (ptr-list)))
+
+(define (ffi:make-value-array args)
+  "convert a list of scheme and alien arguments into a void**"
+  (let* ((values (ffi:make-pointer-array (length args)))
+	 (value-list (map ffi:to-alien args))
+	 (value-ptr-list (map ffi:address-of value-list)))
+
+    (dotimes (idx (length args))
+	     (ffi:set-array-pointer! values idx (nth value-ptr-list idx)))
+
+    (make-ffi:values 'array values
+		     'list value-list
+		     'ptr-list value-ptr-list)))
 
 (define (ffi:funcall fnptr result-type . args)
   "call alien function expecting result and using default assumed alien types for the given arguments if they're not already alien"
-  (let* ((values (ffi:make-pointer-array (length args)))
-	 (value-list (map ffi:to-alien args))
-	 (value-ptr-list (map ffi:address-of value-list))
+  (let* ((values (ffi:make-value-array args))
 	 (result (ffi:empty-alien result-type))
 	 (result-ptr (ffi:address-of result))
 	 (fnspec (ffi:make-function-spec result-type
 					 (map ffi:alien-type args))))
 
-    (dotimes (idx (length args))
-	     (ffi:set-pointer! values idx (nth value-ptr-list idx)))
-
-    (ffi:call fnspec fnptr result-ptr values)
+    (ffi:call fnspec fnptr result-ptr (ffi:values-array values))
 
     ;; cleanup
     (let ((call-result (ffi:from-alien result result-type)))
-      (map ffi:free value-ptr-list)
-      (map ffi:free value-list)
+      (map ffi:free (ffi:values-ptr-list values))
+      (map ffi:free (ffi:values-list values))
       (ffi:free fnspec)
       (ffi:free result)
 

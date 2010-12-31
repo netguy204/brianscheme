@@ -44,12 +44,30 @@ DEFUN1(dlsym_proc) {
   FN_PTR fn;
   *(void **)(&fn) = dlsym(handle, STRING(SECOND));
 
-  if(dlerror() != NULL) {
+  char * msg;
+  if((msg = dlerror()) != NULL) {
+    fprintf(stderr, "dlerror: %s\n", msg);
     return false;
   }
 
   return make_alien_fn(fn, the_empty_list);
 }
+
+DEFUN1(dlsym2_proc) {
+  void *handle = ALIEN_PTR(FIRST);
+
+  dlerror();
+  void *ptr = dlsym(handle, STRING(SECOND));
+  char * msg;
+  if((msg = dlerror()) != NULL) {
+    fprintf(stderr, "dlerror: %s\n", msg);
+    return false;
+  }
+
+  return make_alien(ptr, the_empty_list);
+}
+
+
 
 DEFUN1(dlclose_proc) {
   void *handle = ALIEN_PTR(FIRST);
@@ -139,6 +157,17 @@ DEFUN1(ffi_set_pointer) {
   return FIRST;
 }
 
+DEFUN1(ffi_get_pointer) {
+  void **array = ALIEN_PTR(FIRST);
+  long idx = LONG(SECOND);
+  return make_alien(array[idx], the_empty_list);
+}
+
+DEFUN1(ffi_deref) {
+  void **value = ALIEN_PTR(FIRST);
+  return make_alien(*value, the_empty_list);
+}
+
 DEFUN1(ffi_prep_cif_proc) {
   ffi_cif * cif = ALIEN_PTR(FIRST);
   long n_args = LONG(SECOND);
@@ -217,11 +246,13 @@ void init_ffi(object *env) {
   push_root(&curr);
   add_procedure("ffi:dlopen", dlopen_proc);
   add_procedure("ffi:dlsym", dlsym_proc);
+  add_procedure("ffi:dlsym-var", dlsym2_proc);
   add_procedure("ffi:dlclose", dlclose_proc);
 
   add_procedure("ffi:make-cif", ffi_make_cif);
   add_procedure("ffi:make-pointer-array", ffi_make_pointer_array);
-  add_procedure("ffi:set-pointer!", ffi_set_pointer);
+  add_procedure("ffi:set-array-pointer!", ffi_set_pointer);
+  add_procedure("ffi:get-array-pointer", ffi_get_pointer);
   add_procedure("ffi:primitive", ffi_primitive_type);
   add_procedure("ffi:prep-cif", ffi_prep_cif_proc);
   add_procedure("ffi:call", ffi_call_proc);
@@ -233,6 +264,7 @@ void init_ffi(object *env) {
   add_procedure("ffi:int-to-alien", int_to_alien);
   add_procedure("ffi:alien-to-int", alien_to_int);
   add_procedure("ffi:address-of", ffi_address_of);
+  add_procedure("ffi:deref", ffi_deref);
 
   pop_root(&curr);
 

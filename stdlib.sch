@@ -707,9 +707,5 @@
 
 
 
-(provide 'stdlib)
-
-;; load in a couple more useful things
 (require 'math)
-(require 'ffi)
-(require 'compiler)
+(provide 'stdlib)
