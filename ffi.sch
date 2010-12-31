@@ -1,7 +1,10 @@
 (define-syntax (assert cond)
-  `(begin
-     (if (not ,cond)
-	 (throw-error "assert failed" ',cond))))
+  (let ((result (gensym)))
+    `(begin
+       (let ((,result ,cond))
+	 (if (not ,result)
+	     (throw-error "assert failed" ',cond)
+	     ,result)))))
 
 (define (ffi:make-function-spec return args)
   (let ((cif (ffi-make-cif))
@@ -24,6 +27,7 @@
   (cond
    ((string? obj) (string-to-alien obj))
    ((integer? obj) (int-to-alien obj))
+   ((alien? obj) obj)
    (else (throw-error "can't convert" obj "to alien"))))
 
 (define (ffi:from-alien obj type)
@@ -34,6 +38,7 @@
 (define (ffi:alien-type obj)
   (cond
    ((string? obj) 'ffi-pointer)
+   ((alien? obj) 'ffi-pointer)
    ((integer? obj) 'ffi-uint)
    (else (throw-error "don't know ffi type for" obj))))
 
@@ -72,50 +77,38 @@
        (ffi-dlclose ,(first handle-and-name))
        result)))
 
-;; simple example of using ffi to call puts
-(define (ffi:puts string)
-  (with-library (handle nil)
-    (let ((puts (ffi-dlsym handle "puts")))
-      (assert handle)
-      (assert puts)
+;; simple example of using ffi to resolve symbols
+;; already loaded by ld
+(with-library (handle nil)
+  (let ((puts (ffi-dlsym handle "puts"))
+	(fork (ffi-dlsym handle "fork"))
+	(sleep (ffi-dlsym handle "sleep"))
+	(putchar (ffi-dlsym handle "putchar"))
+	(wait (ffi-dlsym handle "wait")))
 
-      (ffi:funcall puts 'ffi-uint string))))
+    (define (ffi:puts string)
+      (ffi:funcall puts 'ffi-uint string))
 
+    (define (ffi:fork)
+      (ffi:funcall fork 'ffi-uint))
 
-(define (ffi:fork)
-  (with-library (handle nil)
-    (let ((fork (ffi-dlsym handle "fork")))
-      (ffi:funcall fork 'ffi-uint))))
+    (define (ffi:sleep seconds)
+      (ffi:funcall sleep 'ffi-uint seconds))
 
-(define (ffi:sleep seconds)
-  (with-library (handle nil)
-    (let ((sleep (ffi-dlsym handle "sleep")))
-      (ffi:funcall sleep 'ffi-uint seconds))))
+    (define (ffi:putchar val)
+      (ffi:funcall put 'ffi-uint val))
 
-(define (ffi:putchar val)
-  (with-library (handle nil)
-    (let ((put (ffi-dlsym handle "putchar")))
-      (assert put)
-      (ffi:funcall put 'ffi-uint val))))
+    ;; this definition is a bit trickier because we're
+    ;; dealing with a pointer to a primitive
+    ;;
+    ;; unsigned int wait(unsigned int* status);
+    ;;
+    (define (ffi:wait)
+      (let* ((status (int-to-alien 0))
+	     (pid (ffi:funcall wait 'ffi-uint (address-of status))))
 
-;; this definition is a bit trickier because we don't have a
-;; convenient way to express pointers to primitives.
-;;
-;; unsigned int wait(unsigned int* status);
-;;
-(define (ffi:wait)
-  (with-library (handle nil)
-    (let* ((wait (ffi-dlsym handle "wait"))
-	   (spec (ffi:make-function-spec 'ffi-uint '(ffi-pointer)))
-	   (pid (address-of (int-to-alien 0)))
-	   (status (int-to-alien 0))
-	   (args (ffi-make-pointer-array 1)))
-
-      (ffi-set-pointer! args 0 (address-of (address-of status)))
-      (ffi-call spec wait (address-of pid) args)
-
-      (list (cons 'pid (alien-to-int pid))
-	    (cons 'status (alien-to-int status))))))
+	(list (cons 'pid pid)
+	      (cons 'status (alien-to-int status)))))))
 
 (define (fork-test)
   (let ((pid (ffi:fork)))
@@ -128,7 +121,5 @@
 	(begin
 	  (write "hello from parent. child is" pid)
 	  (write (ffi:wait))))))
-
-
 
 

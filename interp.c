@@ -241,6 +241,10 @@ DEFUN1(is_input_port_proc) {
   return AS_BOOL(is_input_port(FIRST));
 }
 
+DEFUN1(is_alien_proc) {
+  return AS_BOOL(is_alien(FIRST));
+}
+
 DEFUN1(is_eof_proc) {
   return AS_BOOL(is_eof_object(FIRST));
 }
@@ -1058,6 +1062,7 @@ void init_prim_environment(object * env) {
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
   add_procedure("eof-object?", is_eof_proc);
+  add_procedure("alien?", is_alien_proc);
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
 
   add_procedure("+", add_proc);
