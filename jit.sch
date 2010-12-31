@@ -13,6 +13,16 @@
        (value-get-param (ffi:dlsym libjit "jit_value_get_param"))
        (function-compile (ffi:dlsym libjit "jit_function_compile"))
        (insn-return (ffi:dlsym libjit "jit_insn_return"))
+       (insn-add (ffi:dlsym libjit "jit_insn_add"))
+       (insn-sub (ffi:dlsym libjit "jit_insn_sub"))
+       (insn-mul (ffi:dlsym libjit "jit_insn_mul"))
+       (insn-div (ffi:dlsym libjit "jit_insn_div"))
+       (insn-rem (ffi:dlsym libjit "jit_insn_rem"))
+       (insn-and (ffi:dlsym libjit "jit_insn_and"))
+       (insn-or (ffi:dlsym libjit "jit_insn_or"))
+       (insn-not (ffi:dlsym libjit "jit_insn_not"))
+       (insn-shl (ffi:dlsym libjit "jit_insn_shl"))
+       (insn-shr (ffi:dlsym libjit "jit_insn_shr"))
        (function-apply (ffi:dlsym libjit "jit_function_apply")))
 
   (assert libjit)
@@ -80,7 +90,57 @@
   (define (jit:insn-return function value)
     "generate a return instruction from function with value"
     (= (ffi:funcall insn-return 'ffi-uint
-		 function value) 1))
+		    function value) 1))
+
+  (define (jit:insn-add function val1 val2)
+    "generate an add instruction, return the result ref"
+    (ffi:funcall insn-add 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-sub function val1 val2)
+    "generate a subtract instruction, return the result ref"
+    (ffi:funcall insn-sub 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-mul function val1 val2)
+    "generate a multiply instruction, return the result ref"
+    (ffi:funcall insn-mul 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-div function val1 val2)
+    "generate a divide instruction, return the result ref"
+    (ffi:funcall insn-div 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-rem function val1 val2)
+    "generate a modulo instruction, return the result ref"
+    (ffi:funcall insn-rem 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-and function val1 val2)
+    "generate an and instruction, return the result ref"
+    (ffi:funcall insn-and 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-or function val1 val2)
+    "generate an or instruction, return the result ref"
+    (ffi:funcall insn-or 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-not function val1 val2)
+    "generate a not instruction, return the result ref"
+    (ffi:funcall insn-not 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-shl function val1 val2)
+    "generate a left shift instruction, return the result ref"
+    (ffi:funcall insn-shl 'ffi-pointer
+		 function val1 val2))
+
+  (define (jit:insn-shr function val1 val2)
+    "generate a right shift instruction, return the result ref"
+    (ffi:funcall insn-shr 'ffi-pointer
+		 function val1 val2))
 
   (define (jit:function-compile function)
     "assemble the function"
