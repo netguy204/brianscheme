@@ -29,7 +29,7 @@
        (insn-branch-if-not
 	(ffi:dlsym libjit "jit_insn_branch_if_not"))
        (insn-load (ffi:dlsym libjit "jit_insn_load"))
-       (insn-load-relative (ffi:dlsym libjit "jit_load_relative"))
+       (insn-load-relative (ffi:dlsym libjit "jit_insn_load_relative"))
        (value-create-nint
 	(ffi:dlsym libjit "jit_value_create_nint_constant"))
        (value-create-long
@@ -51,6 +51,8 @@
     (ffi:deref (ffi:dlsym-var libjit "jit_type_int")))
   (define jit-long
     (ffi:deref (ffi:dlsym-var libjit "jit_type_long")))
+  (define jit-ulong
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_ulong")))
   (define jit-void-ptr
     (ffi:deref (ffi:dlsym-var libjit "jit_type_void_ptr")))
 
@@ -279,19 +281,21 @@
 
 (define (jit:expand-opcode fn op)
   "internal: expands a concise opcode into the fully qualified form"
-  `(,(jit:expand-symbol (first op))
-    ,fn . ,(rest op)))
+  `(assert (,(jit:expand-symbol (first op))
+	    ,fn . ,(rest op))))
 
 
 (define-syntax (jit:assemble fn . ops)
   "enables writing assembly in a bit more consise format"
-  (if (null? ops)
-      fn
-      `(let (,(if (length=1 (first ops))
-		  `(,(gensym) ,(jit:expand-opcode fn (first (first ops))))
-		  `(,(first (first ops))
-		    ,(jit:expand-opcode fn (second (first ops))))))
-	 (jit:assemble ,fn . ,(rest ops)))))
+  (cond
+   ((null? ops) fn)
+   ((symbol? (first ops)) (first ops))
+   (else
+    `(let (,(if (length=1 (first ops))
+		`(,(gensym) ,(jit:expand-opcode fn (first (first ops))))
+		`(,(first (first ops))
+		  ,(jit:expand-opcode fn (second (first ops))))))
+       (jit:assemble ,fn . ,(rest ops))))))
 
 (define-syntax (jit:define
 		 name context sig fn fn-ptr
@@ -361,6 +365,43 @@
     (define jit:fixnum-offset
       (ffi:alien-to-int
        (ffi:deref (ffi:dlsym-var lib "fixnum_offset"))))
+
+    (define jit:car-offset
+      (ffi:alien-to-int
+       (ffi:deref (ffi:dlsym-var lib "car_offset"))))
+
+    (define jit:cdr-offset
+      (ffi:alien-to-int
+       (ffi:deref (ffi:dlsym-var lib "cdr_offset"))))
+
+    (define (jit:insn-const-long fn val)
+      "defines a constant long. returns result ref"
+      (jit:value-create-long-constant fn jit-long val))
+
+    (define (jit:insn-const-ulong fn val)
+      "defines a constant unsigned long. returns result ref"
+      (jit:value-create-long-constant fn jit-ulong val))
+
+    (define (jit:insn-car fn obj)
+      "gets the car of obj and returns result ref"
+      (jit:assemble
+       fn
+       (val (load-relative obj jit:car-offset jit-void-ptr))
+       val))
+
+    (define (jit:insn-cdr fn obj)
+      "gets the cdr of obj and returns result ref"
+      (jit:assemble
+       fn
+       (val (load-relative obj jit:cdr-offset jit-void-ptr))
+       val))
+
+    (define (jit:insn-unbox-long fn boxed)
+      "unboxes value as fixnum and returns result ref"
+      (jit:assemble
+       fn
+       (val (load-relative boxed jit:fixnum-offset jit-long))
+       val))
 
     (define (jit:insn-box-long fn val)
       "boxes value as fixnum and returns result ref"

@@ -9,6 +9,8 @@
 
 /* useful offsets for manipulating objects from userspace */
 unsigned int fixnum_offset;
+unsigned int car_offset;
+unsigned int cdr_offset;
 
 object * free_ptr_fn;
 object * ffi_release_type_fn;
@@ -292,5 +294,7 @@ void init_ffi(object *env) {
   ffi_type_ulong_sym = make_symbol("ffi-ulong");
 
   /* setup offset values */
-  fixnum_offset = &(((object*)0)->data.fixnum.value);
+  fixnum_offset = (unsigned int)&(((object*)0)->data.fixnum.value);
+  car_offset = (unsigned int)&(((object*)0)->data.pair.car);
+  cdr_offset = (unsigned int)&(((object*)0)->data.pair.cdr);
 }

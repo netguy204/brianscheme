@@ -105,13 +105,56 @@
   (jit-void-ptr (jit-void-ptr jit-void-ptr))
   fn fn-ptr
   ((args env)
-   (let ((const (jit:value-create-long-constant fn
-						jit-long
-						1)))
-
-     (jit:assemble
-      fn
-      (boxed (box-long const))
-      ((return boxed))))))
+   (jit:assemble
+    fn
+    (const (const-long 1))
+    (boxed (box-long const))
+    ((return boxed)))))
 
 (one)
+
+jit:fixnum-offset
+jit:car-offset
+jit:cdr-offset
+
+(jit:define my-car *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   (jit:assemble
+    fn
+    (c1 (car args)) ;; first argument
+    (c2 (car c1)) ;; first in that list
+    ((return c2)))
+   (set! *mycar* fn)))
+
+(jit:define my-cdr *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   (jit:assemble
+    fn
+    (c1 (car args)) ;; first argument
+    (c2 (cdr c1)) ;; rest of that list
+    ((return c2)))
+   (set! *mycar* fn)))
+
+(jit:define plus1 *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   fn
+   (jit:assemble
+    fn
+    (arg (car args)) ;; first argument
+    (num (unbox-long arg))
+    (one (const-long 1))
+    (sum (add num one)) ;; add them
+    (box (box-long sum))
+    ((return box)))))
+
+(jit:dump-function stdout *mycar* "my_car")
+
+(my-car '(1 2))
+
+
