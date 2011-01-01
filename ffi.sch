@@ -22,7 +22,8 @@
 freed later."
   ((cif)
    (argspec)
-   (retspec)))
+   (retspec)
+   (fn-ptr)))
 
 (define (ffi:free-cif cif)
   (assert (ffi:cif? cif))
@@ -136,20 +137,28 @@ freed later."
 		     'list value-list
 		     'ptr-list value-ptr-list)))
 
-(define (ffi:funcall fnptr result-type . args)
-  "call alien function expecting result and using default assumed alien types for the given arguments if they're not already alien"
-  (let* ((values (ffi:make-value-array args))
-	 (result (ffi:empty-alien result-type))
-	 (result-ptr (ffi:address-of result))
-	 (fnspec (ffi:make-function-spec result-type
-					 (map ffi:alien-type args))))
+(define-syntax (ffi:funcall fnptr result-type . args)
+  "call alien function expecting result and using default assumed alien types for the given arguments if they're not already alien. This macro may mutate fnptr to cache its function signature"
+  `(let* ((values (ffi:make-value-array (list . ,args)))
+	  (result (ffi:empty-alien ,result-type))
+	  (result-ptr (ffi:address-of result))
+	  (fnspec (if (ffi:cif? ,fnptr)
+		      ,fnptr
+		      (ffi:make-function-spec
+		       ,result-type
+		       (map ffi:alien-type (list . ,args))))))
 
-    (ffi:call (ffi:cif-cif fnspec) fnptr result-ptr (ffi:values-array values))
+     ;; cache the cif
+     (unless (ffi:cif? ,fnptr)
+       (set-ffi:cif-fn-ptr! fnspec ,fnptr)
+       (set! ,fnptr fnspec))
+
+     (ffi:call (ffi:cif-cif fnspec) (ffi:cif-fn-ptr fnspec) result-ptr (ffi:values-array values))
 
     ;; cleanup
-    (let ((call-result (ffi:from-alien result result-type)))
+    (let ((call-result (ffi:from-alien result ,result-type)))
       (ffi:free-values values)
-      (ffi:free-cif fnspec)
+      ;(ffi:free-cif fnspec)
       (ffi:free result)
 
       call-result)))
