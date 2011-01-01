@@ -36,12 +36,9 @@ freed later."
 	(argspec (ffi:make-pointer-array (length args)))
 	(retspec (ffi:primitive return)))
 
-    ;; build a list of argument types
-    (dotimes (idx (length args))
-      (let ((arg-type (ffi:primitive (nth args idx))))
-	(assert arg-type)
+    (dolist-idx ((arg idx) args)
+      (let ((arg-type (assert (ffi:primitive arg))))
 	(ffi:set-array-pointer! argspec idx arg-type)))
-
     (assert retspec)
 
     ;; construct the cif
@@ -132,8 +129,8 @@ freed later."
 	 (value-list (map ffi:to-alien args))
 	 (value-ptr-list (map ffi:address-of value-list)))
 
-    (dotimes (idx (length args))
-	     (ffi:set-array-pointer! values idx (nth value-ptr-list idx)))
+    (dolist-idx ((val idx) value-ptr-list)
+      (ffi:set-array-pointer! values idx val))
 
     (make-ffi:values 'array values
 		     'list value-list

@@ -565,6 +565,15 @@
   `(for-each (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
+(define-syntax (dolist-idx args . body)
+  "args is ((val idx) list), body evaluated with val and idx taking on successive values"
+  `(let ((,(second (first args)) 0))
+     (for-each
+      (lambda (,(first (first args)))
+	(begin . ,body)
+	(inc! ,(second (first args))))
+      ,(second args))))
+
 (define-syntax (dovector args . body)
   "evaluate body for every element in a vector"
   (let ((n (gensym))

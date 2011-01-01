@@ -103,8 +103,8 @@
   (define (jit:make-parameter-signature types)
     "create a signature for the arguments of a function"
     (let ((array (ffi:make-pointer-array (length types))))
-      (dotimes (idx (length types))
-	(ffi:set-array-pointer! array idx (nth types idx)))
+      (dolist-idx ((type idx) types)
+	(ffi:set-array-pointer! array idx type))
 
       (make-jit:params 'array array
 		       'length (length types))))
@@ -230,8 +230,8 @@
 	   function name target args)
     "call the jit'd function target with arguments, returns result ref"
     (let ((array (ffi:make-pointer-array (length args))))
-      (dotimes (idx (length args))
-        (ffi:set-array-pointer! array idx (nth args idx)))
+      (dolist-idx ((arg idx) args)
+        (ffi:set-array-pointer! array idx arg))
 
       (ffi:funcall insn-call 'ffi-pointer
 		   function name target
@@ -244,8 +244,8 @@
 	   function name fn-ptr sig args)
     "call the native function with arguments. returns result ref"
     (let ((array (ffi:make-pointer-array (length args))))
-      (dotimes (idx (length args))
-        (ffi:set-array-pointer! array idx (nth args idx)))
+      (dolist-idx ((arg idx) args)
+        (ffi:set-array-pointer! array idx arg))
 
       (ffi:funcall insn-call-native 'ffi-pointer
 		   function name fn-ptr sig
