@@ -137,16 +137,16 @@ char is_alien(object * obj) {
   return obj->type == ALIEN;
 }
 
-object *make_alien(void * ptr, object * releaser) {
-  object * obj = alloc_object();
+object *make_alien(void *ptr, object * releaser) {
+  object *obj = alloc_object();
   obj->type = ALIEN;
   ALIEN_PTR(obj) = ptr;
   ALIEN_RELEASER(obj) = releaser;
   return obj;
 }
 
-object *make_alien_fn(void (*fn)(void), object * releaser) {
-  object * obj = alloc_object();
+object *make_alien_fn(void (*fn) (void), object * releaser) {
+  object *obj = alloc_object();
   obj->type = ALIEN;
   ALIEN_FN_PTR(obj) = fn;
   ALIEN_RELEASER(obj) = releaser;

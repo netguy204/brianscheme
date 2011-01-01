@@ -122,8 +122,7 @@ char is_delimiter(int c) {
 char is_initial(char c) {
   return isalpha((int)c) || c == '*' || c == '/' ||
     c == '>' || c == '<' || c == '=' || c == '?' ||
-    c == '?' || c == '!' || c == '&' || c == '.' ||
-    c == ':';
+    c == '?' || c == '!' || c == '&' || c == '.' || c == ':';
 }
 
 int peek(read_buffer * in) {

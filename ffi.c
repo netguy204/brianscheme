@@ -28,31 +28,33 @@ unsigned int fixnum_offset;
 unsigned int car_offset;
 unsigned int cdr_offset;
 
-object * free_ptr_fn;
-object * ffi_release_type_fn;
+object *free_ptr_fn;
+object *ffi_release_type_fn;
 
-object * ffi_type_pointer_sym;
-object * ffi_type_void_sym;
-object * ffi_type_uchar_sym;
-object * ffi_type_ushort_sym;
-object * ffi_type_uint_sym;
-object * ffi_type_sint_sym;
-object * ffi_type_ulong_sym;
+object *ffi_type_pointer_sym;
+object *ffi_type_void_sym;
+object *ffi_type_uchar_sym;
+object *ffi_type_ushort_sym;
+object *ffi_type_uint_sym;
+object *ffi_type_sint_sym;
+object *ffi_type_ulong_sym;
 
-typedef void(*FN_PTR)(void);
+typedef void (*FN_PTR) (void);
 
 DEFUN1(dlopen_proc) {
-  void * handle;
+  void *handle;
 
   if(FIRST == the_empty_list) {
     handle = dlopen(NULL, RTLD_LAZY);
-  } else {
+  }
+  else {
     handle = dlopen(STRING(FIRST), RTLD_LAZY | RTLD_GLOBAL);
   }
 
   if(handle == NULL) {
     return false;
-  } else {
+  }
+  else {
     return make_alien(handle, the_empty_list);
   }
 }
@@ -65,7 +67,7 @@ DEFUN1(dlsym_proc) {
   FN_PTR fn;
   *(void **)(&fn) = dlsym(handle, STRING(SECOND));
 
-  char * msg;
+  char *msg;
   if((msg = dlerror()) != NULL) {
     fprintf(stderr, "dlerror: %s\n", msg);
     return false;
@@ -79,7 +81,7 @@ DEFUN1(dlsym2_proc) {
 
   dlerror();
   void *ptr = dlsym(handle, STRING(SECOND));
-  char * msg;
+  char *msg;
   if((msg = dlerror()) != NULL) {
     fprintf(stderr, "dlerror: %s\n", msg);
     return false;
@@ -97,45 +99,45 @@ DEFUN1(dlclose_proc) {
 }
 
 DEFUN1(free_ptr) {
-  void * ptr = ALIEN_PTR(FIRST);
+  void *ptr = ALIEN_PTR(FIRST);
   free(ptr);
   return true;
 }
 
 DEFUN1(free_ffi_alien_object) {
-  object * alien = FIRST;
-  object * releaser = ALIEN_RELEASER(alien);
+  object *alien = FIRST;
+  object *releaser = ALIEN_RELEASER(alien);
 
   if(is_the_empty_list(releaser)) {
     return false;
   }
 
   /* build the list to eval */
-  object * list = the_empty_list;
+  object *list = the_empty_list;
   push_root(&list);
   list = cons(alien, list);
   list = cons(releaser, list);
 
   /* send it to interp and return the result */
-  object * result = interp(list, environment);
+  object *result = interp(list, environment);
   pop_root(&list);
   return result;
 }
 
 DEFUN1(alien_malloc) {
   long size = LONG(FIRST);
-  void * ptr = MALLOC(size);
+  void *ptr = MALLOC(size);
   return make_alien(ptr, free_ptr_fn);
 }
 
 DEFUN1(ffi_make_cif) {
-  ffi_cif * cif = MALLOC(sizeof(ffi_cif));
+  ffi_cif *cif = MALLOC(sizeof(ffi_cif));
   return make_alien(cif, free_ptr_fn);
 }
 
 DEFUN1(ffi_primitive_type) {
-  object * type = FIRST;
-  ffi_type * tgt_type;
+  object *type = FIRST;
+  ffi_type *tgt_type;
   if(type == ffi_type_pointer_sym) {
     tgt_type = &ffi_type_pointer;
   }
@@ -166,14 +168,14 @@ DEFUN1(ffi_primitive_type) {
 }
 
 DEFUN1(ffi_make_pointer_array) {
-  void **array = MALLOC(sizeof(void*) * LONG(FIRST));
+  void **array = MALLOC(sizeof(void *) * LONG(FIRST));
   return make_alien(array, free_ptr_fn);
 }
 
 DEFUN1(ffi_set_pointer) {
   void **array = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
-  void * value = ALIEN_PTR(THIRD);
+  void *value = ALIEN_PTR(THIRD);
   array[idx] = value;
   return FIRST;
 }
@@ -190,67 +192,67 @@ DEFUN1(ffi_deref) {
 }
 
 DEFUN1(ffi_prep_cif_proc) {
-  ffi_cif * cif = ALIEN_PTR(FIRST);
+  ffi_cif *cif = ALIEN_PTR(FIRST);
   long n_args = LONG(SECOND);
-  ffi_type * rtype = ALIEN_PTR(THIRD);
-  ffi_type ** args = ALIEN_PTR(FOURTH);
+  ffi_type *rtype = ALIEN_PTR(THIRD);
+  ffi_type **args = ALIEN_PTR(FOURTH);
 
-  if(ffi_prep_cif(cif, FFI_DEFAULT_ABI,
-		  n_args, rtype, args) == FFI_OK) {
+  if(ffi_prep_cif(cif, FFI_DEFAULT_ABI, n_args, rtype, args) == FFI_OK) {
     return true;
-  } else {
+  }
+  else {
     return false;
   }
 }
 
 DEFUN1(ffi_call_proc) {
-  ffi_cif * cif = ALIEN_PTR(FIRST);
-  void (*fn)(void) = ALIEN_FN_PTR(SECOND);
-  void * result = ALIEN_PTR(THIRD);
-  void ** values = ALIEN_PTR(FOURTH);
+  ffi_cif *cif = ALIEN_PTR(FIRST);
+  void (*fn) (void) = ALIEN_FN_PTR(SECOND);
+  void *result = ALIEN_PTR(THIRD);
+  void **values = ALIEN_PTR(FOURTH);
 
   ffi_call(cif, fn, result, values);
   return true;
 }
 
 DEFUN1(ffi_value_array) {
-  void ** values = MALLOC(sizeof(void*) * LONG(FIRST));
+  void **values = MALLOC(sizeof(void *) * LONG(FIRST));
   return make_alien(values, free_ptr_fn);
 }
 
 DEFUN1(ffi_set_value) {
-  void ** values = ALIEN_PTR(FIRST);
+  void **values = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
-  void * value = ALIEN_PTR(THIRD);
+  void *value = ALIEN_PTR(THIRD);
 
   values[idx] = value;
   return FIRST;
 }
 
-DEFUN1(ffi_address_of){
-  void ** ptr = &(ALIEN_PTR(FIRST));
+DEFUN1(ffi_address_of) {
+  void **ptr = &(ALIEN_PTR(FIRST));
   return make_alien(ptr, the_empty_list);
 }
 
-char *strdup(const char* string);
+char *strdup(const char *string);
 
 DEFUN1(string_to_alien) {
-  char * str = STRING(FIRST);
+  char *str = STRING(FIRST);
   return make_alien(strdup(str), free_ptr_fn);
 }
 
 DEFUN1(alien_to_string) {
-  char * str = ALIEN_PTR(FIRST);
+  char *str = ALIEN_PTR(FIRST);
   return make_string(str);
 }
 
 DEFUN1(stream_to_alien) {
-  FILE * stream = INPUT(FIRST);
+  FILE *stream = INPUT(FIRST);
   return make_alien(stream, the_empty_list);
 }
 
 DEFUN1(int_to_alien) {
-  return make_alien((void*)LONG(FIRST), the_empty_list);
+  return make_alien((void *)LONG(FIRST), the_empty_list);
 }
 
 DEFUN1(alien_to_int) {
@@ -259,17 +261,17 @@ DEFUN1(alien_to_int) {
 }
 
 DEFUN1(alien_to_primitive) {
-  prim_proc * fn = (prim_proc*)ALIEN_FN_PTR(FIRST);
+  prim_proc *fn = (prim_proc *) ALIEN_FN_PTR(FIRST);
   return make_primitive_proc(fn);
 }
 
-void init_ffi(object *env) {
+void init_ffi(object * env) {
 #define add_procedure(scheme_name, c_name)    \
   define_variable(make_symbol(scheme_name),   \
                   curr=make_primitive_proc(c_name),	\
                   env);
 
-  object * curr = the_empty_list;
+  object *curr = the_empty_list;
 
   free_ptr_fn = make_primitive_proc(free_ptr);
   push_root(&free_ptr_fn);
@@ -310,7 +312,7 @@ void init_ffi(object *env) {
   ffi_type_ulong_sym = make_symbol("ffi-ulong");
 
   /* setup offset values */
-  fixnum_offset = (unsigned int)&(((object*)0)->data.fixnum.value);
-  car_offset = (unsigned int)&(((object*)0)->data.pair.car);
-  cdr_offset = (unsigned int)&(((object*)0)->data.pair.cdr);
+  fixnum_offset = (unsigned int)&(((object *) 0)->data.fixnum.value);
+  car_offset = (unsigned int)&(((object *) 0)->data.pair.car);
+  cdr_offset = (unsigned int)&(((object *) 0)->data.pair.cdr);
 }
