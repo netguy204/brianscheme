@@ -124,12 +124,6 @@ DEFUN1(free_ffi_alien_object) {
   return result;
 }
 
-DEFUN1(alien_malloc) {
-  long size = LONG(FIRST);
-  void *ptr = MALLOC(size);
-  return make_alien(ptr, free_ptr_fn);
-}
-
 DEFUN1(ffi_make_cif) {
   ffi_cif *cif = MALLOC(sizeof(ffi_cif));
   return make_alien(cif, free_ptr_fn);
@@ -215,20 +209,6 @@ DEFUN1(ffi_call_proc) {
   return true;
 }
 
-DEFUN1(ffi_value_array) {
-  void **values = MALLOC(sizeof(void *) * LONG(FIRST));
-  return make_alien(values, free_ptr_fn);
-}
-
-DEFUN1(ffi_set_value) {
-  void **values = ALIEN_PTR(FIRST);
-  long idx = LONG(SECOND);
-  void *value = ALIEN_PTR(THIRD);
-
-  values[idx] = value;
-  return FIRST;
-}
-
 DEFUN1(ffi_address_of) {
   void **ptr = &(ALIEN_PTR(FIRST));
   return make_alien(ptr, the_empty_list);
@@ -291,7 +271,6 @@ void init_ffi(object * env) {
   add_procedure("ffi:call", ffi_call_proc);
   add_procedure("ffi:free", free_ffi_alien_object);
 
-  add_procedure("ffi:malloc", alien_malloc);
   add_procedure("ffi:string-to-alien", string_to_alien);
   add_procedure("ffi:alien-to-string", alien_to_string);
   add_procedure("ffi:int-to-alien", int_to_alien);

@@ -17,6 +17,19 @@
 ; ffi library symbols exported by ffi.c
 ;
 
+(define-struct ffi:cif
+  "internal representation of cif. holds onto stuff that needs to be
+freed later."
+  ((cif)
+   (argspec)
+   (retspec)))
+
+(define (ffi:free-cif cif)
+  (assert (ffi:cif? cif))
+  (ffi:free (ffi:cif-cif cif))
+  (ffi:free (ffi:cif-argspec cif))
+  (ffi:free (ffi:cif-retspec cif)))
+
 (define (ffi:make-function-spec return args)
   "create callspec for a function of the given signature"
   (let ((cif (ffi:make-cif))
@@ -33,7 +46,10 @@
 
     ;; construct the cif
     (assert (ffi:prep-cif cif (length args) retspec argspec))
-    cif))
+
+    (make-ffi:cif 'cif cif
+		  'argspec argspec
+		  'retspec retspec)))
 
 (define-struct ffi:alien-type
   "a wrapped alien type"
@@ -104,6 +120,12 @@
    (list)
    (ptr-list)))
 
+(define (ffi:free-values values)
+  (assert (ffi:values? values))
+  (ffi:free (ffi:values-array values))
+  (for-each ffi:free (ffi:values-list values))
+  (for-each ffi:free (ffi:values-ptr-list values)))
+
 (define (ffi:make-value-array args)
   "convert a list of scheme and alien arguments into a void**"
   (let* ((values (ffi:make-pointer-array (length args)))
@@ -125,13 +147,12 @@
 	 (fnspec (ffi:make-function-spec result-type
 					 (map ffi:alien-type args))))
 
-    (ffi:call fnspec fnptr result-ptr (ffi:values-array values))
+    (ffi:call (ffi:cif-cif fnspec) fnptr result-ptr (ffi:values-array values))
 
     ;; cleanup
     (let ((call-result (ffi:from-alien result result-type)))
-      (map ffi:free (ffi:values-ptr-list values))
-      (map ffi:free (ffi:values-list values))
-      (ffi:free fnspec)
+      (ffi:free-values values)
+      (ffi:free-cif fnspec)
       (ffi:free result)
 
       call-result)))

@@ -263,6 +263,7 @@
     "assemble the function"
     (= (ffi:funcall function-compile 'ffi-uint function) 1))
 
+  ; FIXME: This leaks memory
   (define (jit:build-arg-array args)
     "use the ffi to-alien mechanism to construct a void** array"
     (ffi:values-array (ffi:make-value-array args)))
