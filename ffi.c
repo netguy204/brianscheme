@@ -237,6 +237,11 @@ DEFUN1(alien_to_int) {
   return make_fixnum(val);
 }
 
+DEFUN1(alien_to_primitive) {
+  prim_proc * fn = (prim_proc*)ALIEN_FN_PTR(FIRST);
+  return make_primitive_proc(fn);
+}
+
 void init_ffi(object *env) {
 #define add_procedure(scheme_name, c_name)    \
   define_variable(make_symbol(scheme_name),   \
@@ -269,6 +274,7 @@ void init_ffi(object *env) {
   add_procedure("ffi:int-to-alien", int_to_alien);
   add_procedure("ffi:alien-to-int", alien_to_int);
   add_procedure("ffi:stream-to-alien", stream_to_alien);
+  add_procedure("ffi:alien-to-primitive-proc", alien_to_primitive);
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
 

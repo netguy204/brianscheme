@@ -12,6 +12,7 @@
        (function-create (ffi:dlsym libjit "jit_function_create"))
        (value-get-param (ffi:dlsym libjit "jit_value_get_param"))
        (function-compile (ffi:dlsym libjit "jit_function_compile"))
+       (function-to-closure (ffi:dlsym libjit "jit_function_to_closure"))
        (insn-return (ffi:dlsym libjit "jit_insn_return"))
        (insn-add (ffi:dlsym libjit "jit_insn_add"))
        (insn-sub (ffi:dlsym libjit "jit_insn_sub"))
@@ -35,8 +36,12 @@
   (assert libjit)
 
   ;; jit type constants
-  (define jit-void (ffi:deref (ffi:dlsym-var libjit "jit_type_void")))
-  (define jit-int (ffi:deref (ffi:dlsym-var libjit "jit_type_int")))
+  (define jit-void
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_void")))
+  (define jit-int
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_int")))
+  (define jit-void-ptr
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_void_ptr")))
 
   (define (jit:context-create)
     "create an opaque jit context"
@@ -202,6 +207,11 @@
     (ffi:funcall function-apply 'ffi-uint
 		 function args return-area))
 
+  (define (jit:function-to-closure function)
+    "get a function pointer to a jit'd function"
+    (ffi:funcall function-to-closure 'ffi-pointer
+		 function))
+
   (define (jit:close)
     "release the libjit library. call to free resources after no more calls will be made to jit:* methods"
     (ffi:dlclose libjit)))
@@ -218,9 +228,9 @@
        result)))
 
 (define-syntax (jit:define
-		 name context sig fn
-		 args-and-insts args-and-body)
-  "compiles an instruction stream into a jit'd function and accepts frontend code to handle boxing and unboxing"
+		 name context sig fn fn-ptr
+		 args-and-insts . maybe-args-and-body)
+  "compiles an instruction stream into a jit'd function and accepts optional frontend code to handle boxing and unboxing"
   (let ((compiled-sig (gensym)))
     `(with-locked-context ,context
        ;; create the signature and the function
@@ -231,6 +241,7 @@
 					,compiled-sig)))
 
 	 ;; bringing the requested jit args into view
+	 ;; for defining the assembly stream
 	 (let ,(map (lambda (idx)
 		      (list (nth (car args-and-insts) idx)
 			    `(jit:value-get-param ,fn ,idx)))
@@ -240,47 +251,33 @@
 
 	 (assert (jit:function-compile ,fn))
 
-	 ;; now the callsite definition
-	 (define (,name . ,(first args-and-body))
-	   . ,(rest args-and-body))))))
+	 ;; now the userspace callsite definition
+	 (let ((,fn-ptr (jit:function-to-closure ,fn)))
+	   ,(if (null? maybe-args-and-body)
+		`(set! ,name (ffi:alien-to-primitive-proc ,fn-ptr))
+		(let ((args-and-body (car maybe-args-and-body)))
+		  `(define (,name . ,(first args-and-body))
+		     . ,(rest args-and-body)))))))))
 
 
 (define (jit:binary-int-invoke jit-func arg1 arg2)
   "invoke a binary jit'd function of two ints that returns an int"
-  (let* ((arg-list (list (ffi:alien-uint arg1)
-			 (ffi:alien-uint arg2)))
-	 (arg-array (jit:build-arg-array arg-list))
-	 (result (ffi:int-to-alien 0)))
-
-    (jit:function-apply jit-func
-			arg-array
-			(ffi:address-of result))
-
-    (ffi:alien-to-int result)))
-
+  (ffi:funcall jit-func 'ffi-uint arg1 arg2))
 
 (define (jit:unary-int-invoke jit-func arg1)
   "invoke a unary jit'd function of an int that returns an int"
-  (let* ((arg-list (list (ffi:alien-uint arg1)))
-	 (arg-array (jit:build-arg-array arg-list))
-	 (result (ffi:int-to-alien 0)))
-
-    (jit:function-apply jit-func
-			arg-array
-			(ffi:address-of result))
-
-    (ffi:alien-to-int result)))
+  (ffi:funcall jit-func 'ffi-uint arg1))
 
 ;; we sorta need binary-not to make fresh labels
 (jit:define binary-not *context*
   (jit-int (jit-int))
-  fn
+  fn fn-ptr
   ((val)
    (jit:insn-return fn (jit:insn-not fn val)))
 
   ((arg1)
    "compute the bitwise not of the argument"
-   (jit:unary-int-invoke fn arg1)))
+   (jit:unary-int-invoke fn-ptr arg1)))
 
 (define (jit:make-label)
   (ffi:int-to-alien 4294967295))

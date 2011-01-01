@@ -36,24 +36,30 @@
 
 (write "the answer is" (ffi:alien-to-int *result*))
 
+;; try converting the opaque function handle into a function
+;; pointer
+(set! *fptr* (jit:function-to-closure *func*))
+
+;; now invoke it again
+(write "the answer is now" (ffi:funcall *fptr* 'ffi-uint 42 1))
+
 (jit:define left-shift *context*
   (jit-int (jit-int jit-int))
-  jit-func
+  jit-func fn-ptr
   ((param1 param2)
    (let ((res (jit:insn-shl jit-func param1 param2)))
      (jit:insn-return jit-func res)))
   ((arg1 arg2)
-   (jit:binary-int-invoke jit-func arg1 arg2)))
+   (jit:binary-int-invoke fn-ptr arg1 arg2)))
 
 (left-shift 1 1)
 (left-shift 1 2)
 (left-shift 1 3)
 
-
 ;; define a recursive function
 (jit:define my-gcd *context*
   (jit-int (jit-int jit-int))
-  fn
+  fn fn-ptr
   ((a b)
 
    (let*
@@ -85,12 +91,17 @@
      (set! *my-gcd* fn)))
 
   ((a b)
-   (jit:binary-int-invoke fn a b)))
+   "compute the greatest common divisor of two numbers"
+   (jit:binary-int-invoke fn-ptr a b)))
 
 (jit:dump-function stdout *my-gcd* "func")
 
+;; define a primitive function
+(jit:define unit *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   (jit:insn-return fn args)))
 
-;(map (lambda (x)
-;       (left-shift x 2))
-;     (upto 200))
+(unit 123)
 
