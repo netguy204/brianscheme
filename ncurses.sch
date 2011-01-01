@@ -25,6 +25,7 @@
        (mvprintw (ffi:dlsym nc "mvprintw"))
        (refresh (ffi:dlsym nc "refresh"))
        (nodelay (ffi:dlsym nc "nodelay"))
+       (halfdelay (ffi:dlsym nc "halfdelay"))
        (endwin (ffi:dlsym nc "endwin")))
 
   (define nc:stdwin
@@ -83,6 +84,10 @@
 			    (ffi:alien-uchar 1)
 			    (ffi:alien-uchar 0))))
 
+  (define (nc:halfdelay wait)
+    "allow getch to block for data up to time milliseconds"
+    (ffi:funcall halfdelay 'ffi-uint wait))
+
   (define (nc:endwin)
     "return the terminal to normal mode"
     (ffi:funcall endwin 'ffi-uint)))
@@ -109,7 +114,7 @@ intact though."
     (nc:noecho)
     (nc:cbreak)
     (nc:keypad win #t)
-    (nc:nodelay win #t)
+    (nc:halfdelay 1)
 
     (let ((boundx 80)
 	  (boundy 40)
@@ -121,48 +126,45 @@ intact though."
 	  (byv 1)
 	  (end #f))
 
-      (letrec
-	  ((loop
-	    (lambda ()
-	      (nc:clear)
-	      (nc:mvprintw my mx
-			   (concat "hello world "
-				   (number->string mx)
-				   " "
-				   (number->string my)))
-	      (nc:mvprintw by bx "#")
+      (dowhile (not end)
+	;; get the input
+	(let ((chr (nc:getch)))
+	  (nc:debug-write chr)
+	  (cond
+	   ((= nc:key-left chr)
+	    (set! mx (max 0 (- mx 1))))
+	   ((= nc:key-right chr)
+	    (set! mx (min 40 (+ mx 1))))
+	   ((= nc:key-up chr)
+	    (set! my (max 0 (- my 1))))
+	   ((= nc:key-down chr)
+	    (set! my (min 40 (+ my 1))))
+	   ((= nc:key-enter chr)
+	    (set! end #t))))
 
-	      (nc:refresh)
+	;; update the ball
+	(when (or (> bx boundx)
+		  (< bx 0))
+	  (set! bxv (neg bxv)))
 
-	      (let ((chr (nc:getch)))
-		(nc:debug-write chr)
-		(cond
-		  ((= nc:key-left chr)
-		   (set! mx (max 0 (- mx 1))))
-		  ((= nc:key-right chr)
-		   (set! mx (min 40 (+ mx 1))))
-		  ((= nc:key-up chr)
-		   (set! my (max 0 (- my 1))))
-		  ((= nc:key-down chr)
-		   (set! my (min 40 (+ my 1))))
-		  ((= nc:key-enter chr)
-		   (set! end #t))))
+	(when (or (> by boundy)
+		  (< by 0))
+	  (set! byv (neg byv)))
 
-	      ;; update the ball
-	      (when (or (> bx boundx)
-			(< bx 0))
-	        (set! bxv (neg bxv)))
+	(set! bx (+ bx bxv))
+	(set! by (+ by byv))
 
-	      (when (or (> by boundy)
-			(< by 0))
-	        (set! byv (neg byv)))
+	;; clear and draw the screen
+        (nc:clear)
+	(nc:mvprintw
+	 my mx
+	 (concat "hello world "
+		 (number->string mx)
+		 " "
+		 (number->string my)))
+	(nc:mvprintw by bx "#")
+	(nc:refresh)))
 
-	      (set! bx (+ bx bxv))
-	      (set! by (+ by byv))
-
-	      (unless end (loop)))))
-
-	(loop)))
 
     (ffi:sleep 1)))
 

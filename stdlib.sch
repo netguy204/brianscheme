@@ -560,6 +560,18 @@
       (push! i result))
     (reverse result)))
 
+(define-syntax (dowhile pred . body)
+  "execute body whle pred evaluates true. checks pred after evaluating
+body. always executes at least once"
+  (let ((loop (gensym)))
+    `(letrec
+	 ((,loop
+	   (lambda ()
+	     (begin . ,body)
+	     (when ,pred (,loop)))))
+
+       (,loop))))
+
 (define-syntax (dolist args . body)
   "evaluate body with (first args) taking successive values of (second args)"
   `(for-each (lambda (,(first args)) . ,body)
