@@ -338,20 +338,6 @@
   "invoke a unary jit'd function of an int that returns an int"
   (ffi:funcall jit-func 'ffi-uint arg1))
 
-;; we sorta need binary-not to make fresh labels
-(jit:define binary-not *context*
-  (jit-int (jit-int))
-  fn fn-ptr
-  ((val)
-   (jit:assemble
-    fn
-    (result (not val))
-    ((return result))))
-
-  ((arg1)
-   "compute the bitwise not of the argument"
-   (jit:unary-int-invoke fn-ptr arg1)))
-
 (define (jit:make-label)
   (ffi:int-to-alien 4294967295))
 
@@ -396,6 +382,18 @@
        (val (load-relative obj jit:cdr-offset jit-void-ptr))
        val))
 
+    (define jit:insn-first jit:insn-car)
+
+    (define (jit:insn-cadr fn obj)
+      "get the cadr of obj and return result ref"
+      (jit:assemble
+       fn
+       (v1 (cdr obj))
+       (val (car v1))
+       val))
+
+    (define jit:insn-second jit:insn-cadr)
+
     (define (jit:insn-unbox-long fn boxed)
       "unboxes value as fixnum and returns result ref"
       (jit:assemble
@@ -412,4 +410,63 @@
 			    (list val)))))
 
 
+;; now lets define some stuff we couldn't have had before
+;; using only the language primitives
+;; we sorta need binary-not to make fresh labels
+(jit:define binary-not *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   (jit:assemble
+    fn
+    (boxed-num (first args))
+    (val (unbox-long boxed-num))
+    (result (not val))
+    (boxed-res (box-long result))
+    ((return boxed-res)))))
 
+(define-syntax (jit:assemble-2long name v1 v2 doc . body)
+  "create a function of to long arguments"
+  (add-documentation name doc)
+  (let ((args (gensym))
+	(env (gensym))
+	(fn (gensym))
+	(fn-ptr (gensym))
+	(b1 (gensym))
+	(b2 (gensym)))
+
+    `(jit:define ,name *context*
+       (jit-void-ptr (jit-void-ptr jit-void-ptr))
+       ,fn ,fn-ptr
+       ((,args ,env)
+	(jit:assemble
+	 ,fn
+	 (,b1 (first ,args))
+	 (,b2 (second ,args))
+	 (,v1 (unbox-long ,b1))
+	 (,v2 (unbox-long ,b2))
+	 . ,body)))))
+
+(jit:assemble-2long binary-shl v1 v2
+  "binary shift v1 to the left by v2"
+  (result (shl v1 v2))
+  (box (box-long result))
+  ((return box)))
+
+(jit:assemble-2long binary-shr v1 v2
+  "binary shift v1 to the right by v2"
+  (result (shr v1 v2))
+  (box (box-long result))
+  ((return box)))
+
+(jit:assemble-2long binary-and v1 v2
+  "compute the bitwise and of v1 and v2"
+  (result (and v1 v2))
+  (box (box-long result))
+  ((return box)))
+
+(jit:assemble-2long binary-or v1 v2
+  "compute the bitwise or of v1 and v2"
+  (result (or v1 v2))
+  (box (box-long result))
+  ((return box)))
