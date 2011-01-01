@@ -1,14 +1,36 @@
-;; STAGE 2, bootstrapping from primitives.
-;;
-;; In this environment we don't have a working define or define-syntax
-;; and all of the primitives do no type checking. We'll be building up
-;; a more friendly environment from here.
-;;
-;; I'm using the fname0 notation to denote functions that are nearly
-;; primitive and not intended for everyday use. None of these '0'
-;; functions do type checking and often they are just renamed versions
-;; of their original primitive self so that we can replace their name
-;; with something more user-friendly.
+; Copyright 2010 Brian Taylor
+;
+; Licensed under the Apache License, Version 2.0 (the "License");
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+;
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+;
+
+; DESCRIPTION:
+;
+; In this environment we don't have a working define or define-syntax
+; and all of the primitives do no type checking. We'll be building up
+; a more friendly environment from here.
+;
+; I'm using the fname0 notation to denote functions that are nearly
+; primitive and not intended for everyday use. None of these '0'
+; functions do type checking and often they are just renamed versions
+; of their original primitive self so that we can replace their name
+; with something more user-friendly.
+;
+; I haven't made much of an attempt to stick with the conventions
+; defined in the scheme R5/6 specs. Some of the names are similar.
+; Some of the methods are similar. Maybe I'll get around to going
+; back and doing things more by the book. Most of these methods were
+; simply written as they were required.
+
 
 ;; Some very basic defines to get us started
 
@@ -26,19 +48,6 @@
       `(set! ,(car name) (lambda ,(cdr name)
 			   (begin . ,value-or-body)))))
 
-
-;; We're going to override these names later so I'm stashing away the
-;; original primitive versions so that we can refer to those
-;; explicitely in the bootstrap environment. If we didn't do this
-;; there would be a nasty circular dependency when things like
-;; typesafe + went to check its arguments using functions implemented
-;; in terms of typesafe +.
-(set! prim-+ +)
-(set! prim-- -)
-(set! prim-* *)
-(set! prim-< <)
-(set! prim-> >)
-(set! prim-= =)
 
 (set! next-gensym 0)
 (define (gensym)
@@ -166,16 +175,16 @@
 		       nil
 		       (if (fn (car rest))
 			   n
-			   (iter (prim-+ n 1) (cdr rest)))))))
+			   (iter (+ n 1) (cdr rest)))))))
 
     (iter 0 lst)))
 
 (define (nth-tail lst n)
   "the remainder of the list after calling cdr n times"
   (letrec ((iter (lambda (i rest)
-		   (if (prim-= i n)
+		   (if (= i n)
 		       rest
-		       (iter (prim-+ i 1) (cdr rest))))))
+		       (iter (+ i 1) (cdr rest))))))
 
     (iter 0 lst)))
 
@@ -376,7 +385,7 @@
   (letrec ((iter (lambda (a count)
 		   (if (null? a)
 		       count
-		       (iter (cdr a) (prim-+ 1 count))))))
+		       (iter (cdr a) (+ 1 count))))))
     (iter items 0)))
 
 (define (append-all lists)
