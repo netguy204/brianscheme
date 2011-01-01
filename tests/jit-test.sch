@@ -101,3 +101,17 @@
 
 (unit 123)
 
+(jit:define one *context*
+  (jit-void-ptr (jit-void-ptr jit-void-ptr))
+  fn fn-ptr
+  ((args env)
+   (let ((const (jit:value-create-long-constant fn
+						jit-long
+						1)))
+
+     (jit:assemble
+      fn
+      (boxed (box-long const))
+      ((return boxed))))))
+
+(one)

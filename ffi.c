@@ -7,6 +7,9 @@
 #include "interp.h"
 #include "gc.h"
 
+/* useful offsets for manipulating objects from userspace */
+unsigned int fixnum_offset;
+
 object * free_ptr_fn;
 object * ffi_release_type_fn;
 
@@ -287,4 +290,7 @@ void init_ffi(object *env) {
   ffi_type_uint_sym = make_symbol("ffi-uint");
   ffi_type_sint_sym = make_symbol("ffi-sint");
   ffi_type_ulong_sym = make_symbol("ffi-ulong");
+
+  /* setup offset values */
+  fixnum_offset = &(((object*)0)->data.fixnum.value);
 }

@@ -28,8 +28,15 @@
        (insn-lt (ffi:dlsym libjit "jit_insn_lt"))
        (insn-branch-if-not
 	(ffi:dlsym libjit "jit_insn_branch_if_not"))
+       (insn-load (ffi:dlsym libjit "jit_insn_load"))
+       (insn-load-relative (ffi:dlsym libjit "jit_load_relative"))
+       (value-create-nint
+	(ffi:dlsym libjit "jit_value_create_nint_constant"))
+       (value-create-long
+	(ffi:dlsym libjit "jit_value_create_long_constant"))
        (insn-label (ffi:dlsym libjit "jit_insn_label"))
        (insn-call (ffi:dlsym libjit "jit_insn_call"))
+       (insn-call-native (ffi:dlsym libjit "jit_insn_call_native"))
        (dump-function (ffi:dlsym libjit "jit_dump_function"))
        (function-apply (ffi:dlsym libjit "jit_function_apply")))
 
@@ -38,8 +45,12 @@
   ;; jit type constants
   (define jit-void
     (ffi:deref (ffi:dlsym-var libjit "jit_type_void")))
+  (define jit-short
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_short")))
   (define jit-int
     (ffi:deref (ffi:dlsym-var libjit "jit_type_int")))
+  (define jit-long
+    (ffi:deref (ffi:dlsym-var libjit "jit_type_long")))
   (define jit-void-ptr
     (ffi:deref (ffi:dlsym-var libjit "jit_type_void_ptr")))
 
@@ -173,6 +184,27 @@
     (ffi:funcall insn-label 'ffi-uint
 		 function (ffi:address-of label)))
 
+  (define (jit:insn-load function value)
+    "dereference value. returns result ref"
+    (ffi:funcall insn-load 'ffi-pointer
+		 function value))
+
+  (define (jit:insn-load-relative
+	   function base offset type)
+    "load value of type, offset steps from base. returns result ref"
+    (ffi:funcall insn-load-relative 'ffi-pointer
+		 function base (ffi:alien-uint offset) type))
+
+  (define (jit:value-create-nint-constant function type val)
+    "create a constant. returns result ref"
+    (ffi:funcall value-create-nint 'ffi-pointer
+		 function type val))
+
+  (define (jit:value-create-long-constant function type val)
+    "create a constant. returns result ref"
+    (ffi:funcall value-create-long 'ffi-pointer
+		 function type val))
+
   (define (jit:insn-call
 	   function name target args)
     "call the jit'd function target with arguments, returns result ref"
@@ -186,6 +218,18 @@
 		   array
 		   (ffi:alien-uint (length args))
 		   (ffi:int-to-alien 0)))) ; flags, none.
+
+  (define (jit:insn-call-native
+	   function name fn-ptr sig args)
+    "call the native function with arguments. returns result ref"
+    (let ((array (ffi:make-pointer-array (length args))))
+      (dotimes (idx (length args))
+        (ffi:set-array-pointer! array idx (nth args idx)))
+
+      (ffi:funcall insn-call-native 'ffi-pointer
+		   function name fn-ptr sig
+		   array (ffi:alien-uint (length args))
+		   (ffi:int-to-alien 0)))) ; flags, none
 
   (define (jit:dump-function stream function name)
     "dump a function to a stream"
@@ -306,4 +350,25 @@
 
 (define (jit:make-label)
   (ffi:int-to-alien 4294967295))
+
+;; setup symbols for manipulating objects
+(with-library (lib nil)
+  (let ((make-fixnum (ffi:dlsym lib "make_fixnum"))
+	(make-fixnum-sig
+	 (jit:type-create-signature jit-void-ptr
+				    (list jit-long))))
+
+    (define jit:fixnum-offset
+      (ffi:alien-to-int
+       (ffi:deref (ffi:dlsym-var lib "fixnum_offset"))))
+
+    (define (jit:insn-box-long fn val)
+      "boxes value as fixnum and returns result ref"
+      (jit:insn-call-native fn
+			    "make_fixnum"
+			    make-fixnum
+			    make-fixnum-sig
+			    (list val)))))
+
+
 
