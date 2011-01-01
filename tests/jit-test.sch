@@ -47,8 +47,11 @@
   (jit-int (jit-int jit-int))
   jit-func fn-ptr
   ((param1 param2)
-   (let ((res (jit:insn-shl jit-func param1 param2)))
-     (jit:insn-return jit-func res)))
+   (jit:assemble
+    jit-func
+    (res (shl param1 param2))
+    ((return res))))
+
   ((arg1 arg2)
    (jit:binary-int-invoke fn-ptr arg1 arg2)))
 
@@ -61,42 +64,35 @@
   (jit-int (jit-int jit-int))
   fn fn-ptr
   ((a b)
+   (let ((l1 (jit:make-label))
+	 (l2 (jit:make-label)))
+     (jit:assemble
+      fn
+      (a=b? (eq a b))
+      ((branch-if-not a=b? l1))
+      ((return a))
+      ((label l1))
+      (a<b? (lt a b))
+      ((branch-if-not a<b? l2))
+      (b-a (sub b a))
+      (r1 (call "my_gcd" fn (list a b-a)))
+      ((return r1))
+      ((label l2))
+      (a-b (sub a b))
+      (r2 (call "my_gcd" fn (list a-b b)))
+      ((return r2))))
 
-   (let*
-       ((l1 (jit:make-label))
-	(l2 (jit:make-label))
+   (set! *my-gcd* fn))
 
-	;; if a == b: return a
-	(a=b? (jit:insn-eq fn a b))
-	(t1 (jit:insn-branch-if-not fn a=b? l1))
-	(t2 (jit:insn-return fn a))
-	(t3 (jit:insn-label fn l1))
-
-	;; if a < b: gcd(a, b-a)
-	(a<b? (jit:insn-lt fn a b))
-	(t4 (jit:insn-branch-if-not fn a<b? l2))
-
-	(b-a (jit:insn-sub fn b a))
-	(r1 (jit:insn-call fn "my_gcd" fn
-			   (list a b-a)))
-	(t5 (jit:insn-return fn r1))
-
-	(t6 (jit:insn-label fn l2))
-
-	;; return gcd(a-b, b)
-	(a-b (jit:insn-sub fn a b))
-	(r2 (jit:insn-call fn "my_gcd" fn
-			   (list a-b b)))
-	(t7 (jit:insn-return fn r2)))
-     (set! *my-gcd* fn)))
-
+  ;; need a userspace invoker for this one
   ((a b)
    "compute the greatest common divisor of two numbers"
    (jit:binary-int-invoke fn-ptr a b)))
 
 (jit:dump-function stdout *my-gcd* "func")
 
-;; define a primitive function
+;; define a primitive function, has the classic interpeted
+;; function signature. don't need a userspace invoker
 (jit:define unit *context*
   (jit-void-ptr (jit-void-ptr jit-void-ptr))
   fn fn-ptr

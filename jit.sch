@@ -227,6 +227,28 @@
        (jit:context-build-end ,context)
        result)))
 
+(define (jit:expand-symbol sym)
+  "internal: expands a concise op symbol into the fully qualified form"
+  (string->symbol
+   (concat "jit:insn-"
+	   (symbol->string sym))))
+
+(define (jit:expand-opcode fn op)
+  "internal: expands a concise opcode into the fully qualified form"
+  `(,(jit:expand-symbol (first op))
+    ,fn . ,(rest op)))
+
+
+(define-syntax (jit:assemble fn . ops)
+  "enables writing assembly in a bit more consise format"
+  (if (null? ops)
+      fn
+      `(let (,(if (length=1 (first ops))
+		  `(,(gensym) ,(jit:expand-opcode fn (first (first ops))))
+		  `(,(first (first ops))
+		    ,(jit:expand-opcode fn (second (first ops))))))
+	 (jit:assemble ,fn . ,(rest ops)))))
+
 (define-syntax (jit:define
 		 name context sig fn fn-ptr
 		 args-and-insts . maybe-args-and-body)
@@ -273,7 +295,10 @@
   (jit-int (jit-int))
   fn fn-ptr
   ((val)
-   (jit:insn-return fn (jit:insn-not fn val)))
+   (jit:assemble
+    fn
+    (result (not val))
+    ((return result))))
 
   ((arg1)
    "compute the bitwise not of the argument"
