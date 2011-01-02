@@ -432,7 +432,6 @@
 
 ;; now lets define some stuff we couldn't have had before
 ;; using only the language primitives
-;; we sorta need binary-not to make fresh labels
 (jit:define binary-not *context*
   (jit-void-ptr (jit-void-ptr jit-void-ptr))
   fn fn-ptr
@@ -444,6 +443,20 @@
     (result (not val))
     (boxed-res (box-long result))
     ((return boxed-res)))))
+
+;(define-syntax (jit:define-foreign-function name fn-ptr spec)
+;  `(jit:define ,name *context*
+;     (jit-void-ptr (jit-void-ptr jit-void-ptr))
+;     lfn lfn-ptr
+;     ((args env)
+;      (let ((vals (reduce (lambda (result type)
+;			    (cond
+;			     ((= type jit-void-ptr)
+;			      (jit:assemble lfn
+;			        (val (unbox-alien (first result)))
+;				val)
+;			  ,(second spec) args)))
+
 
 (define-syntax (jit:assemble-2long name v1 v2 doc . body)
   "create a function of to long arguments"

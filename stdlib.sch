@@ -555,10 +555,41 @@
     result))
 
 (define (upto n)
+  "creates a list from 0 to n-1 in increasing order"
   (let ((result nil))
     (dotimes (i n)
       (push! i result))
     (reverse result)))
+
+(define (sort-list pred lst . equal)
+  "arrange a list such that applying pred to any sequential pairs
+returns true"
+  (let ((equal (if (null? equal) equal?
+		   (car equal))))
+    (letrec ((pivot (lambda (l)
+		      (cond ((null? l) 'done)
+			    ((null? (cdr l)) 'done)
+			    ((or (pred (car l) (cadr l))
+				 (equal (car l) (cadr l)))
+			     (pivot (cdr l)))
+			    (else (car l)))))
+	     (partition (lambda (piv l p1 p2)
+			  (if (null? l) (list p1 p2)
+			      (if (pred (car l) piv)
+				  (partition piv (cdr l)
+					     (cons (car l) p1)
+					     p2)
+				  (partition piv (cdr l)
+					     p1
+					     (cons (car l) p2))))))
+	     (quicksort (lambda (l)
+			  (let ((piv (pivot l)))
+			    (if (eq? piv 'done) l
+				(let ((parts (partition piv l nil nil)))
+				  (append (quicksort (car parts))
+					  (quicksort (cadr parts)))))))))
+
+      (quicksort lst))))
 
 (define-syntax (dowhile pred . body)
   "execute body whle pred evaluates true. checks pred after evaluating
