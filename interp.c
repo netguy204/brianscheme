@@ -1024,7 +1024,13 @@ interp_restart:
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
-	exp = expand_macro(fn, args, env, level);
+	object *expansion = expand_macro(fn, args, env, level);
+	if(is_pair(expansion)) {
+	  set_car(exp, car(expansion));
+	  set_cdr(exp, cdr(expansion));
+	} else {
+	  exp = expansion;
+	}
 	pop_root(&fn);
 	goto interp_restart;
       }
