@@ -1147,12 +1147,12 @@ void init_prim_environment(object * env) {
   add_procedure("vector-length", vector_length_proc);
   add_procedure("vector-ref", get_vector_element_proc);
   add_procedure("vector-set!", set_vector_element_proc);
-  add_procedure("make-hashtab", make_hashtab_proc);
+  add_procedure("make-hashtab-eq", make_hashtab_proc);
   add_procedure("hashtab?", is_hashtab_proc);
-  add_procedure("set-hashtab!", set_hashtab_proc);
-  add_procedure("get-hashtab", get_hashtab_proc);
-  add_procedure("remkey-hashtab!", remkey_hashtab_proc);
-  add_procedure("keys-hashtab", get_hashtab_keys_proc);
+  add_procedure("hashtab-set!", set_hashtab_proc);
+  add_procedure("hashtab-ref", get_hashtab_proc);
+  add_procedure("hashtab-remove!", remkey_hashtab_proc);
+  add_procedure("hashtab-keys", get_hashtab_keys_proc);
 
   add_procedure("eq?", is_eq_proc);
 
