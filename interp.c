@@ -449,6 +449,49 @@ DEFUN1(eval_proc) {
   return interp(exp, env);
 }
 
+DEFUN1(apply_proc) {
+  object *fn = FIRST;
+  object *evald_args = SECOND;
+
+  /* essentially duplicated from interp but I'm not
+   * sure how to implement this properly otherwise.*/
+  object *env;
+  object *exp;
+  object *result;
+
+  if(is_primitive_proc(fn)) {
+    return fn->data.primitive_proc.fn(evald_args, environment);
+  }
+  else if(is_compound_proc(fn)) {
+    env = extend_environment(fn->data.compound_proc.parameters,
+			     evald_args, fn->data.compound_proc.env);
+    push_root(&env);
+    exp = fn->data.compound_proc.body;
+    result = interp(exp, env);
+    pop_root(&env);
+    return result;
+  }
+  else if(is_compiled_proc(fn)) {
+    /* need to reverse the arguments */
+    object *stack = make_vector(the_empty_list, 30);
+    long stack_top = 0;
+
+    push_root(&stack);
+
+    while(!is_the_empty_list(evald_args)) {
+      VARRAY(stack)[stack_top++] = car(evald_args);
+      evald_args = cdr(evald_args);
+    }
+
+    result = vm_execute(fn, stack, stack_top, environment);
+    pop_root(&stack);
+    return result;
+  }
+
+  throw_interp("\ncannot apply non-function\n");
+  return false;
+}
+
 object *obj_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
@@ -527,7 +570,7 @@ DEFUN1(is_vector_proc) {
 }
 
 DEFUN1(make_vector_proc) {
-  object *obj = make_vector(FIRST, LONG(SECOND));
+  object *obj = make_vector(SECOND, LONG(FIRST));
   return obj;
 }
 
@@ -1102,8 +1145,8 @@ void init_prim_environment(object * env) {
   add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);
-  add_procedure("get-vector", get_vector_element_proc);
-  add_procedure("set-vector!", set_vector_element_proc);
+  add_procedure("vector-ref", get_vector_element_proc);
+  add_procedure("vector-set!", set_vector_element_proc);
   add_procedure("make-hashtab", make_hashtab_proc);
   add_procedure("hashtab?", is_hashtab_proc);
   add_procedure("set-hashtab!", set_hashtab_proc);
@@ -1126,6 +1169,7 @@ void init_prim_environment(object * env) {
 
   add_procedure("macroexpand0", macroexpand0_proc);
   add_procedure("eval", eval_proc);
+  add_procedure("apply", apply_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("number->string", number_to_string_proc);

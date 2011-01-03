@@ -333,7 +333,7 @@
 	 ;; bringing the requested jit args into view
 	 ;; for defining the assembly stream
 	 (let ,(map (lambda (idx)
-		      (list (nth (car args-and-insts) idx)
+		      (list (list-ref (car args-and-insts) idx)
 			    `(jit:value-get-param ,fn ,idx)))
 		    (upto (length (car args-and-insts))))
 

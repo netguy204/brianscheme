@@ -44,7 +44,9 @@
 
 (define-syntax (define name . value-or-body)
   (if (symbol? name)
-      `(set! ,name . ,value-or-body)
+      (if (null? value-or-body)
+	  `(set! ,name nil)
+	  `(set! ,name . ,value-or-body))
       `(set! ,(car name) (lambda ,(cdr name)
 			   (begin . ,value-or-body)))))
 
@@ -107,9 +109,12 @@
 
 (define (cadr x) (car (cdr x)))
 (define (cadr x) (car (cdr x)))
-(define (caddr x) (car (cdr (cdr x))))
-(define (cadddr x) (car (cdr (cdr (cdr x)))))
-(define (caddddr x) (car (cdr (cdr (cdr (cdr x))))))
+(define (cddr x) (cdr (cdr x)))
+(define (caddr x) (car (cddr x)))
+(define (cdddr x) (cdr (cddr x)))
+(define (cadddr x) (car (cdddr x)))
+(define (cddddr x) (cdr (cdddr x)))
+(define (caddddr x) (car (cddddr x)))
 
 (define (first x) (car x))
 (define (rest x) (cdr x))
@@ -179,7 +184,7 @@
 
     (iter 0 lst)))
 
-(define (nth-tail lst n)
+(define (list-tail lst n)
   "the remainder of the list after calling cdr n times"
   (letrec ((iter (lambda (i rest)
 		   (if (= i n)
@@ -188,19 +193,28 @@
 
     (iter 0 lst)))
 
-(define (nth lst n)
+(define (list-ref lst n)
   "the car of the nth element of the list"
-  (car (nth-tail lst n)))
+  (car (list-tail lst n)))
 
 (define (index-eq val lst)
   "the index that is eq? to value"
   (index-of (lambda (x) (eq? x val)) lst))
 
-(define (member val lst)
+(define (member-of eq val lst)
   "the remainder of the list that begins with val"
-  (let ((idx (index-eq val lst)))
+  (let ((idx (index-of
+	      (lambda (item) (eq item val)) lst)))
     (when idx
-	  (nth-tail lst idx))))
+	  (list-tail lst idx))))
+
+(define (member obj lst)
+  "the remainder of the list that begins with val. uses equal?"
+  (member-of equal? obj lst))
+
+(define (memq obj lst)
+  "the remainder of the list that begins with val. uses eq?"
+  (member-of eq? obj lst))
 
 (define (compliment fn)
   "function that returns (not (fn))"
@@ -264,20 +278,29 @@
   (let ((key-val (gensym)))
     `(let ((,key-val ,key))
        (cond . ,(map (lambda (c)
-		       (if (starts-with c 'else)
+		       (if (starts-with? c 'else eq?)
 			   c
 			   `((member? ,key-val ',(first c))
 			     . ,(cdr c))))
 		     clauses)))))
 
-;; I'm pretty sure this is a fully legit version of apply. Let me know
-;; if you disagree... I'm a little surprised this can be implemented
-;; in userspace.
-(define-syntax (apply fn args)
-  `(,fn . ,(map (lambda (x) `',x) (eval args))))
-
 (define-syntax (funcall fn . args)
   `(,fn . ,args))
+
+; enable that really cool rebinding let syntax that I've seen
+; used but haven't found documented anywhere...
+(define let0 let)
+(define-syntax (let name-or-bindings . bindings-or-body)
+  (if (symbol? name-or-bindings)
+      (let0 ((name name-or-bindings)
+	     (bindings (first bindings-or-body))
+	     (body (rest bindings-or-body)))
+
+        `(letrec ((,name
+		   (lambda ,(map first bindings)
+		     . ,body)))
+	   (,name . ,(map second bindings))))
+      `(let0 ,name-or-bindings . ,bindings-or-body)))
 
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
@@ -491,10 +514,6 @@
   `(do-times (lambda (,(first args)) . ,body)
 	     ,(second args)))
 
-(define (starts-with lst val)
-  (and (pair? lst)
-       (eq? (first lst) val)))
-
 (define (find fn lst)
   (letrec ((iter (lambda (rest)
 		   (if (null? rest)
@@ -515,12 +534,18 @@
 		    (else (iter (cdr lst) result))))))
     (reverse (iter lst nil))))
 
-(define (starts-with? exp val)
-  (and (pair? exp) (eq? (car exp) val)))
+(define (starts-with? exp val test)
+  "true if a pair begins with val according to test"
+  (and (pair? exp) (test (car exp) val)))
+
+(define (assq key list)
+  "find the first pair in list thats car is eq? to key"
+  (find (lambda (e) (starts-with? e key eq?))
+	list))
 
 (define (assoc key list)
   "find the first pair in list thats car is eq? to key"
-  (find (lambda (e) (starts-with? e key))
+  (find (lambda (e) (starts-with? e key equal?))
 	list))
 
 (define (equal? a b)
@@ -617,6 +642,13 @@ body. always executes at least once"
 	(inc! ,(second (first args))))
       ,(second args))))
 
+(define (vector . args)
+  "analogous to 'list' but for vectors"
+  (let ((v (make-vector (length args) nil)))
+    (dolist-idx ((val idx) args)
+      (vector-set! v idx val))
+    v))
+
 (define-syntax (dovector args . body)
   "evaluate body for every element in a vector"
   (let ((n (gensym))
@@ -624,7 +656,7 @@ body. always executes at least once"
 
     `(let ((,n (vector-length ,(second args))))
        (dotimes (,idx ,n)
-		(let ((,(first args) (get-vector ,(second args) ,idx)))
+		(let ((,(first args) (vector-ref ,(second args) ,idx)))
 		  . ,body)))))
 
 (define-syntax (assert cond)
@@ -725,17 +757,17 @@ body. always executes at least once"
 	 (define (,builder-sym . args)
 	   ,(concat "create a structure of type "
 		    (symbol->string name))
-	   (let ((struct (make-vector nil ,(+ 1 num-slots))))
-	     (set-vector! struct 0 ',name)
+	   (let ((struct (make-vector ,(+ 1 num-slots) nil)))
+	     (vector-set! struct 0 ',name)
 
 	     (dolist (slot ',slots)
 	       (let ((val (member (car slot) args)))
 		 (if val
-		     (set-vector! struct
+		     (vector-set! struct
 				  (cdr (assoc (car slot)
 					      ',slot-numbers))
 				  (second val))
-		     (set-vector! struct
+		     (vector-set! struct
 				  (cdr (assoc (car slot)
 					      ',slot-numbers))
 				  (cdr (assoc (car slot)
@@ -746,7 +778,7 @@ body. always executes at least once"
 	 (define (,tester-sym struct)
 	   ,(concat "test to see if structure is of type "
 		    (symbol->string name))
-	   (and (vector? struct) (eq? (get-vector struct 0) ',name)))
+	   (and (vector? struct) (eq? (vector-ref struct 0) ',name)))
 
 	 ;; getters
 	 ,(map (lambda (slot)
@@ -755,7 +787,7 @@ body. always executes at least once"
 			     (symbol->string (car slot))
 			     " of "
 			     (symbol->string name))
-		    (get-vector struct ,(cdr (assoc (car slot)
+		    (vector-ref struct ,(cdr (assoc (car slot)
 						    slot-numbers)))))
 	       slots)
 
@@ -766,7 +798,7 @@ body. always executes at least once"
 			     (symbol->string (car slot))
 			     " of "
 			     (symbol->string name))
-		    (set-vector! struct
+		    (vector-set! struct
 				 ,(cdr (assoc (car slot)
 					      slot-numbers))
 				 value)))

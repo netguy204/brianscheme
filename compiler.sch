@@ -159,7 +159,7 @@
 	       (gen (prim-opcode prim))
 	       (unless val? (gen 'pop))
 	       (unless more? (gen 'return)))))
-     ((and (starts-with f 'lambda) (null? (second f)))
+     ((and (starts-with? f 'lambda eq?) (null? (second f)))
       (unless (null? args) (throw-error "too many arguments"))
       (comp-begin (cdr (cdr f)) env val? more?))
      (more?
@@ -211,7 +211,7 @@
   (list 'prim symbol n-args opcode always? side-effects?))
 
 (define (prim? obj)
-  (starts-with obj 'prim))
+  (starts-with? obj 'prim eq?))
 
 (define (prim-symbol prim)
   (first (rest prim)))
@@ -392,13 +392,13 @@
 
 (define (asm-second-pass code length labels)
   (let ((addr 0)
-	(code-vector (make-vector nil length)))
+	(code-vector (make-vector length nil)))
     (dolist (instr code)
 	    (unless (label? instr)
 		    (if (is instr '(jump tjump fjump save))
 			(set-arg1! instr
 				   (cdr (assoc (arg1 instr) labels))))
-		    (set-vector! code-vector addr instr)
+		    (vector-set! code-vector addr instr)
 		    (inc! addr)))
     code-vector))
 

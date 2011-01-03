@@ -36,7 +36,7 @@
 (replace-with-compiled every?)
 (replace-with-compiled member?)
 (replace-with-compiled index-of)
-(replace-with-compiled nth)
+(replace-with-compiled list-ref)
 (replace-with-compiled index-eq)
 
 (replace-with-compiled map)
