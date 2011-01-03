@@ -896,6 +896,7 @@ object *interp_unquote(object * exp, object * env, int level) {
   }
 }
 
+#ifdef INTERP_CALLSTACK
 void push_callstack(object * target) {
   set_car(the_call_stack, cons(target, car(the_call_stack)));
 }
@@ -903,6 +904,10 @@ void push_callstack(object * target) {
 void pop_callstack() {
   set_car(the_call_stack, cdr(car(the_call_stack)));
 }
+#else
+#define push_callstack(o)
+#define pop_callstack(o)
+#endif
 
 /* convenient tool for unbinding the arguments that must be bound
  * during interp1. We rebind to temp to force the evalation of result

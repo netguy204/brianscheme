@@ -534,6 +534,8 @@
 		    (else (iter (cdr lst) result))))))
     (reverse (iter lst nil))))
 
+(define filter-in filter)
+
 (define (starts-with? exp val test)
   "true if a pair begins with val according to test"
   (and (pair? exp) (test (car exp) val)))
@@ -688,7 +690,7 @@ body. always executes at least once"
    (map (lambda (x)
 	  (cond
 	   ((pair? x) (car x))
-	   ((hashtab? x) (keys-hashtab x))
+	   ((hashtab? x) (hashtab-keys x))
 	   (else (throw-error "giving up"))))
 	base-env)))
 

@@ -245,11 +245,11 @@
 (define %instance-ref        ???)
 (define %instance-set!       ???)
 
-(letrec ((instances '())
+(letrec ((instances (make-hashtab-eq 100))
 	 (get-vector
 	  (lambda (closure)
-	    (let ((cell (assq closure instances)))
-	      (if cell (cdr cell) #f)))))
+	    (let ((cell (hashtab-ref instances closure)))
+	      (if cell cell #f)))))
 
   (set! %allocate-instance-internal
 	(lambda (class lock proc nfields)
@@ -259,7 +259,7 @@
 	    (vector-set! vector 0 proc)
 	    (vector-set! vector 1 lock)
 	    (vector-set! vector 2 class)
-	    (set! instances (cons (cons closure vector) instances))
+	    (hashtab-set! instances closure vector)
 	    closure)))
 
   (set! %instance?

@@ -12,3 +12,7 @@
 (hashtab-ref h 'fooo)
 
 
+(set! tf (lambda (foo) 1))
+(hashtab-set! h tf 99)
+(hashtab-ref h tf)
+(hashtab-ref h (lambda (foo) 1))
