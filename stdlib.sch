@@ -42,13 +42,22 @@
 	       (macro ,(cdr name-and-vars)
 		 (begin . ,body)))))
 
+(define-syntax (define-local name . value-or-body)
+  (if (symbol? name)
+      (if (null? value-or-body)
+	  `(set-local! ,name nil)
+	  `(set-local! ,name . ,value-or-body))
+      `(set-local! ,(car name) (lambda ,(cdr name)
+				 (begin . ,value-or-body)))))
 (define-syntax (define name . value-or-body)
   (if (symbol? name)
       (if (null? value-or-body)
 	  `(set! ,name nil)
 	  `(set! ,name . ,value-or-body))
-      `(set! ,(car name) (lambda ,(cdr name)
-			   (begin . ,value-or-body)))))
+      `(set! ,(car name)
+	     ((lambda (define)
+		(lambda ,(cdr name)
+		  (begin . ,value-or-body))) define-local))))
 
 
 (set! next-gensym 0)
@@ -71,22 +80,20 @@
 ;; let/letrec here but their definition depends on map so we better not
 ;; touch them yet.
 (define (reverse l)
-  ((lambda (iter)
-     (define (iter in out)
-       (if (null? in)
-	   out
-	   (iter (cdr in) (cons (car in) out))))
+  (define (iter in out)
+    (if (null? in)
+	out
+	(iter (cdr in) (cons (car in) out))))
 
-     (iter l nil)) nil))
+  (iter l nil))
 
 (define (mapr fn lst)
-  ((lambda (iter)
-     (define (iter done rest)
-       (if (null? rest)
-	   done
-	   (iter (cons (fn (car rest)) done) (cdr rest))))
+  (define (iter done rest)
+    (if (null? rest)
+	done
+	(iter (cons (fn (car rest)) done) (cdr rest))))
 
-     (iter nil lst)) nil))
+  (iter nil lst))
 
 (define (map fn lst)
   (reverse (mapr fn lst)))

@@ -149,6 +149,18 @@ void define_global_variable(object * var, object * new_val, object * env) {
 }
 
 /**
+ * creates a binding in the local frame
+ */
+void define_local_variable(object * var, object * val, object * env) {
+  object * frame = first_frame(env);
+  if(is_hashtab(frame)) {
+    set_hashtab(frame, var, val);
+  } else {
+    add_binding_to_frame(var, val, frame);
+  }
+}
+
+/**
  * like set_variable_value but we define the variable if it doesn't
  * exist in a reachable frame.
  */
@@ -976,12 +988,17 @@ interp_restart:
       exp = car(exp);
       goto interp_restart;
     }
-    else if(head == set_symbol) {
+    else if(head == set_symbol ||
+	    head == set_local_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
       push_root(&val);
 
-      define_variable(first(args), val, env);
+      if(head == set_symbol) {
+	define_variable(first(args), val, env);
+      } else {
+	define_local_variable(first(args), val, env);
+      }
 
       pop_root(&val);
 
@@ -1262,6 +1279,7 @@ void init() {
   quote_symbol = make_symbol("quote");
   quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
+  set_local_symbol = make_symbol("set-local!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
