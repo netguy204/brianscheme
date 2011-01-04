@@ -296,7 +296,7 @@
 (define (jit:expand-symbol sym)
   "internal: expands a concise op symbol into the fully qualified form"
   (string->symbol
-   (concat "jit:insn-"
+   (string-append "jit:insn-"
 	   (symbol->string sym))))
 
 (define (jit:expand-opcode fn op)

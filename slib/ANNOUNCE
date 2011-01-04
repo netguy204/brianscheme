@@ -1,0 +1,59 @@
+This message announces the availability of Scheme Library release slib-3b3.
+
+SLIB is a portable Scheme library providing compatibiliy and utility
+functions for all standard Scheme implementations.
+
+SLIB supports Bigloo, Chez, ELK 3.0, Gambit 4.0, Guile, JScheme,
+MacScheme, MITScheme, Pocket Scheme, RScheme, S7, scheme->C, Scheme48,
+SCM, SCM Mac, scsh, SISC, Stk, T3.1, umb-scheme, and VSCM.
+
+SLIB is free software.  It has a Permissive-Non-Warranty license
+<http://people.csail.mit.edu/jaffer/SLIB_COPYING.txt>.
+
+Documentation and distributions in several formats are linked from
+SLIB's home page:
+
+	      <http://people.csail.mit.edu/jaffer/SLIB>
+
+Links to distributions of SLIB and related softwares are at the end of
+this message.
+
+			      -=-=-=-=-
+
+slib-3b3 news:
+
+  * Supports GNU configure.
+  * Makefile: Reorganized per <http://www.gnu.org/prep/standards/>.
+  * (Guile 1.8.6, 1.8.7, 1.9.7, and 2?): Supported.
+  * s7.init: Added init file for S7, part of the Snd sound-editor.
+  * Makefile (allfiles): Added "version.txi".
+  * Corrected several color problems.
+  * qp.scm (qp): Don't truncate symbols when printing.
+  * transact.scm (word:lock!): Truncate email components so MS-Word
+    style ~$ckfile fits in 162.B.
+  * dirs.scm (directory*-for-each): Added.
+  * srfi-39.scm (make-parameter, parameterize): Added.
+  * grapheps.ps (bargraph, impulse): Fixed for ranges not containing 0.
+
+Details at
+<http://cvs.savannah.gnu.org/viewvc/*checkout*/slib/slib/ChangeLog>
+
+			      -=-=-=-=-
+
+SLIB is available from:
+ <http://groups.csail.mit.edu/mac/ftpdir/scm/slib-3b3.zip>
+Also available as RPM:
+ <http://groups.csail.mit.edu/mac/ftpdir/scm/slib-3b3-1.src.rpm>
+ <http://groups.csail.mit.edu/mac/ftpdir/scm/slib-3b3-1.noarch.rpm>
+Also available as MS-Windows installer:
+ <http://groups.csail.mit.edu/mac/ftpdir/scm/slib-3b3-1.exe>
+
+SLIB-PSD is a portable debugger for Scheme (requires emacs editor):
+ <http://groups.csail.mit.edu/mac/ftpdir/scm/slib-psd1-3.tar.gz>
+
+SCHELOG is an embedding of Prolog in Scheme+SLIB:
+ <http://www.ccs.neu.edu/home/dorai/schelog/schelog.html>
+
+Programs for printing and viewing TexInfo documentation (which SLIB
+has) come with GNU Emacs or can be obtained via ftp from:
+ <ftp://ftp.gnu.org/pub/gnu/texinfo>

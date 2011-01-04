@@ -407,8 +407,7 @@ DEFUN1(open_output_port_proc) {
   object *name = FIRST;
   FILE *out = fopen(STRING(name), "w");
   if(out == NULL) {
-    fprintf(stderr, "could not open file '%s' for output\n", STRING(name));
-    return the_empty_list;
+    return eof_object;
   }
   return make_output_port(out);
 }
@@ -423,8 +422,7 @@ DEFUN1(open_input_port_proc) {
   object *name = FIRST;
   FILE *in = fopen(STRING(name), "r");
   if(in == NULL) {
-    fprintf(stderr, "could not open file '%s' for input\n", STRING(name));
-    return the_empty_list;
+    return eof_object;
   }
   return make_input_port(in);
 }
@@ -500,15 +498,15 @@ DEFUN1(read_proc) {
 }
 
 DEFUN1(write_proc) {
-  object *port = FIRST;
-  object *obj = SECOND;
+  object *port = SECOND;
+  object *obj = FIRST;
   owrite(OUTPUT(port), obj);
   return true;
 }
 
 DEFUN1(write_char_proc) {
-  object *port = FIRST;
-  object *ch = SECOND;
+  object *port = SECOND;
+  object *ch = FIRST;
   putc(CHAR(ch), OUTPUT(port));
   return true;
 }
@@ -529,6 +527,19 @@ DEFUN1(unread_char_proc) {
 
 DEFUN1(char_to_integer_proc) {
   return make_fixnum(CHAR(FIRST));
+}
+
+DEFUN1(integer_to_char_proc) {
+  return make_character((char)LONG(FIRST));
+}
+
+DEFUN1(string_ref_proc) {
+  return make_character(STRING(FIRST)[LONG(SECOND)]);
+}
+
+DEFUN1(string_set_proc) {
+  STRING(FIRST)[LONG(SECOND)] = CHAR(THIRD);
+  return FIRST;
 }
 
 DEFUN1(number_to_string_proc) {
@@ -1183,6 +1194,9 @@ void init_prim_environment(object * env) {
   add_procedure("apply", apply_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
+  add_procedure("integer->char", integer_to_char_proc);
+  add_procedure("string-ref", string_ref_proc);
+  add_procedure("string-set!", string_set_proc);
   add_procedure("number->string", number_to_string_proc);
   add_procedure("string->number", string_to_symbol_proc);
   add_procedure("symbol->string", symbol_to_string_proc);

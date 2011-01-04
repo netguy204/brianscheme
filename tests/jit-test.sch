@@ -1,7 +1,7 @@
 (require 'jit)
 
-(write "context-supports-threads"
-       (jit:context-supports-threads *context*))
+(for-each display (list "context-supports-threads"
+			(jit:context-supports-threads *context*)))
 
 
 ;; jit a function that takes two integer arguments
@@ -34,14 +34,16 @@
 		    *args*
 		    (ffi:address-of *result*))
 
-(write "the answer is" (ffi:alien-to-int *result*))
+(for-each display
+	  (list "the answer is" (ffi:alien-to-int *result*)))
 
 ;; try converting the opaque function handle into a function
 ;; pointer
 (set! *fptr* (jit:function-to-closure *func*))
 
 ;; now invoke it again
-(write "the answer is now" (ffi:funcall *fptr* 'ffi-uint 42 1))
+(for-each display
+	  (list "the answer is now" (ffi:funcall *fptr* 'ffi-uint 42 1)))
 
 (jit:define left-shift *context*
   (jit-int (jit-int jit-int))

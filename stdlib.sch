@@ -269,9 +269,12 @@
   (cond
    ((null? clauses) #f)
    ((length=1 clauses) (car clauses))
-   (#t `(if ,(car clauses)
-	    #t
-	    (or . ,(cdr clauses))))))
+   (#t
+    (let ((val (gensym)))
+      `(let ((,val ,(car clauses)))
+	 (if ,val
+	     ,val
+	     (or . ,(cdr clauses))))))))
 
 (define-syntax (case key . clauses)
   "evaluates the first clause whose car contains key"
@@ -317,7 +320,7 @@
   "print the backtrace from where we are. tail recursion hides some data"
   (letrec ((iter (lambda (rest)
 		   (unless (null? rest)
-			   (write (car rest))
+			   (display (car rest))
 			   (iter (cdr rest))))))
 
     (let ((cs (car callstack)))
@@ -325,10 +328,10 @@
 
 (define (debug-repl)
   "repl that allows last-gasp debugging of a dying interpreter"
-  (write-port stdout 'debug-repl>)
+  (display "debug-repl>")
   (let ((result (eval (read-port stdin) base-env)))
-    (write-port stdout result)
-    (write-char stdout #\newline)
+    (write-port result stdout)
+    (newline)
     (unless (eq? result 'quit)
 	    (debug-repl))))
 
@@ -346,7 +349,7 @@
   ;; now dump an approximation of the backtrace (it's missing all
   ;; tail-calls) and launch a debug repl.
   (print-backtrace)
-  (write "evaluate 'quit to exit")
+  (display "evaluate 'quit to exit")
   (debug-repl))
 
 ;; We want to also provide a way to exit without invoking the exit
@@ -425,9 +428,15 @@
 			     remaining-lists)))))
     (reverse (iter nil nil lists))))
 
-(define (append . lists)
-  "append a series of lists together"
-  (append-all lists))
+;(define (append . lists)
+;  "append a series of lists together"
+;  (append-all lists))
+(define (append l1 l2)
+  (if l1
+      (cons (car l1) (append (cdr l1) l2))
+      l2))
+
+
 
 (define (mappend fn lst)
   "map fn over list and append the resulting lists together"
@@ -441,12 +450,9 @@
 	(f (car l))
 	(for-each f (cdr l)))))
 
-(define (read name)
-  "read a single form from a file called name"
-  (let* ((in (open-input-port name))
-	(result (read-port in)))
-    (close-input-port in)
-    result))
+(define (read port)
+  "read from a port"
+  (read-port port))
 
 (define (load name)
   "read and evaluate all forms in a file called name"
@@ -455,6 +461,7 @@
 	   (iter (lambda (form)
 		   (unless (eof-object? form)
 			   (write (eval0 form base-env))
+			   (newline)
 			   (iter (read-port in))))))
     (iter (read-port in))
     #t))
@@ -462,7 +469,7 @@
 (let ((required nil))
   (letrec ((sym-to-name (lambda (name)
 			  (if (symbol? name)
-			      (concat (symbol->string name) ".sch")
+			      (string-append (symbol->string name) ".sch")
 			      name))))
     (define (require name)
       "load file name if it hasn't already been loaded"
@@ -477,17 +484,55 @@
       sym)))
 
 (define (newline)
-  (write-char stdout #\newline))
+  (write-char #\newline stdout))
 
 (define (write-with-spaces port lst)
-  (write-port port (car lst))
+  (write-port (car lst) port)
   (unless (null? (cdr lst))
-	  (write-char port #\space)
+	  (write-char #\space port)
 	  (write-with-spaces port (cdr lst))))
 
-(define (write . objs)
-  (write-with-spaces stdout objs)
-  (newline))
+(define (write obj . port)
+  (let ((p (or (and port
+		    (car port))
+	       stdout)))
+    (write-port obj p)))
+
+(define (display-string str port)
+  "display a string without quotation marks"
+  (let loop ((idx 0))
+    (let ((char (string-ref str idx)))
+      (unless (= (char->integer char) 0)
+	      (write-char char port)
+	      (loop (+ idx 1))))))
+
+(define (display obj . port)
+  (let ((port (or (and port
+		       (car port))
+		  stdout)))
+    (cond
+     ((string? obj) (display-string obj port))
+     ((integer? obj) (display-string (number->string obj) port))
+     ((char? obj) (write-char obj port))
+     (else (write-port obj port)))))
+
+(define (call-with-input-file file proc)
+  (display "call-with-input-file: ")
+  (display file)
+  (newline)
+  (let* ((in (open-input-port file))
+	 (result (proc in)))
+    (close-input-port in)
+    result))
+
+(define (call-with-output-file file proc)
+  (display "call-with-output-file: ")
+  (display file)
+  (newline)
+  (let* ((out (open-output-port file))
+	 (result (proc out)))
+    (close-output-port out)
+    result))
 
 (define (error . objs)
   (write-with-spaces stderr objs)
@@ -500,6 +545,11 @@
 
 (define (atom? obj)
   (not (pair? obj)))
+
+(define (list? obj)
+  (and (pair? obj)
+       (or (null? (cdr obj))
+	   (pair? (cdr obj)))))
 
 (define (do-times fn times)
   (letrec ((iter (lambda (n)
@@ -558,6 +608,14 @@
 	   (equal? (cdr a) (cdr b)))
       (eq? a b)))
 
+(define eqv? equal?)
+
+(define (zero? val)
+  (= val 0))
+
+(define (char=? v1 v2)
+  (eq? v1 v2))
+
 (define (reduce fn lst . init)
   "apply fn to its previous result and each value of list. return final value"
   (letrec ((iter (lambda (last rest)
@@ -568,11 +626,17 @@
 	(iter (car lst) (cdr lst))
 	(iter (car init) lst))))
 
-(define concat0 concat)
+(define (string-append . args)
+  "join a series of strings"
+  (reduce concat args))
 
-(define (concat . args)
-  "concatonate a series of strings"
-  (reduce concat0 args))
+(define (string-length str)
+  "find the length of a string, not including null"
+  (let ((len 0))
+    (while (not (= (char->integer (string-ref str len))
+		   0))
+      (inc! len))
+    len))
 
 (define (duplicate obj n)
   "create a list with obj duplicated n times"
@@ -630,6 +694,38 @@ body. always executes at least once"
 
        (,loop))))
 
+(define-syntax (while pred . body)
+  "execute body whle pred evaluates true."
+  (let ((loop (gensym))
+	(cont? (gensym))
+	(last (gensym)))
+    `(let ,loop ((,cont? ,pred)
+		 (,last nil))
+	  (if ,cont?
+	      (let ((,last (begin . ,body)))
+		(,loop ,pred ,last))
+	      ,last))))
+
+
+(define-syntax (do bindings test-and-return . body)
+  "establish and update bindings and execute body until test is true"
+  (let ((loop (gensym)))
+    `(let ,loop ,(map (lambda (binding)
+		       (list (first binding)
+			     (second binding)))
+		     bindings)
+	  (if ,(first test-and-return)
+	      ,(if (rest test-and-return)
+		   `(begin . ,(rest test-and-return)))
+	      (begin
+		(begin . ,body)
+		(,loop . ,(map (lambda (binding)
+				 (if (cddr binding)
+				     (third binding)
+				     (first binding)))
+			       bindings)))))))
+
+
 (define-syntax (dolist args . body)
   "evaluate body with (first args) taking successive values of (second args)"
   `(for-each (lambda (,(first args)) . ,body)
@@ -677,6 +773,13 @@ body. always executes at least once"
   "create a computation that can be completed later"
   `(cons nil (lambda () . ,body)))
 
+(define (dynamic-wind before body after)
+  "hack. do something useful here later"
+  (before)
+  (let ((result (body)))
+    (after)
+    result))
+
 (define (force fn)
   "compute and or return the value of a delay"
   (when (and (not (null? (cdr fn))) (null? (car fn)))
@@ -702,17 +805,18 @@ body. always executes at least once"
     `(let* ((,start (clock))
 	    (,result (begin . ,body))
 	    (,end (clock)))
-       (write "execution took" (- ,end ,start)
-	      "/" (clocks-per-sec) "seconds")
+       (for-each display
+		 '("execution took" (- ,end ,start)
+		   "/" (clocks-per-sec) "seconds"))
        ,result)))
 
 (define-syntax (define-struct name . docs-and-slots)
   "create a structure of a given name with a set of slots"
   (let* ((builder-sym (string->symbol
-		       (concat "make-"
-			       (symbol->string name))))
+		       (string-append "make-"
+				      (symbol->string name))))
 	 (tester-sym (string->symbol
-		      (concat (symbol->string name) "?")))
+		      (string-append (symbol->string name) "?")))
 
 	 (slots (if (string? (car docs-and-slots))
 		    (car (cdr docs-and-slots))
@@ -742,12 +846,12 @@ body. always executes at least once"
 
     (letrec ((get-slot-namer (lambda (slot-name)
 			       (string->symbol
-				(concat (symbol->string name)
+				(string-append (symbol->string name)
 					"-"
 					(symbol->string slot-name)))))
 	     (set-slot-namer (lambda (slot-name)
 			       (string->symbol
-				(concat "set-"
+				(string-append "set-"
 					(symbol->string name)
 					"-"
 					(symbol->string slot-name)
@@ -757,7 +861,7 @@ body. always executes at least once"
       `(begin
 	 ;; constructor
 	 (define (,builder-sym . args)
-	   ,(concat "create a structure of type "
+	   ,(string-append "create a structure of type "
 		    (symbol->string name))
 	   (let ((struct (make-vector ,(+ 1 num-slots) nil)))
 	     (vector-set! struct 0 ',name)
@@ -778,14 +882,14 @@ body. always executes at least once"
 	     struct))
 
 	 (define (,tester-sym struct)
-	   ,(concat "test to see if structure is of type "
-		    (symbol->string name))
+	   ,(string-append "test to see if structure is of type "
+			   (symbol->string name))
 	   (and (vector? struct) (eq? (vector-ref struct 0) ',name)))
 
 	 ;; getters
 	 ,(map (lambda (slot)
 		 `(define (,(get-slot-namer (car slot)) struct)
-		    ,(concat "retrieve slot "
+		    ,(string-append "retrieve slot "
 			     (symbol->string (car slot))
 			     " of "
 			     (symbol->string name))
@@ -796,7 +900,7 @@ body. always executes at least once"
 	 ;; setters
 	 ,(map (lambda (slot)
 		 `(define (,(set-slot-namer (car slot)) struct value)
-		    ,(concat "set slot "
+		    ,(string-append "set slot "
 			     (symbol->string (car slot))
 			     " of "
 			     (symbol->string name))

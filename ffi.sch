@@ -174,46 +174,49 @@ freed later."
 ;; simple example of using ffi to resolve symbols
 ;; already loaded by ld
 (with-library (handle nil)
-  (let ((puts (ffi:dlsym handle "puts"))
-	(fork (ffi:dlsym handle "fork"))
-	(sleep (ffi:dlsym handle "sleep"))
-	(putchar (ffi:dlsym handle "putchar"))
-	(wait (ffi:dlsym handle "wait")))
+  (let ((lputs (ffi:dlsym handle "puts"))
+	(lfork (ffi:dlsym handle "fork"))
+	(lgetenv (ffi:dlsym handle "getenv"))
+	(lsleep (ffi:dlsym handle "sleep"))
+	(lputchar (ffi:dlsym handle "putchar"))
+	(lwait (ffi:dlsym handle "wait")))
 
-    (define (ffi:puts string)
-      (ffi:funcall puts 'ffi-uint string))
+    (define (getenv var)
+      (let ((result
+	     (ffi:funcall lgetenv 'ffi-pointer
+			  (ffi:string-to-alien var))))
+	(if (= (ffi:alien-to-int result) 0)
+	    #f
+	    (ffi:alien-to-string result))))
 
-    (define (ffi:fork)
-      (ffi:funcall fork 'ffi-uint))
+    (define (fork)
+      (ffi:funcall lfork 'ffi-uint))
 
-    (define (ffi:sleep seconds)
-      (ffi:funcall sleep 'ffi-uint seconds))
-
-    (define (ffi:putchar val)
-      (ffi:funcall put 'ffi-uint val))
+    (define (sleep seconds)
+      (ffi:funcall lsleep 'ffi-uint seconds))
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive
     ;;
     ;; unsigned int wait(unsigned int* status);
     ;;
-    (define (ffi:wait)
+    (define (wait)
       (let* ((status (ffi:int-to-alien 0))
-	     (pid (ffi:funcall wait 'ffi-uint (ffi:address-of status))))
+	     (pid (ffi:funcall lwait 'ffi-uint (ffi:address-of status))))
 
 	(list (cons 'pid pid)
 	      (cons 'status (ffi:alien-to-int status)))))))
 
-(define (fork-test)
-  (let ((pid (ffi:fork)))
+(define (ffi:fork-test)
+  (let ((pid (fork)))
     (if (= pid 0)
 	(begin
-	  (write "hello from the child")
-	  (ffi:sleep 1)
-	  (write "child is exiting")
+	  (display "hello from the child")
+	  (sleep 1)
+	  (display "child is exiting")
 	  (exit 1))
 	(begin
-	  (write "hello from parent. child is" pid)
-	  (write (ffi:wait))))))
+	  (display "hello from parent. child is" pid)
+	  (display (wait))))))
 
 

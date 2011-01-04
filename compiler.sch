@@ -33,7 +33,7 @@
 
 (define-syntax (write-dbg . args)
   "display the given forms"
-  `(write . ,args))
+  `(display . ,args))
 
 (define-syntax (write-dbg . args)
   "do nothing."
@@ -321,7 +321,7 @@
 		    "L")))
     (write-dbg 'gen-label prefix)
     (set! label-num (+ label-num 1))
-    (string->symbol (concat prefix (number->string label-num)))))
+    (string->symbol (string-append prefix (number->string label-num)))))
 
 (define (gen-var var env)
   (write-dbg 'gen-var var)
@@ -403,7 +403,7 @@
     code-vector))
 
 (define (make-space spaces)
-  (reduce concat (duplicate " " spaces) ""))
+  (reduce string-append (duplicate " " spaces) ""))
 
 (define (show-fn fn indent)
   (write (make-space indent)
@@ -443,11 +443,10 @@
     (show-fn fn indent)))
 
 (define (comp-repl)
-  (write-port stdout 'comp-repl>)
-  (write-char stdout #\space)
+  (display "comp-repl> ")
   (let ((result ((compiler (read-port stdin)))))
-    (write-port stdout result)
-    (write-char stdout #\newline)
+    (write-port result stdout)
+    (newline)
     (unless (eq? result 'quit)
 	    (comp-repl))))
 

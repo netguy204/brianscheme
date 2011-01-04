@@ -33,9 +33,6 @@
       (abs a)
       (gcd b (- a (* b (/ a b))))))
 
-(define (neg x)
-  (- 0 x))
-
 (define (make-rat a b)
   (reduce-rat (cons a b)))
 

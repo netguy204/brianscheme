@@ -1,0 +1,2 @@
+@set SLIBVERSION 3b3
+@set SLIBDATE June 2010

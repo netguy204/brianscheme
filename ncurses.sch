@@ -104,7 +104,7 @@
   "since curses trashes stdout, this is a handy way to find out what's
 happening"
   (let ((out (open-output-port "debug")))
-    (write-port out form)
+    (write-port form out)
     (close-output-port out)))
 
 (define (nc:demo)
