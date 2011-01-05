@@ -166,6 +166,6 @@ intact though."
 	(nc:refresh)))
 
 
-    (ffi:sleep 1)))
+    (sleep 1)))
 
 
