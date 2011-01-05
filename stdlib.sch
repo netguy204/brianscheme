@@ -435,15 +435,9 @@
 			     remaining-lists)))))
     (reverse (iter nil nil lists))))
 
-;(define (append . lists)
-;  "append a series of lists together"
-;  (append-all lists))
-(define (append l1 l2)
-  (if l1
-      (cons (car l1) (append (cdr l1) l2))
-      l2))
-
-
+(define (append . lists)
+  "append a series of lists together"
+  (append-all lists))
 
 (define (mappend fn lst)
   "map fn over list and append the resulting lists together"

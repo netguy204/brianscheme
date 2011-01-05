@@ -13,6 +13,9 @@
 ; limitations under the License.
 ;
 
+(define (neg v)
+  (- 0 v))
+
 (define (abs a)
   (if (< a 0)
       (- 0 a)
