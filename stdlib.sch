@@ -603,11 +603,22 @@
 
 (define (equal? a b)
   "true if each node in trees a and b are eq?"
-  (if (and (pair? a)
-	   (pair? b))
-      (and (equal? (car a) (car b))
-	   (equal? (cdr a) (cdr b)))
-      (eq? a b)))
+  (cond
+   ((and (pair? a) (pair? b))
+    (and (equal? (car a) (car b))
+	 (equal? (cdr a) (cdr b))))
+   ((and (vector? a) (vector? b)
+	 (= (vector-length a)
+	    (vector-length b)))
+    (let loop ((idx 0))
+      (cond
+       ((< idx (vector-length a))
+	(if (= (vector-ref a idx)
+	       (vector-ref b idx))
+	    (loop (+ idx 1))
+	    #f))
+       (else #t))))
+   (else (eq? a b))))
 
 (define eqv? equal?)
 
@@ -807,8 +818,9 @@ body. always executes at least once"
 	    (,result (begin . ,body))
 	    (,end (clock)))
        (for-each display
-		 '("execution took" (- ,end ,start)
-		   "/" (clocks-per-sec) "seconds"))
+		 (list "execution took " (- ,end ,start)
+		       "/" (clocks-per-sec) " seconds"))
+       (newline)
        ,result)))
 
 (define-syntax (define-struct name . docs-and-slots)

@@ -432,19 +432,19 @@
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
-;(define (compile-together . fns)
-;  `(let ,(map (lambda (fn) (list fn 'nil)) fns)
-;     (begin . ,(map (lambda (fn)
-;		      (let ((efn (eval fn)))
-;			(cond
-;			 ((compound-procedure? efn)
-;			  `(set! ,fn ,(compound->lambda efn)))
-;			 ((null? efn)
-;			  '#t)
-;			 (else
-;			  `(set! ,fn ,efn)))))
-;		    fns))
-;     ,(first fns)))
+(define (compile-together . fns)
+  `(let ,(map (lambda (fn) (list fn 'nil)) fns)
+     (begin . ,(map (lambda (fn)
+		      (let ((efn (eval fn)))
+			(cond
+			 ((compound-procedure? efn)
+			  `(set! ,fn ,(compound->lambda efn)))
+			 ((null? efn)
+			  '#t)
+			 (else
+			  `(set! ,fn ,efn)))))
+		    fns))
+     ,(first fns)))
 
 (let ((interp-env nil))
   (define (env-push! env)

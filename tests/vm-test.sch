@@ -1,4 +1,4 @@
-;(load "compiler.sch")
+(require 'compiler)
 
 (define-syntax (assert-compiles-same exp)
   (let ((ires (gensym))
@@ -9,8 +9,12 @@
 	    (,cexp ((compiler ',exp)))
 	    (,cres (,cexp)))
        (unless (equal? ,ires ,cres)
-	       (write ,ires "!=" ,cres)
-	       (write ',exp)
+	       (for-each display
+			 (list ,ires "!=" ,cres))
+	       (newline)
+	       (display ',exp)
+	       (newline)
+
 	       (show-fn ,cexp 0)
 	       (throw-exit "test failed"))
 
