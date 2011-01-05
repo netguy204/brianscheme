@@ -44,6 +44,7 @@ object *lvar_op;
 object *save_op;
 object *gvar_op;
 object *lset_op;
+object *llset_op;
 object *gset_op;
 object *pop_op;
 
@@ -84,6 +85,7 @@ object *error_sym;
 #define VM_RETURN(obj)				\
   do {						\
     pop_root(&top);				\
+    pop_root(&ienv);				\
     pop_root(&env);				\
     pop_root(&fn);				\
     return obj;					\
@@ -122,9 +124,10 @@ object *error_sym;
 #define VM_DEBUG(msg, obj)
 #endif
 
-object *vm_execute(object * fn, object * stack, long n_args, object * ienv) {
+object *vm_execute(object * fn, object * stack, long n_args) {
   object *code_array;
   object *env;
+  object *ienv;
   object *instr;
   object *opcode;
   object *top;
@@ -133,16 +136,21 @@ object *vm_execute(object * fn, object * stack, long n_args, object * ienv) {
   long stack_top = n_args;
 
   env = CENV(fn);
+  ienv = the_empty_list;
   instr = the_empty_list;
   top = the_empty_list;
 
   push_root(&fn);
   push_root(&env);
+  push_root(&ienv);
   push_root(&top);
 
   VM_ASSERT(is_compiled_proc(fn), "object is not compiled-procedure");
 
 vm_fn_begin:
+  ienv = extend_environment(the_empty_list,
+			    the_empty_list,
+			    CIENV(fn));
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -228,7 +236,7 @@ vm_begin:
     else if(opcode == fn_op) {
       object *fn_arg = ARG1(instr);
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
-					  env);
+					  env, ienv);
       push_root(&new_fn);
       VPUSH(new_fn, stack, stack_top);
       pop_root(&new_fn);
@@ -283,10 +291,6 @@ vm_begin:
 	/* generate return */
 	RETURN_OPCODE_INSTRUCTIONS;
       }
-      else if(is_compound_proc(top)) {
-	VM_ASSERT(0, "compound invocation not implemented");
-	/* generate return */
-      }
       else {
 	VM_ASSERT(0, "unrecognized invocation");
       }
@@ -313,6 +317,11 @@ vm_begin:
       }
 
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
+    }
+    else if(opcode == llset_op) {
+      object *var = ARG1(instr);
+      object *val = VARRAY(stack)[stack_top - 1];
+      define_local_variable(var, val, ienv);
     }
     else if(opcode == gvar_op) {
       object *var = lookup_variable_value(ARG1(instr), ienv);
@@ -375,6 +384,7 @@ void vm_init(void) {
   save_op = make_symbol("save");
   gvar_op = make_symbol("gvar");
   lset_op = make_symbol("lset");
+  llset_op = make_symbol("llset");
   gset_op = make_symbol("gset");
   pop_op = make_symbol("pop");
 

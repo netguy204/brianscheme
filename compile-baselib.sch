@@ -78,3 +78,34 @@
 (replace-with-compiled show-fn)
 (replace-with-compiled comp-show)
 (replace-with-compiled comp-repl)
+(replace-with-compiled dump-compiled-fn)
+(replace-with-compiled env-top)
+(replace-with-compiled env-pop!)
+(replace-with-compiled env-push!)
+(replace-with-compiled make-space)
+(replace-with-compiled gen-set-local)
+(replace-with-compiled string)
+(replace-with-compiled new-fun)
+(replace-with-compiled num-args)
+(replace-with-compiled gen-args)
+(replace-with-compiled assert-symbols)
+(replace-with-compiled primitive?)
+(replace-with-compiled prim-side-effects?)
+(replace-with-compiled prim-always?)
+(replace-with-compiled prim-opcode)
+(replace-with-compiled prim-n-args)
+(replace-with-compiled prim-symbol)
+(replace-with-compiled prim?)
+(replace-with-compiled make-prim)
+(replace-with-compiled set-fn-args!)
+(replace-with-compiled set-fn-name!)
+
+
+;; the rest?
+(define (sym-is-comp? sym)
+  (compound-procedure? (eval sym)))
+
+'still-not-compiled
+(filter sym-is-comp? (cdr (all-symbols)))
+
+'compile-baselib

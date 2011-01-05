@@ -261,12 +261,14 @@ char is_syntax_proc(object * obj) {
   return obj->type == SYNTAX_PROC;
 }
 
-object *make_compiled_proc(object * bytecode, object * env) {
+object *make_compiled_proc(object * bytecode, object * env, object * ienv) {
   object *obj = alloc_object();
 
   obj->type = COMPILED_PROC;
-  obj->data.compiled_proc.bytecode = bytecode;
-  obj->data.compiled_proc.env = env;
+  BYTECODE(obj) = bytecode;
+  CENV(obj) = env;
+  CIENV(obj) = ienv;
+
   return obj;
 }
 

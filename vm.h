@@ -21,7 +21,6 @@
 
 void vm_init(void);
 object *vm_execute(object *fn, object *stack,
-		   long n_args,
-		   object *env);
+		   long n_args);
 
 #endif

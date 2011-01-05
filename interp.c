@@ -493,7 +493,7 @@ DEFUN1(apply_proc) {
       evald_args = cdr(evald_args);
     }
 
-    result = vm_execute(fn, stack, stack_top, environment);
+    result = vm_execute(fn, stack, stack_top);
     pop_root(&stack);
     return result;
   }
@@ -577,7 +577,12 @@ DEFUN1(string_to_uninterned_symbol_proc) {
 }
 
 DEFUN1(make_compiled_proc_proc) {
-  return make_compiled_proc(FIRST, SECOND);
+  object *env = THIRD;
+  if(is_the_empty_list(env)) {
+    env = environment;
+  }
+
+  return make_compiled_proc(FIRST, SECOND, env);
 }
 
 DEFUN1(compiled_bytecode_proc) {
@@ -1114,7 +1119,7 @@ interp_restart:
 	  evald_args = cdr(evald_args);
 	}
 
-	result = vm_execute(fn, stack, stack_top, env);
+	result = vm_execute(fn, stack, stack_top);
 	pop_root(&stack);
 
 	pop_root(&result);

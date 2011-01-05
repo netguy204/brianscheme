@@ -53,6 +53,8 @@ void set_variable_value(object *var, object *new_val,
 			object *env);
 void define_variable(object *var, object *new_val,
 		     object *env);
+void define_local_variable(object *var, object *new_val,
+			   object *env);
 object *setup_environment(void);
 void init_prim_environment(object *env);
 void init();

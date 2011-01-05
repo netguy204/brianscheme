@@ -59,6 +59,11 @@
 		      (gen-set (second x) env)
 		      (when (not val?) (gen 'pop))
 		      (unless more? (gen 'return))))
+	   (set-local! (arg-count x 2 2)
+		       (seq (comp (third x) env #t #t)
+			    (gen-set-local (second x) env)
+			    (when (not val?) (gen 'pop))
+			    (unless more? (gen 'return))))
 	   (if (arg-count x 2 3)
 	       (comp-if (second x) (third x) (fourth x)
 			env val? more?))
@@ -296,11 +301,19 @@
 
 (define (optimize code) code)
 
-(define label-num 0)
+(let ((label-num 0))
+  (define (compiler x)
+    (set! label-num 0)
+    (comp-lambda nil (list x) nil))
 
-(define (compiler x)
-  (set! label-num 0)
-  (comp-lambda nil (list x) nil))
+  (define (gen-label . opt)
+    (let ((prefix (if (pair? opt)
+		      (string (car opt))
+		      "L")))
+      (write-dbg 'gen-label prefix)
+      (set! label-num (+ label-num 1))
+      (string->symbol
+       (string-append prefix (number->string label-num))))))
 
 (define (gen opcode . args)
   (write-dbg 'gen opcode 'args args)
@@ -314,14 +327,6 @@
    ((string? obj) obj)
    ((symbol? obj) (symbol->string obj))
    (else (throw-error "can't make" obj "a string"))))
-
-(define (gen-label . opt)
-  (let ((prefix (if (pair? opt)
-		    (string (car opt))
-		    "L")))
-    (write-dbg 'gen-label prefix)
-    (set! label-num (+ label-num 1))
-    (string->symbol (string-append prefix (number->string label-num)))))
 
 (define (gen-var var env)
   (write-dbg 'gen-var var)
@@ -338,6 +343,10 @@
 	(if (assoc var *primitive-fns*)
 	    (throw-error "can't alter the constant" +)
 	    (gen 'gset var)))))
+
+(define (gen-set-local var env)
+  (write-dbg 'gen-set-local var)
+  (gen 'llset var))
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))
@@ -377,7 +386,7 @@
 			      (second r1)))
 	 (nargs (num-args (fn-args fn)))
 	 (result
-	  (make-compiled-proc r2 nil)))
+	  (make-compiled-proc r2 nil (env-top))))
 
     result))
 
@@ -406,35 +415,55 @@
   (reduce string-append (duplicate " " spaces) ""))
 
 (define (show-fn fn indent)
-  (write (make-space indent)
-	 "environment" (compiled-environment fn))
+  (map display (list (make-space indent)
+		     "environment: " (compiled-environment fn)))
+  (newline)
 
-  (write (make-space indent) "fn")
+  (map display (list (make-space indent) "fn"))
+  (newline)
+
   (dovector (instr (compiled-bytecode fn))
 	    (if (is instr 'fn)
 		(show-fn (second instr) (+ indent 4))
-		(write (make-space indent) instr))))
+		(begin 
+		  (map display (list (make-space indent) instr))
+		  (newline)))))
 
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
-(define (compile-together . fns)
-  `(let ,(map (lambda (fn) (list fn 'nil)) fns)
-     (begin . ,(map (lambda (fn)
-		      (let ((efn (eval fn)))
-			(cond
-			 ((compound-procedure? efn)
-			  `(set! ,fn ,(compound->lambda efn)))
-			 ((null? efn)
-			  '#t)
-			 (else
-			  `(set! ,fn ,efn)))))
-		    fns))
-     ,(first fns)))
+;(define (compile-together . fns)
+;  `(let ,(map (lambda (fn) (list fn 'nil)) fns)
+;     (begin . ,(map (lambda (fn)
+;		      (let ((efn (eval fn)))
+;			(cond
+;			 ((compound-procedure? efn)
+;			  `(set! ,fn ,(compound->lambda efn)))
+;			 ((null? efn)
+;			  '#t)
+;			 (else
+;			  `(set! ,fn ,efn)))))
+;		    fns))
+;     ,(first fns)))
+
+(let ((interp-env nil))
+  (define (env-push! env)
+    (push! env interp-env))
+
+  (define (env-pop!)
+    (pop! interp-env))
+
+  (define (env-top)
+    (car interp-env)))
 
 (define-syntax (replace-with-compiled fn)
   "replace a given function with a compiled version"
-  `(set! ,fn ((compiler (compound->lambda ,fn)))))
+  `(begin
+     (env-push! (compound-environment ,fn))
+     (let ((result 
+	    (set! ,fn ((compiler (compound->lambda ,fn))))))
+       (env-pop!)
+       result)))
 
 (define (dump-compiled-fn fn . indent)
   (let ((indent (if (null? indent)

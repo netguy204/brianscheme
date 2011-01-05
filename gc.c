@@ -152,6 +152,7 @@ void mark_reachable(object * root) {
   case COMPILED_PROC:
     mark_reachable(BYTECODE(root));
     mark_reachable(CENV(root));
+    mark_reachable(CIENV(root));
     break;
   case HASH_TABLE:
     ht_iter_init(HTAB(root), &htab_iter);

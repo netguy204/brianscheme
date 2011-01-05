@@ -70,6 +70,7 @@ typedef struct object {
     struct {
       struct object *bytecode;
       struct object *env;
+      struct object *ienv;
     } compiled_proc;
     struct {
       FILE *stream;
@@ -199,6 +200,7 @@ long get_cons_count();
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
 #define CENV(obj) (obj->data.compiled_proc.env)
+#define CIENV(obj) (obj->data.compiled_proc.ienv)
 #define HTAB(obj) (obj->data.hash_table.hash_table)
 #define ALIEN_RELEASER(obj) (obj->data.alien.releaser)
 #define ALIEN_PTR(obj) (obj->data.alien.data.ptr)
@@ -213,7 +215,9 @@ char is_compound_proc(object *obj);
 object *make_syntax_proc(object *parameters, object *body);
 char is_syntax_proc(object *obj);
 
-object *make_compiled_proc(object *bytecode, object *env);
+object *make_compiled_proc(object *bytecode, object *env,
+			   object *ienv);
+
 char is_compiled_proc(object *obj);
 
 object *make_input_port(FILE *stream);

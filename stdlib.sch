@@ -793,7 +793,7 @@ body. always executes at least once"
   (append-all
    (map (lambda (x)
 	  (cond
-	   ((pair? x) (car x))
+	   ((pair? x) nil)
 	   ((hashtab? x) (hashtab-keys x))
 	   (else (throw-error "giving up"))))
 	base-env)))
