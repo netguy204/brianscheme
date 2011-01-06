@@ -249,7 +249,7 @@
 	 (get-vector
 	  (lambda (closure)
 	    (let ((cell (hashtab-ref instances closure)))
-	      (if cell cell #f)))))
+	      cell))))
 
   (set! %allocate-instance-internal
 	(lambda (class lock proc nfields)
@@ -450,7 +450,6 @@
 (define method-procedure
     (lambda (method) (slot-ref method 'procedure)))
 
-
 ;
 ; The next 7 clusters define the 6 initial classes.  It takes 7 to 6
 ; because the first and fourth both contribute to <class>.
@@ -477,6 +476,8 @@
       (map (lambda (s)
 	     (make-em s (position-of s the-slots-of-a-class)))
 	   the-slots-of-a-class)))
+
+
 (define <class> (%allocate-instance #f (length the-slots-of-a-class)))
 (%set-instance-class-to-self <class>)
 
@@ -497,6 +498,7 @@
 ;           'direct-supers (list <object>)
 ;           'direct-slots  (list 'direct-supers ...)))
 ;
+
 (slot-set! <class> 'direct-supers      (list <object>))
 (slot-set! <class> 'direct-slots       (map list the-slots-of-a-class))
 (slot-set! <class> 'cpl                (list <class> <object> <top>))

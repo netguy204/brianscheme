@@ -507,13 +507,17 @@
 	      (write-char char port)
 	      (loop (+ idx 1))))))
 
+(define (number? obj)
+  "is the object a kind of number?"
+  (integer? obj)) ;; we only have 1 kind right now
+
 (define (display obj . port)
   (let ((port (or (and port
 		       (car port))
 		  stdout)))
     (cond
      ((string? obj) (display-string obj port))
-     ((integer? obj) (display-string (number->string obj) port))
+     ((number? obj) (display-string (number->string obj) port))
      ((char? obj) (write-char obj port))
      (else (write-port obj port)))))
 
