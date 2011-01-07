@@ -35,8 +35,3 @@
     (ffi:funcall kill 'ffi-uint)))
 
 (pth:init)
-
-(define (hello)
-  (display "hello")
-  (pth:sleep 1)
-  (hello))
