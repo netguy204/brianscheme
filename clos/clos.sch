@@ -339,6 +339,7 @@
 			  class
 			  (length the-slots-of-a-class)))
 		    (dsupers (getl initargs 'direct-supers '()))
+		    (class-name (getl initargs 'class-name 'unknown))
 		    (dslots  (map list
 				  (getl initargs 'direct-slots  '())))
 		    (cpl     (let loop ((sups dsupers)
@@ -371,6 +372,7 @@
 
 	       (slot-set! new 'direct-supers      dsupers)
 	       (slot-set! new 'direct-slots       dslots)
+	       (slot-set! new 'class-name         class-name)
 	       (slot-set! new 'cpl                cpl)
 	       (slot-set! new 'slots              slots)
 	       (slot-set! new 'nfields            nfields)
@@ -457,6 +459,7 @@
 (define the-slots-of-a-class     ;
     '(direct-supers              ;(class ...)
       direct-slots               ;((name . options) ...)
+      class-name
       cpl                        ;(class ...)
       slots                      ;((name . options) ...)
       nfields                    ;an integer
@@ -483,11 +486,13 @@
 
 (define <top>          (make <class>
 			     'direct-supers (list)
-			     'direct-slots  (list)))
+			     'direct-slots  (list)
+			     'class-name '<top>))
 
 (define <object>       (make <class>
 			     'direct-supers (list <top>)
-			     'direct-slots  (list)))
+			     'direct-slots  (list)
+			     'class-name '<object>))
 
 ;
 ; This cluster, together with the first cluster above that defines
@@ -501,6 +506,7 @@
 
 (slot-set! <class> 'direct-supers      (list <object>))
 (slot-set! <class> 'direct-slots       (map list the-slots-of-a-class))
+(slot-set! <class> 'class-name         '<class>)
 (slot-set! <class> 'cpl                (list <class> <object> <top>))
 (slot-set! <class> 'slots              (map list the-slots-of-a-class))
 (slot-set! <class> 'nfields            (length the-slots-of-a-class))
@@ -512,20 +518,24 @@
 
 (define <procedure-class> (make <class>
 				'direct-supers (list <class>)
-				'direct-slots  (list)))
+				'direct-slots  (list)
+				'class-name    '<procedure-class>))
 
 (define <entity-class>    (make <class>
 			        'direct-supers (list <procedure-class>)
-			        'direct-slots  (list)))
+			        'direct-slots  (list)
+				'class-name    '<entity-class>))
 
 (define <generic>         (make <entity-class>
 			        'direct-supers (list <object>)
-			        'direct-slots  (list 'methods)))
+			        'direct-slots  (list 'methods)
+				'class-name    '<generic>))
 
 (define <method>          (make <class>
 			        'direct-supers (list <object>)
 			        'direct-slots  (list 'specializers
-						     'procedure)))
+						     'procedure)
+				'class-name    '<generic>))
 
 
 
@@ -727,6 +737,9 @@
 		   (map (lambda (s)
 			  (if (pair? s) s (list s)))
 			(getl initargs 'direct-slots  '())))
+	(slot-set! class
+		   'class-name
+		   (getl initargs 'class-name 'unknown))
 	(slot-set! class 'cpl   (compute-cpl   class))
 	(slot-set! class 'slots (compute-slots class))
 	(let* ((nfields 0)
@@ -857,27 +870,55 @@
 (define <primitive-class>
     (make <class>
 	  'direct-supers (list <class>)
-	  'direct-slots  (list)))
+	  'direct-slots  (list)
+	  'class-name    '<primitive-class>))
 
 (define make-primitive-class
-    (lambda class
-      (make (if (null? class) <primitive-class> (car class))
+    (lambda (class name)
+      (make (if (null? class) <primitive-class> class)
 	    'direct-supers (list <top>)
-	    'direct-slots  (list))))
+	    'direct-slots  (list)
+	    'class-name name)))
 
 
-(define <pair>        (make-primitive-class))
-(define <null>        (make-primitive-class))
-(define <symbol>      (make-primitive-class))
-(define <boolean>     (make-primitive-class))
-(define <procedure>   (make-primitive-class <procedure-class>))
-(define <number>      (make-primitive-class))
-(define <vector>      (make-primitive-class))
-(define <char>        (make-primitive-class))
-(define <string>      (make-primitive-class))
-(define  <input-port> (make-primitive-class))
-(define <output-port> (make-primitive-class))
+(define <pair>        (make-primitive-class nil '<pair>))
+(define <null>        (make-primitive-class nil '<null>))
+(define <symbol>      (make-primitive-class nil '<symbol>))
+(define <boolean>     (make-primitive-class nil '<boolean>))
+(define <procedure>   (make-primitive-class <procedure-class> '<procedure>))
+(define <number>      (make-primitive-class nil '<number>))
+(define <vector>      (make-primitive-class nil '<vector>))
+(define <char>        (make-primitive-class nil '<char>))
+(define <string>      (make-primitive-class nil '<string>))
+(define  <input-port> (make-primitive-class nil '<input-port>))
+(define <output-port> (make-primitive-class nil '<output-port>))
 
+
+(define print-object (make-generic))
+
+(add-method print-object
+  (make-method (list <class>)
+    (lambda (call-next-method cls)
+      (display "#")
+      (display (slot-ref cls 'class-name))
+      (newline))))
+
+(add-method print-object
+  (make-method (list <top>)
+    (lambda (call-next-method obj)
+      (print-object (class-of obj)))))
+
+(add-method print-object
+  (make-method (list <number>)
+    (lambda (call-next-method num)
+      (display num)
+      (newline))))
+
+(add-method print-object
+  (make-method (list <string>)
+    (lambda (call-next-method str)
+      (display str)
+      (newline))))
 
 ;
 ; All done.
