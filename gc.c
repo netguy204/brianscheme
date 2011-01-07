@@ -105,8 +105,22 @@ object *push_root(object ** stack) {
 
 void pop_root(object ** stack) {
   if(Root_Objects->objs[--Root_Objects->top] != stack) {
-    print_backtrace();
-    throw_gc("pop_stack_root - object not on top\n");
+    /* scan back until we find it */
+    int idx = Root_Objects->top - 1;
+    object ** last = Root_Objects->objs[Root_Objects->top];
+    int done = 0;
+    for(;idx >= 0 && !done; --idx) {
+      if(Root_Objects->objs[idx] == stack) {
+	done = 1;
+      }
+      object ** temp = Root_Objects->objs[idx];
+      Root_Objects->objs[idx] = last;
+      last = temp;
+    }
+    if(!done) {
+      print_backtrace();
+      throw_gc("pop_stack_root - object not found\n");
+    }
   }
 }
 
