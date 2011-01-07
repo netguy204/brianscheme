@@ -49,22 +49,22 @@ typedef struct hashtab_iter_t
  * function pointer is given (a NULL pointer), then the built in hash
  * function is used. A NULL pointer returned if the creation of the
  * hashtable failed due to a failed malloc(). */
-hashtab_t *ht_init (size_t size,
+hashtab_t *htb_init (size_t size,
 		    int (*hash_func)
-		    (void *key, size_t ht_size));
+		    (void *key, size_t htb_size));
 
 /* Fetch a value from table matching the key. Returns a pointer to
  * the value matching the given key. */
-void *ht_search (hashtab_t * hashtable, void *key);
+void *htb_search (hashtab_t * hashtable, void *key);
 
 /* Put a value into the table with the given key. Returns NULL if
  * malloc() fails to allocate memory for the new node. */
-void *ht_insert (hashtab_t * hashtable,
+void *htb_insert (hashtab_t * hashtable,
 		 void *key, void *value);
 
 /* Delete the given key and value pair from the hashtable. If the key
  * does not exist, no error is given. */
-void ht_remove (hashtab_t * hashtable, void *key);
+void htb_remove (hashtab_t * hashtable, void *key);
 
 /* Change the size of the hashtable. It will allocate a new hashtable
  * and move all keys and values over. The pointer to the new hashtable
@@ -72,21 +72,21 @@ void ht_remove (hashtab_t * hashtable, void *key);
  * allocated. If this happens, the old hashtable will not be altered
  * in any way. The old hashtable is destroyed upon a successful
  * grow. */
-hashtab_t *ht_grow (hashtab_t * hashtable, size_t new_size);
+hashtab_t *htb_grow (hashtab_t * hashtable, size_t new_size);
 
 /* Free all resources used by the hashtable. */
-void ht_destroy (hashtab_t * hashtable);
+void htb_destroy (hashtab_t * hashtable);
 
 /* Initialize the given iterator. It will point to the first element
  * in the hashtable. */
-void ht_iter_init (hashtab_t * hashtable, hashtab_iter_t * ii);
+void htb_iter_init (hashtab_t * hashtable, hashtab_iter_t * ii);
 
 /* Increment the iterator to the next element. The iterator key and
  * value will point to NULL values when the iterator has reached the
  * end of the hashtable.  */
-void ht_iter_inc (hashtab_iter_t * ii);
+void htb_iter_inc (hashtab_iter_t * ii);
 
 /* Default hashtable hash function. */
-int ht_hash (void *key, size_t hashtab_size);
+int htb_hash (void *key, size_t hashtab_size);
 
 #endif

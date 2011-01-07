@@ -169,11 +169,11 @@ void mark_reachable(object * root) {
     mark_reachable(CIENV(root));
     break;
   case HASH_TABLE:
-    ht_iter_init(HTAB(root), &htab_iter);
+    htb_iter_init(HTAB(root), &htab_iter);
     while(htab_iter.key != NULL) {
       mark_reachable((object *) htab_iter.key);
       mark_reachable((object *) htab_iter.value);
-      ht_iter_inc(&htab_iter);
+      htb_iter_inc(&htab_iter);
     }
   default:
     break;
@@ -200,7 +200,7 @@ long sweep_unmarked() {
 	free(VARRAY(head));
 	break;
       case HASH_TABLE:
-	ht_destroy(HTAB(head));
+	htb_destroy(HTAB(head));
       default:
 	break;
       }

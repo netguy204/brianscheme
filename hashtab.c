@@ -29,7 +29,7 @@ void xfree(void *p) {
   free(p);
 }
 
-hashtab_t *ht_init(size_t size, int (*hash_func) (void *, size_t)) {
+hashtab_t *htb_init(size_t size, int (*hash_func) (void *, size_t)) {
   hashtab_t *new_ht = (hashtab_t *) xmalloc(sizeof(hashtab_t));
   new_ht->arr = (hashtab_node_t **) xmalloc(sizeof(hashtab_node_t *) * size);
   new_ht->size = size;
@@ -41,15 +41,15 @@ hashtab_t *ht_init(size_t size, int (*hash_func) (void *, size_t)) {
     new_ht->arr[i] = NULL;
 
   if(hash_func == NULL)
-    new_ht->hash_func = &ht_hash;
+    new_ht->hash_func = &htb_hash;
   else
     new_ht->hash_func = hash_func;
 
   return new_ht;
 }
 
-void *ht_search(hashtab_t * hashtable, void *key) {
-  int index = ht_hash(key, hashtable->size);
+void *htb_search(hashtab_t * hashtable, void *key) {
+  int index = htb_hash(key, hashtable->size);
   if(hashtable->arr[index] == NULL)
     return NULL;
 
@@ -62,8 +62,8 @@ void *ht_search(hashtab_t * hashtable, void *key) {
   return NULL;
 }
 
-void *ht_insert(hashtab_t * hashtable, void *key, void *value) {
-  int index = ht_hash(key, hashtable->size);
+void *htb_insert(hashtab_t * hashtable, void *key, void *value) {
+  int index = htb_hash(key, hashtable->size);
 
   hashtab_node_t *next_node, *last_node;
   next_node = hashtable->arr[index];
@@ -97,9 +97,9 @@ void *ht_insert(hashtab_t * hashtable, void *key, void *value) {
 }
 
 /* delete the given key from the hashtable */
-void ht_remove(hashtab_t * hashtable, void *key) {
+void htb_remove(hashtab_t * hashtable, void *key) {
   hashtab_node_t *last_node, *next_node;
-  int index = ht_hash(key, hashtable->size);
+  int index = htb_hash(key, hashtable->size);
   next_node = hashtable->arr[index];
   last_node = NULL;
 
@@ -121,26 +121,26 @@ void ht_remove(hashtab_t * hashtable, void *key) {
 }
 
 /* grow the hashtable */
-hashtab_t *ht_grow(hashtab_t * old_ht, size_t new_size) {
+hashtab_t *htb_grow(hashtab_t * old_ht, size_t new_size) {
   /* create new hashtable */
-  hashtab_t *new_ht = ht_init(new_size, old_ht->hash_func);
+  hashtab_t *new_ht = htb_init(new_size, old_ht->hash_func);
   if(new_ht == NULL)
     return NULL;
 
   /* Iterate through the old hashtable. */
   hashtab_iter_t ii;
-  ht_iter_init(old_ht, &ii);
-  for(; ii.key != NULL; ht_iter_inc(&ii))
-    ht_insert(new_ht, ii.key, ii.value);
+  htb_iter_init(old_ht, &ii);
+  for(; ii.key != NULL; htb_iter_inc(&ii))
+    htb_insert(new_ht, ii.key, ii.value);
 
   /* Destroy the old hashtable. */
-  ht_destroy(old_ht);
+  htb_destroy(old_ht);
 
   return new_ht;
 }
 
 /* free all resources used by the hashtable */
-void ht_destroy(hashtab_t * hashtable) {
+void htb_destroy(hashtab_t * hashtable) {
   hashtab_node_t *next_node, *last_node;
 
   /* Free each linked list in hashtable. */
@@ -160,18 +160,18 @@ void ht_destroy(hashtab_t * hashtable) {
 }
 
 /* iterator initilaize */
-void ht_iter_init(hashtab_t * hashtable, hashtab_iter_t * ii) {
+void htb_iter_init(hashtab_t * hashtable, hashtab_iter_t * ii) {
   /* stick in initial bookeeping data */
   ii->internal.hashtable = hashtable;
   ii->internal.node = NULL;
   ii->internal.index = -1;
 
   /* have iterator point to first element */
-  ht_iter_inc(ii);
+  htb_iter_inc(ii);
 }
 
 /* iterator increment  */
-void ht_iter_inc(hashtab_iter_t * ii) {
+void htb_iter_inc(hashtab_iter_t * ii) {
   hashtab_t *hashtable = ii->internal.hashtable;
   int index = ii->internal.index;
 
@@ -207,7 +207,7 @@ void ht_iter_inc(hashtab_iter_t * ii) {
   ii->value = ii->internal.node->value;
 }
 
-int ht_hash(void *key, size_t hashtab_size) {
+int htb_hash(void *key, size_t hashtab_size) {
   /* One-at-a-time hash */
   uint32_t hash, i;
   for(hash = 0, i = 0; i < sizeof(key); ++i) {

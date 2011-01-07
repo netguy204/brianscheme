@@ -182,7 +182,7 @@ object *list_to_vector(object * list) {
 object *make_hashtab(long size) {
   object *obj = alloc_object();
   obj->type = HASH_TABLE;
-  HTAB(obj) = ht_init(size, NULL);
+  HTAB(obj) = htb_init(size, NULL);
   return obj;
 }
 
@@ -191,15 +191,15 @@ char is_hashtab(object * obj) {
 }
 
 void set_hashtab(object * tab, object * key, object * val) {
-  ht_insert(HTAB(tab), key, val);
+  htb_insert(HTAB(tab), key, val);
 }
 
 void remkey_hashtab(object * tab, object * key) {
-  ht_remove(HTAB(tab), key);
+  htb_remove(HTAB(tab), key);
 }
 
 object *get_hashtab(object * tab, object * key, object * fail) {
-  object *val = ht_search(HTAB(tab), key);
+  object *val = htb_search(HTAB(tab), key);
   if(val == NULL) {
     return fail;
   }
@@ -213,10 +213,10 @@ object *get_hashtab_keys(object * table) {
   push_root(&result);
 
   hashtab_iter_t iter;
-  ht_iter_init(HTAB(table), &iter);
+  htb_iter_init(HTAB(table), &iter);
   while(iter.key != NULL) {
     result = cons((object *) iter.key, result);
-    ht_iter_inc(&iter);
+    htb_iter_inc(&iter);
   }
   pop_root(&result);
   return result;
