@@ -236,11 +236,16 @@ freed later."
     (if (= pid 0)
 	(begin
 	  (display "hello from the child")
+	  (newline)
 	  (sleep 1)
 	  (display "child is exiting")
+	  (newline)
 	  (exit 1))
 	(begin
-	  (display "hello from parent. child is" pid)
-	  (display (wait))))))
+	  (display "hello from parent. child is ")
+	  (display pid)
+	  (newline)
+	  (display (wait))
+	  (newline)))))
 
 
