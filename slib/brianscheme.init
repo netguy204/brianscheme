@@ -409,4 +409,15 @@
 (define (complex? num) #f)
 (define (exact? num) #f)
 
+;; try to emulate the scheme equivalence of #f and nil
+'foo
+(let ((old-null? null?))
+  (define (null? obj)
+    (if (old-null? obj)
+	#t
+	(if (eq? obj #f)
+	    #t
+	    #f)
+	#f)))
+'foo
 (slib:load (in-vicinity (library-vicinity) "require"))

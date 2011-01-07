@@ -258,9 +258,13 @@
       #f
       (if (eq? (first (car clauses)) 'else)
 	  (second (car clauses))
-	  `(if ,(first (car clauses))
-	       (begin . ,(rest (car clauses)))
-	       (cond . ,(cdr clauses))))))
+	  (let ((result (gensym)))
+	    `(let ((,result ,(first (car clauses))))
+	       (if ,result
+		   ,(if (rest (car clauses))
+			`(begin . ,(rest (car clauses)))
+			result)
+		   (cond . ,(cdr clauses))))))))
 
 (define-syntax (and . clauses)
   "evaluates clauses until one is false"
@@ -484,8 +488,15 @@
       (push! (sym-to-name sym) required)
       sym)))
 
-(define (newline)
-  (write-char #\newline stdout))
+(define (car-else obj alternate)
+  "return (car obj) if it's not null"
+  (if (null? obj)
+      alternate
+      (car obj)))
+
+(define (newline . port)
+  (let ((port (car-else port stdout)))
+    (write-char #\newline port)))
 
 (define (write-with-spaces port lst)
   (write-port (car lst) port)
@@ -494,9 +505,7 @@
 	  (write-with-spaces port (cdr lst))))
 
 (define (write obj . port)
-  (let ((p (or (and port
-		    (car port))
-	       stdout)))
+  (let ((p (car-else port stdout)))
     (write-port obj p)))
 
 (define (display-string str port)
@@ -512,9 +521,7 @@
   (integer? obj)) ;; we only have 1 kind right now
 
 (define (display obj . port)
-  (let ((port (or (and port
-		       (car port))
-		  stdout)))
+  (let ((port (car-else port stdout)))
     (cond
      ((string? obj) (display-string obj port))
      ((number? obj) (display-string (number->string obj) port))
@@ -734,7 +741,8 @@ body. always executes at least once"
 	      ,(if (rest test-and-return)
 		   `(begin . ,(rest test-and-return)))
 	      (begin
-		(begin . ,body)
+		,(if body
+		     `(begin . ,body))
 		(,loop . ,(map (lambda (binding)
 				 (if (cddr binding)
 				     (third binding)
