@@ -7,7 +7,7 @@
 
 (define (bye)
   (display "bye\n")
-  (pth:sleep 2)
+  (pth:usleep (* 1000 768))
   (bye))
 
 (pth:spawn hello)

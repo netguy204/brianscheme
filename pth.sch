@@ -5,6 +5,7 @@
        (spawn (ffi:dlsym pth "pth_spawn"))
        (yield (ffi:dlsym pth "pth_yield"))
        (sleep (ffi:dlsym pth "pth_sleep"))
+       (usleep (ffi:dlsym pth "pth_usleep"))
        (kill (ffi:dlsym pth "pth_kill")))
 
   (define (pth:init)
@@ -29,6 +30,10 @@
   (define (pth:sleep sec)
     "Like POSIX sleep(), but doesn't block all threads."
     (ffi:funcall sleep 'ffi-uint (ffi:int-to-alien sec)))
+
+  (define (pth:usleep usec)
+    "Like POSIX usleep(), but doesn't block all threads."
+    (ffi:funcall usleep 'ffi-uint (ffi:int-to-alien usec)))
 
   (define (pth:kill)
     "Tear down the Pth library."
