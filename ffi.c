@@ -201,12 +201,50 @@ DEFUN1(ffi_prep_cif_proc) {
 
 DEFUN1(ffi_call_proc) {
   ffi_cif *cif = ALIEN_PTR(FIRST);
-  void (*fn) (void) = ALIEN_FN_PTR(SECOND);
+  FN_PTR fn = ALIEN_FN_PTR(SECOND);
   void *result = ALIEN_PTR(THIRD);
   void **values = ALIEN_PTR(FOURTH);
 
   ffi_call(cif, fn, result, values);
   return true;
+}
+
+void interp_trampoline(ffi_cif *cif, void *ret,
+		       void ** args, void * target_ptr) {
+  object * target = (object*)target_ptr;
+  object * exp = the_empty_list;
+  push_root(&exp);
+  object * alien = make_alien(args, the_empty_list);
+  push_root(&alien);
+  exp = cons(alien, exp);
+  pop_root(&alien);
+  exp = cons(target, exp);
+  interp(exp, the_global_environment);
+  pop_root(&exp);
+}
+
+DEFUN1(create_closure_proc) {
+  ffi_cif *cif = ALIEN_PTR(FIRST);
+  object *target = SECOND;
+  void * ret = THIRD;
+
+  ffi_closure *closure;
+  FN_PTR fn_with_closure;
+  closure = ffi_closure_alloc(sizeof(ffi_closure), (void**)&fn_with_closure);
+  if(!closure) {
+    return false;
+  }
+
+  if(ffi_prep_closure_loc(closure, cif, interp_trampoline, target, fn_with_closure) != FFI_OK) {
+    ffi_closure_free(closure);
+    return false;
+  }
+
+  return make_alien_fn(fn_with_closure, the_empty_list);
+}
+
+void test_fn(FN_PTR fn) {
+  fn();
 }
 
 DEFUN1(ffi_address_of) {
@@ -245,6 +283,7 @@ DEFUN1(alien_to_primitive) {
   return make_primitive_proc(fn);
 }
 
+
 void init_ffi(object * env) {
 #define add_procedure(scheme_name, c_name)    \
   define_variable(make_symbol(scheme_name),   \
@@ -277,6 +316,7 @@ void init_ffi(object * env) {
   add_procedure("ffi:alien-to-int", alien_to_int);
   add_procedure("ffi:stream-to-alien", stream_to_alien);
   add_procedure("ffi:alien-to-primitive-proc", alien_to_primitive);
+  add_procedure("ffi:create-closure", create_closure_proc);
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
 

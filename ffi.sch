@@ -179,7 +179,13 @@ freed later."
 	(lgetenv (ffi:dlsym handle "getenv"))
 	(lsleep (ffi:dlsym handle "sleep"))
 	(lputchar (ffi:dlsym handle "putchar"))
-	(lwait (ffi:dlsym handle "wait")))
+	(lwait (ffi:dlsym handle "wait"))
+	(ltest-fn (ffi:dlsym handle "test_fn")))
+
+    (assert ltest-fn)
+
+    (define (test-fn closure)
+      (ffi:funcall ltest-fn 'ffi-void closure))
 
     (define (getenv var)
       (let ((result
@@ -206,6 +212,18 @@ freed later."
 
 	(list (cons 'pid pid)
 	      (cons 'status (ffi:alien-to-int status)))))))
+
+(define (closure-target alien-arg-array)
+  (display "I was called! ")
+  (display alien-arg-array))
+
+(define (closure-test)
+  "calls test_fn in the ffi.c file with a function pointer that will invoke closure-target when called"
+  (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
+	 (closure (ffi:create-closure (ffi:cif-cif cif)
+				      closure-target
+				      (ffi:alien-to-int 0))))
+    (test-fn closure)))
 
 (define (ffi:fork-test)
   (let ((pid (fork)))
