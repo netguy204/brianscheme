@@ -37,6 +37,6 @@
 (pth:init)
 
 (define (hello)
-  (write "hello")
-  (pth:sleep 3)
+  (display "hello")
+  (pth:sleep 1)
   (hello))
