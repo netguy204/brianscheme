@@ -249,8 +249,8 @@ DEFUN1(create_closure_proc) {
 /* provides an example function that can be called from userland to
    demonstrate the ffi closure functionality
 */
-int test_fn(void (*rfn)(int)) {
-  return rfn(42);
+void test_fn(void (*rfn)(int)) {
+  rfn(42);
 }
 
 DEFUN1(ffi_address_of) {
