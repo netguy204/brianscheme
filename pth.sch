@@ -14,7 +14,7 @@
 
   (define (pth:init)
     "Initialize the Pth library."
-    (ffi:funcall init 'ffi-uint))
+    (= 1 (ffi:funcall init 'ffi-uint)))
 
   (define (pth:spawn func)
     "Create a thread."
@@ -29,7 +29,7 @@
 
   (define (pth:yield)
     "Yield to the Pth scheduler."
-    (ffi:funcall yield 'ffi-uint (ffi:int-to-alien 0)))
+    (= 1 (ffi:funcall yield 'ffi-uint (ffi:int-to-alien 0))))
 
   (define (pth:self)
     "Return a handle for the current thread."
@@ -37,26 +37,26 @@
 
   (define (pth:join pth)
     "Join the current thread with given thread."
-    (ffi:funcall join 'ffi-uint pth (ffi:int-to-alien 0)))
+    (= 1 (ffi:funcall join 'ffi-uint pth (ffi:int-to-alien 0))))
 
   (define (pth:suspend pth)
     "Suspend the given thread, current thread is not allowed."
-    (ffi:funcall suspend 'ffi-uint pth))
+    (= 1 (ffi:funcall suspend 'ffi-uint pth)))
 
   (define (pth:resume pth)
     "Resume the previously suspended thread."
-    (ffi:funcall resume 'ffi-uint pth))
+    (= 1 (ffi:funcall resume 'ffi-uint pth)))
 
   (define (pth:sleep sec)
     "Like POSIX sleep(), but doesn't block all threads."
-    (ffi:funcall sleep 'ffi-uint (ffi:int-to-alien sec)))
+    (= 0 (ffi:funcall sleep 'ffi-uint (ffi:int-to-alien sec))))
 
   (define (pth:usleep usec)
     "Like POSIX usleep(), but doesn't block all threads."
-    (ffi:funcall usleep 'ffi-uint (ffi:int-to-alien usec)))
+    (= 0 (ffi:funcall usleep 'ffi-uint (ffi:int-to-alien usec))))
 
   (define (pth:kill)
     "Tear down the Pth library."
-    (ffi:funcall kill 'ffi-uint)))
+    (= 1 (ffi:funcall kill 'ffi-uint))))
 
 (pth:init)
