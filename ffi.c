@@ -213,13 +213,16 @@ void interp_trampoline(ffi_cif *cif, void *ret,
 		       void ** args, void * target_ptr) {
   object * target = (object*)target_ptr;
   object * exp = the_empty_list;
-  push_root(&exp);
   object * alien = make_alien(args, the_empty_list);
+
+  push_root(&exp);
   push_root(&alien);
+
   exp = cons(alien, exp);
-  pop_root(&alien);
   exp = cons(target, exp);
   interp(exp, the_global_environment);
+
+  pop_root(&alien);
   pop_root(&exp);
 }
 
@@ -243,8 +246,11 @@ DEFUN1(create_closure_proc) {
   return make_alien_fn(fn_with_closure, the_empty_list);
 }
 
-void test_fn(FN_PTR fn) {
-  fn();
+/* provides an example function that can be called from userland to
+   demonstrate the ffi closure functionality
+*/
+int test_fn(void (*rfn)(int)) {
+  return rfn(42);
 }
 
 DEFUN1(ffi_address_of) {

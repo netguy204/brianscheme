@@ -215,11 +215,17 @@ freed later."
 
 (define (closure-target alien-arg-array)
   (display "I was called! ")
-  (display alien-arg-array))
+  (display (ffi:alien-to-int
+	    (ffi:deref (ffi:get-array-pointer alien-arg-array 0))))
+  (newline))
 
+;calls test_fn in the ffi.c file with a function pointer that will
+;invoke closure-target when called. Note that create-closure does not
+;currently protect the provided function (which can be any arbitrary
+;invokeable thing) from gc so it should be protected by other
+;means... here closure-target protected by being a global.
 (define (closure-test)
-  "calls test_fn in the ffi.c file with a function pointer that will invoke closure-target when called"
-  (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
+  (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-uint)))
 	 (closure (ffi:create-closure (ffi:cif-cif cif)
 				      closure-target
 				      (ffi:alien-to-int 0))))
