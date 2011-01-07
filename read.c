@@ -91,11 +91,12 @@ int read_getc(read_buffer * in) {
   if(in->p == NULL) {
     free(in->buffer);
 #ifndef NO_READLINE
-    in->buffer = in->p = readline(in->p == NULL ? prompt : "");
+    in->buffer = in->p = readline(in->history == NULL ? prompt : "");
 #endif
     grow_history(in);
     if(in->buffer == NULL)
       return EOF;
+    return read_getc(in);
   }
   return *in->p++;
 }
