@@ -244,7 +244,8 @@ DEFUN1(create_closure_proc) {
 }
 
 void test_fn(FN_PTR fn) {
-  fn();
+  void (*rfn)(int) = (void(*)(int))fn;
+  rfn(42);
 }
 
 DEFUN1(ffi_address_of) {
