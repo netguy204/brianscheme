@@ -1,3 +1,26 @@
+; Copyright 2010 Christopher Wellons
+;
+; Licensed under the Apache License, Version 2.0 (the "License");
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+;
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+;
+
+; DESCRIPTION: Imports functions from GNU Pth (portable threads) using
+; FFI. Provides routines for non-preemptive threading. See the GNU Pth
+; manual for details.
+
+; WARNING: Aborting threads, such as with pth:kill, can cause memory
+; leaks because the threads will never pop their GC roots. As with any
+; threading library, try not to abort your threads.
+
 (require 'ffi)
 
 (let* ((pth (ffi:dlopen "libpth.so"))
