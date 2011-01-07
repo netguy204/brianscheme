@@ -908,6 +908,18 @@
     (lambda (call-next-method obj)
       (print-object (class-of obj)))))
 
+(add-method print-object
+  (make-method (list <number>)
+    (lambda (call-next-method num)
+      (display num)
+      (newline))))
+
+(add-method print-object
+  (make-method (list <string>)
+    (lambda (call-next-method str)
+      (display str)
+      (newline))))
+
 ;
 ; All done.
 ;
