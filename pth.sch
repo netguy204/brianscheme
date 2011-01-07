@@ -4,7 +4,10 @@
        (init (ffi:dlsym pth "pth_init"))
        (spawn (ffi:dlsym pth "pth_spawn"))
        (yield (ffi:dlsym pth "pth_yield"))
+       (self (ffi:dlsym pth "pth_self"))
        (join (ffi:dlsym pth "pth_join"))
+       (suspend (ffi:dlsym pth "pth_suspend"))
+       (resume (ffi:dlsym pth "pth_resume"))
        (sleep (ffi:dlsym pth "pth_sleep"))
        (usleep (ffi:dlsym pth "pth_usleep"))
        (kill (ffi:dlsym pth "pth_kill")))
@@ -28,9 +31,21 @@
     "Yield to the Pth scheduler."
     (ffi:funcall yield 'ffi-uint (ffi:int-to-alien 0)))
 
+  (define (pth:self)
+    "Return a handle for the current thread."
+    (ffi:funcall join 'ffi-pointer))
+
   (define (pth:join pth)
     "Join the current thread with given thread."
     (ffi:funcall join 'ffi-uint pth (ffi:int-to-alien 0)))
+
+  (define (pth:suspend pth)
+    "Suspend the given thread, current thread is not allowed."
+    (ffi:funcall suspend 'ffi-uint pth))
+
+  (define (pth:resume pth)
+    "Resume the previously suspended thread."
+    (ffi:funcall resume 'ffi-uint pth))
 
   (define (pth:sleep sec)
     "Like POSIX sleep(), but doesn't block all threads."
