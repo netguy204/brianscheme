@@ -893,33 +893,6 @@
 (define  <input-port> (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
 
-
-(define print-object (make-generic))
-
-(add-method print-object
-  (make-method (list <class>)
-    (lambda (call-next-method cls)
-      (display "#")
-      (display (slot-ref cls 'class-name))
-      (newline))))
-
-(add-method print-object
-  (make-method (list <top>)
-    (lambda (call-next-method obj)
-      (print-object (class-of obj)))))
-
-(add-method print-object
-  (make-method (list <number>)
-    (lambda (call-next-method num)
-      (display num)
-      (newline))))
-
-(add-method print-object
-  (make-method (list <string>)
-    (lambda (call-next-method str)
-      (display str)
-      (newline))))
-
 ;
 ; All done.
 ;

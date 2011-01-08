@@ -157,7 +157,7 @@
 
 (let ((docs nil))
   (define (add-documentation name string)
-    (push! docs (cons name string)))
+    (push! (cons name string) docs))
 
   ;; now that it's bound we can define it again
   ;; but with a docstring
@@ -257,7 +257,7 @@
   (if (null? clauses)
       #f
       (if (eq? (first (car clauses)) 'else)
-	  (second (car clauses))
+	  `(begin . ,(rest (car clauses)))
 	  (let ((result (gensym)))
 	    `(let ((,result ,(first (car clauses))))
 	       (if ,result

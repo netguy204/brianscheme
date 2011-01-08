@@ -106,6 +106,6 @@
   (compound-procedure? (eval sym)))
 
 'still-not-compiled
-(filter sym-is-comp? (cdr (all-symbols)))
+(filter sym-is-comp? (all-symbols))
 
 'compile-baselib

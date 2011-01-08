@@ -345,10 +345,5 @@ object *make_symbol(char *value) {
 }
 
 char is_atom(object * obj) {
-  return is_boolean(obj) ||
-    is_fixnum(obj) ||
-    is_character(obj) ||
-    is_string(obj) ||
-    is_compound_proc(obj) || is_primitive_proc(obj) || is_syntax_proc(obj) ||
-    is_alien(obj);
+  return !is_pair(obj) || is_the_empty_list(obj);
 }
