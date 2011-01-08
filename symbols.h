@@ -5,29 +5,29 @@
 
 /* global primitive symbols */
 
-object *the_empty_list;
-object *the_empty_vector;
-object *false;
-object *true;
-object *symbol_table;
-object *quote_symbol;
-object *quasiquote_symbol;
-object *unquote_symbol;
-object *set_symbol;
-object *set_local_symbol;
-object *if_symbol;
-object *begin_symbol;
-object *lambda_symbol;
-object *macro_symbol;
-object *stdin_symbol;
-object *stdout_symbol;
-object *stderr_symbol;
-object *eof_object;
-object *exit_hook_symbol;
+extern object *the_empty_list;
+extern object *the_empty_vector;
+extern object *false;
+extern object *true;
+extern object *symbol_table;
+extern object *quote_symbol;
+extern object *quasiquote_symbol;
+extern object *unquote_symbol;
+extern object *set_symbol;
+extern object *set_local_symbol;
+extern object *if_symbol;
+extern object *begin_symbol;
+extern object *lambda_symbol;
+extern object *macro_symbol;
+extern object *stdin_symbol;
+extern object *stdout_symbol;
+extern object *stderr_symbol;
+extern object *eof_object;
+extern object *exit_hook_symbol;
 
-object *the_empty_environment;
-object *the_global_environment;
+extern object *the_empty_environment;
+extern object *the_global_environment;
 
-object *the_call_stack;
+extern object *the_call_stack;
 
 #endif
