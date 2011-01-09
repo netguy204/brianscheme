@@ -23,7 +23,6 @@
 ; Interestingly, this implementation supports a meta-object-protocol
 ; just like real clos. It's dog slow, but it works!
 
-(require "clos/support.sch")
 (require "clos/clos.sch")
 
 ;; syntax for building generic methods
@@ -75,7 +74,8 @@
        (call-next-method)
        (initialize-slots obj args))))
 
-(define-class <output-stream> ())
+(define-class <output-stream> ()
+  "Most basic output stream abstraction.")
 
 (define-generic write-stream
   "write something to a stream that accepts it")
@@ -89,6 +89,7 @@
       (unless (= (char->integer char) 0)
 	      (write-stream stream char)
 	      (loop (+ idx 1))))))
+
 
 (define-class <native-output-stream> (<output-stream>)
   "an output-stream that wraps a port"
@@ -193,3 +194,163 @@
 (define-method (print-object (strm <output-stream>)
 			     (prim <output-port>))
   (write-stream strm "#<output-port>"))
+
+(define-class <input-stream> ()
+  "most basic input stream abstraction")
+
+(define (end-of-stream? obj)
+  "predicate to detect the end of a stream"
+  (eq? obj 'eos))
+
+(define-generic read-stream
+  "read a character from an input stream")
+
+(define-generic read-stream-upto
+  "read up to n characters from stream")
+
+(define-method (read-stream-upto (strm <input-stream>)
+				 (count <number>))
+  (let ((result (make-string count)))
+    (let loop ((idx 0))
+      (if (< idx count)
+	  (let ((char (read-stream strm)))
+	    (if (end-of-stream? char)
+		result
+		(begin
+		  (string-set! result idx char)
+		  (loop (+ idx 1)))))
+	  result))))
+
+(define-generic read-stream-until
+  "read stream until predicate is satisfied or end of stream")
+
+(define-method (read-stream-until (strm <input-stream>)
+				  (pred <procedure>))
+  (let ((result (make-string-buffer)))
+    (let loop ((char (read-stream strm)))
+      (if (end-of-stream? char)
+	  (string-buffer->string result)
+	  (begin
+	    (write-stream result char)
+	    (if (pred char)
+		(string-buffer->string result)
+		(loop (read-stream strm))))))))
+
+(define-method (read-stream-until (strm <input-stream>)
+				  (char <char>))
+  (read-stream-until strm
+		     (lambda (ch)
+		       (eq? ch char))))
+
+(define-class <native-input-stream> (<input-stream>)
+  "input stream that wraps a native port"
+  ('port))
+
+(define stdin-stream (make <native-input-stream> 'port stdin))
+
+(define-method (read-stream (strm <native-input-stream>))
+  (let ((val (read-char (slot-ref strm 'port))))
+    ;; nead to translate eof
+    (if (eof-object? val)
+	'eos
+	val)))
+
+;; a stream buffer can be written to or read from as a stream (well,
+;; it will be able to when I fix multiple inheritance in clos)
+(define-class <string-buffer> (<output-stream>) ;; <input-stream>)
+  "accumulates the values written to it in a string"
+  ('string
+   'string-length
+   'storage-length))
+
+(define (make-string-buffer . initial-value)
+  "construct a new string buffer, optionally with an initial value"
+  (if initial-value
+      (make <string-buffer>
+	'string (car initial-value)
+	'string-length (string-length (car initial-value))
+	'storage-length (string-length (car initial-value)))
+
+      (let ((length 64))
+	(make <string-buffer>
+	  'string (make-string length)
+	  'string-length 0
+	  'storage-length length))))
+
+(define (string-buffer->string buffer)
+  "convert a <string-buffer> to a string"
+  (slot-ref buffer 'string))
+
+(define (%copy-into target source count)
+  "private. assumes target is big enough"
+  (let loop ((idx 0))
+    (when (< idx count)
+	  (string-set! target idx
+		       (string-ref source idx))
+	  (loop (+ idx 1)))
+    target))
+
+(define-method (write-stream (strm <string-buffer>)
+			     (char <char>))
+  ;; ensure there is sufficient storage
+  (when (= (slot-ref strm 'string-length)
+	   (slot-ref strm 'storage-length))
+
+	(let* ((old-length (slot-ref strm 'string-length))
+	       (new-length (* 2 old-length))
+	       (new-string (make-string new-length)))
+
+	  (slot-set! strm 'string
+		     (%copy-into new-string
+				 (slot-ref strm 'string)
+				 old-length))
+	  (slot-set! strm 'storage-length new-length)))
+
+  ;; append the character
+  (string-set!
+   (slot-ref strm 'string)
+   (slot-ref strm 'string-length)
+   char)
+
+  ;; increment the string size
+  (slot-set! strm 'string-length
+	     (+ 1 (slot-ref strm 'string-length)))
+
+  #t)
+
+;; HACK for now. this <input-string-buffer> business goes away
+;; when multiple inheritance starts working
+(define-class <input-string-buffer> (<input-stream>)
+  "wrapper around a string buffer to provide an input-stream interface"
+  ('buffer
+   'read-index))
+
+(define (string-buffer->input-stream buffer)
+  "HACK. wrap a string-buffer so we can read it"
+  (make <input-string-buffer>
+    'buffer buffer
+    'read-index 0))
+
+(define-method (read-stream (instrm <input-string-buffer>)
+			    (char <char>))
+  (let ((strm (slot-ref instrm 'buffer)))
+    (if (= (slot-ref instrm 'read-index)
+	   (slot-ref strm 'string-length))
+	'eos
+	(let ((val (string-ref (slot-ref strm 'string)
+			       (slot-ref instrm 'read-index))))
+	  (slot-set! instrm 'read-index
+		     (+ 1 (slot-ref instrm 'read-index)))
+	  val))))
+
+(define (string-buffer-example)
+  "example of using string-buffer"
+  (set! tt (make-string-buffer "hello crazy world"))
+  (set! tt2 (string-buffer->input-stream tt))
+  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (newline)
+  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (newline)
+  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (newline))
+

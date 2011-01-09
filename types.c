@@ -64,11 +64,16 @@ char is_character(object * obj) {
   return obj->type == CHARACTER;
 }
 
-object *make_string(char *value) {
-  size_t len = strlen(value) + 1;
+object *make_empty_string(long len) {
   object *obj = alloc_object();
   obj->type = STRING;
   obj->data.string.value = MALLOC(len);
+  return obj;
+}
+
+object *make_string(char *value) {
+  size_t len = strlen(value) + 1;
+  object *obj = make_empty_string(len);
   strncpy(obj->data.string.value, value, len);
   return obj;
 }

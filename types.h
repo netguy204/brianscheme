@@ -123,6 +123,8 @@ object *make_character(char value);
 
 char is_character(object *obj);
 
+object *make_empty_string(long length);
+
 object *make_string(char *value);
 
 char is_string(object *obj);

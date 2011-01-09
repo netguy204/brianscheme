@@ -545,6 +545,24 @@ DEFUN1(integer_to_char_proc) {
   return make_character((char)LONG(FIRST));
 }
 
+DEFUN1(make_string_proc) {
+  int idx;
+  long length = LONG(FIRST) + 1;
+  object *fill = SECOND;
+  char fill_char = '\0';
+  if(is_character(fill)) {
+    fill_char = CHAR(fill);
+  }
+
+  object *string = make_empty_string(length);
+  for(idx = 0; idx < length - 1; ++idx) {
+    STRING(string)[idx] = fill_char;
+  }
+
+  STRING(string)[length - 1] = '\0';
+  return string;
+}
+
 DEFUN1(string_ref_proc) {
   return make_character(STRING(FIRST)[LONG(SECOND)]);
 }
@@ -1217,6 +1235,7 @@ void init_prim_environment(object * env) {
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("integer->char", integer_to_char_proc);
+  add_procedure("make-string", make_string_proc);
   add_procedure("string-ref", string_ref_proc);
   add_procedure("string-set!", string_set_proc);
   add_procedure("number->string", number_to_string_proc);
