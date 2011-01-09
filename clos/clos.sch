@@ -223,21 +223,26 @@
      (error "Tried to call an entity before its proc is set."))
    nfields))
 
-(letrec ((instances (make-hashtab-eq 100))
-	 (get-vector
-	  (lambda (closure)
-	    (let ((cell (hashtab-ref instances closure)))
-	      cell))))
+(let* ((metatag (gensym))
+       (get-vector
+	(lambda (closure)
+	  (if (and (meta? closure)
+		   (eq? (meta-data closure) metatag))
+	      (closure metatag)
+	      nil))))
 
   (define (%allocate-instance-internal class lock proc nfields)
     (letrec ((vector (make-vector (+ nfields 3) #f))
 	     (closure (lambda args
-			(apply (vector-ref vector 0) args))))
+			(if (and (pair? args)
+				 (eq? (car args) metatag))
+			    vector
+			    (apply (vector-ref vector 0) args)))))
+
       (vector-set! vector 0 proc)
       (vector-set! vector 1 lock)
       (vector-set! vector 2 class)
-      (hashtab-set! instances closure vector)
-      closure))
+      (meta-wrap closure metatag)))
 
   (define (%instance? x)
     (not (null? (get-vector x))))
