@@ -251,7 +251,9 @@ DEFUN1(is_pair_proc) {
 
 DEFUN1(is_procedure_proc) {
   return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST) ||
-		 is_compiled_proc(FIRST));
+		 is_compiled_proc(FIRST) ||
+		 (is_meta(FIRST) &&
+		  is_procedure_proc(METAPROC(FIRST), environment)));
 }
 
 DEFUN1(is_compound_proc_proc) {
@@ -469,6 +471,11 @@ DEFUN1(apply_proc) {
   object *env;
   object *exp;
   object *result;
+
+  /* unwrap meta */
+  if(is_meta(fn)) {
+    fn = METAPROC(fn);
+  }
 
   if(is_primitive_proc(fn)) {
     return fn->data.primitive_proc.fn(evald_args, environment);
@@ -721,6 +728,22 @@ DEFUN1(compound_env_proc) {
   return FIRST->data.compound_proc.env;
 }
 
+DEFUN1(is_meta_proc) {
+  return AS_BOOL(is_meta(FIRST));
+}
+
+DEFUN1(meta_wrap_proc) {
+  return make_meta_proc(FIRST, SECOND);
+}
+
+DEFUN1(get_meta_data_proc) {
+  return METADATA(FIRST);
+}
+
+DEFUN1(get_meta_obj_proc) {
+  return METAPROC(FIRST);
+}
+
 void write_pair(FILE * out, object * pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
@@ -850,6 +873,11 @@ void owrite(FILE * out, object * obj) {
     break;
   case SYNTAX_PROC:
     fprintf(out, "#<syntax-procedure>");
+    break;
+  case META_PROC:
+    fprintf(out, "#<meta: ");
+    owrite(out, METAPROC(obj));
+    fprintf(out, ">");
     break;
   case HASH_TABLE:
     fprintf(out, "#<hash-table>");
@@ -1074,6 +1102,11 @@ interp_restart:
 
       object *args = cdr(exp);
 
+      /* unwrap meta */
+      if(is_meta(fn)) {
+	fn = METAPROC(fn);
+      }
+
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
 	object *expansion = expand_macro(fn, args, env, level);
@@ -1190,6 +1223,7 @@ void init_prim_environment(object * env) {
   add_procedure("eof-object?", is_eof_proc);
   add_procedure("alien?", is_alien_proc);
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
+  add_procedure("meta?", is_meta_proc);
 
   add_procedure("+", add_proc);
   add_procedure("-", sub_proc);
@@ -1216,6 +1250,9 @@ void init_prim_environment(object * env) {
   add_procedure("hashtab-ref", get_hashtab_proc);
   add_procedure("hashtab-remove!", remkey_hashtab_proc);
   add_procedure("hashtab-keys", get_hashtab_keys_proc);
+  add_procedure("meta-wrap", meta_wrap_proc);
+  add_procedure("meta-object", get_meta_obj_proc);
+  add_procedure("meta-data", get_meta_data_proc);
 
   add_procedure("eq?", is_eq_proc);
 

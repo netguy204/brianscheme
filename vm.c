@@ -243,6 +243,12 @@ vm_begin:
     }
     else if(opcode == callj_op) {
       VPOP(top, stack, stack_top);
+
+      /* unwrap meta */
+      if(is_meta(top)) {
+	top = METAPROC(top);
+      }
+
       if(is_compiled_proc(top)) {
 	fn = top;
 	env = CENV(fn);

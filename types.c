@@ -158,6 +158,18 @@ object *make_alien_fn(void (*fn) (void), object * releaser) {
   return obj;
 }
 
+char is_meta(object *obj) {
+  return obj->type == META_PROC;
+}
+
+object *make_meta_proc(object *proc, object *meta) {
+  object *obj = alloc_object();
+  obj->type = META_PROC;
+  METAPROC(obj) = proc;
+  METADATA(obj) = meta;
+  return obj;
+}
+
 object *list_to_vector(object * list) {
   long length = 0;
   long position = 0;

@@ -255,9 +255,8 @@
 	'eos
 	val)))
 
-;; a stream buffer can be written to or read from as a stream (well,
-;; it will be able to when I fix multiple inheritance in clos)
-(define-class <string-buffer> (<output-stream>) ;; <input-stream>)
+;; a stream buffer can be written to or read from as a stream
+(define-class <string-buffer> (<output-stream> <input-stream>)
   "accumulates the values written to it in a string"
   ('string
    'string-length
@@ -318,29 +317,15 @@
 
   #t)
 
-;; HACK for now. this <input-string-buffer> business goes away
-;; when multiple inheritance starts working
-(define-class <input-string-buffer> (<input-stream>)
-  "wrapper around a string buffer to provide an input-stream interface"
-  ('buffer
-   'read-index))
-
-(define (string-buffer->input-stream buffer)
-  "HACK. wrap a string-buffer so we can read it"
-  (make <input-string-buffer>
-    'buffer buffer
-    'read-index 0))
-
-(define-method (read-stream (instrm <input-string-buffer>))
-  (let ((strm (slot-ref instrm 'buffer)))
-    (if (= (slot-ref instrm 'read-index)
-	   (slot-ref strm 'string-length))
-	'eos
-	(let ((val (string-ref (slot-ref strm 'string)
-			       (slot-ref instrm 'read-index))))
-	  (slot-set! instrm 'read-index
-		     (+ 1 (slot-ref instrm 'read-index)))
-	  val))))
+(define-method (read-stream (strm <string-buffer>))
+  (if (= (slot-ref strm 'read-index)
+	 (slot-ref strm 'string-length))
+      'eos
+      (let ((val (string-ref (slot-ref strm 'string)
+			     (slot-ref strm 'read-index))))
+	(slot-set! strm 'read-index
+		   (+ 1 (slot-ref strm 'read-index)))
+	val)))
 
 (define (string-buffer-example)
   "example of using string-buffer"

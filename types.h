@@ -27,7 +27,8 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      VECTOR, COMPILED_PROC, HASH_TABLE, ALIEN} object_type;
+	      VECTOR, COMPILED_PROC, HASH_TABLE, ALIEN,
+	      META_PROC} object_type;
 
 typedef struct object {
   object_type type;
@@ -85,6 +86,10 @@ typedef struct object {
 	void (*fn_ptr)(void);
       } data;
     } alien;
+    struct {
+      struct object *proc;
+      struct object *data;
+    } meta_proc;
   } data;
 
   /* garbage collection data */
@@ -165,6 +170,10 @@ object *make_alien(void * ptr, object * releaser);
 
 object *make_alien_fn(void (*fn)(void), object * releaser);
 
+char is_meta(object *obj);
+
+object *make_meta_proc(object *proc, object *meta);
+
 /* statistics */
 long get_alloc_count();
 long get_cons_count();
@@ -207,6 +216,8 @@ long get_cons_count();
 #define ALIEN_RELEASER(obj) (obj->data.alien.releaser)
 #define ALIEN_PTR(obj) (obj->data.alien.data.ptr)
 #define ALIEN_FN_PTR(obj) (obj->data.alien.data.fn_ptr)
+#define METAPROC(obj) (obj->data.meta_proc.proc)
+#define METADATA(obj) (obj->data.meta_proc.data)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

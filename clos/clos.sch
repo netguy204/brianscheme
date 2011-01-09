@@ -209,33 +209,19 @@
 ; to hide the implementation of instances and entities from people.
 ;
 ;
-(define %allocate-instance
-    (lambda (class nfields)
-      (%allocate-instance-internal
-       class
-       #t
-       (lambda args
-	 (error "An instance isn't a procedure -- can't apply it."))
-       nfields)))
+(define (%allocate-instance class nfields)
+  (%allocate-instance-internal
+   class #t
+   (lambda args
+     (error "An instance isn't a procedure -- can't apply it."))
+   nfields))
 
-(define %allocate-entity
-    (lambda (class nfields)
-      (%allocate-instance-internal
-       class
-       #f
-       (lambda args
-	 (error "Tried to call an entity before its proc is set."))
-       nfields)))
-
-(define %allocate-instance-internal ???)
-(define %instance?                  ???)
-(define %instance-class             ???)
-(define %set-instance-class-to-self ???)   ;This is used only once
-                                           ;as part of bootstrapping
-                                           ;the braid.
-(define %set-instance-proc!  ???)
-(define %instance-ref        ???)
-(define %instance-set!       ???)
+(define (%allocate-entity class nfields)
+  (%allocate-instance-internal
+   class #f
+   (lambda args
+     (error "Tried to call an entity before its proc is set."))
+   nfields))
 
 (letrec ((instances (make-hashtab-eq 100))
 	 (get-vector
@@ -243,47 +229,40 @@
 	    (let ((cell (hashtab-ref instances closure)))
 	      cell))))
 
-  (set! %allocate-instance-internal
-	(lambda (class lock proc nfields)
-	  (letrec ((vector (make-vector (+ nfields 3) #f))
-		   (closure (lambda args
-			      (apply (vector-ref vector 0) args))))
-	    (vector-set! vector 0 proc)
-	    (vector-set! vector 1 lock)
-	    (vector-set! vector 2 class)
-	    (hashtab-set! instances closure vector)
-	    closure)))
+  (define (%allocate-instance-internal class lock proc nfields)
+    (letrec ((vector (make-vector (+ nfields 3) #f))
+	     (closure (lambda args
+			(apply (vector-ref vector 0) args))))
+      (vector-set! vector 0 proc)
+      (vector-set! vector 1 lock)
+      (vector-set! vector 2 class)
+      (hashtab-set! instances closure vector)
+      closure))
 
-  (set! %instance?
-        (lambda (x) (not (null? (get-vector x)))))
+  (define (%instance? x)
+    (not (null? (get-vector x))))
 
-  (set! %instance-class
-	(lambda (closure)
-	  (let ((vector (get-vector closure)))
-	    (vector-ref vector 2))))
+  (define (%instance-class closure)
+    (let ((vector (get-vector closure)))
+      (vector-ref vector 2)))
 
-  (set! %set-instance-class-to-self
-	(lambda (closure)
-	  (let ((vector (get-vector closure)))
-	    (vector-set! vector 2 closure))))
+  (define (%set-instance-class-to-self closure)
+    (let ((vector (get-vector closure)))
+      (vector-set! vector 2 closure)))
 
-  (set! %set-instance-proc!
-        (lambda (closure proc)
-	  (let ((vector (get-vector closure)))
-	    (if (vector-ref vector 1)
-		(error "Can't set procedure of instance.")
-		(vector-set! vector 0 proc)))))
+  (define (%set-instance-proc! closure proc)
+    (let ((vector (get-vector closure)))
+      (if (vector-ref vector 1)
+	  (error "Can't set procedure of instance.")
+	  (vector-set! vector 0 proc))))
 
-  (set! %instance-ref
-        (lambda (closure index)
-	  (let ((vector (get-vector closure)))
-	    (vector-ref vector (+ index 3)))))
+  (define (%instance-ref closure index)
+    (let ((vector (get-vector closure)))
+      (vector-ref vector (+ index 3))))
 
-  (set! %instance-set!
-        (lambda (closure index new-value)
-	  (let ((vector (get-vector closure)))
-	    (vector-set! vector (+ index 3) new-value))))
-  )
+  (define (%instance-set! closure index new-value)
+    (let ((vector (get-vector closure)))
+      (vector-set! vector (+ index 3) new-value))))
 
 
 ;
@@ -296,24 +275,20 @@
 ; Note that this implementation of class-of assumes the name of a the
 ; primitive classes that are set up later.
 ;
-(define class-of
-    (lambda (x)
-      (cond ((%instance? x)  (%instance-class x))
-
-	    ((pair? x)        <pair>)         ;If all Schemes were IEEE
-	    ((null? x)        <null>)         ;compliant, the order of
-	    ((boolean? x)     <boolean>)      ;these wouldn't matter?
-	    ((symbol? x)      <symbol>)
-	    ((procedure? x)   <procedure>)
-	    ((number? x)      <number>)
-	    ((vector? x)      <vector>)
-	    ((char? x)        <char>)
-	    ((string? x)      <string>)
-	    (( input-port? x)  <input-port>)
-	    ((output-port? x) <output-port>)
-
-
-	    )))
+(define (class-of x)
+  (cond
+   ((%instance? x)   (%instance-class x))
+   ((pair? x)        <pair>)
+   ((null? x)        <null>)
+   ((boolean? x)     <boolean>)
+   ((symbol? x)      <symbol>)
+   ((procedure? x)   <procedure>)
+   ((number? x)      <number>)
+   ((vector? x)      <vector>)
+   ((char? x)        <char>)
+   ((string? x)      <string>)
+   ((input-port? x)  <input-port>)
+   ((output-port? x) <output-port>)))
 
 
 ;
@@ -323,71 +298,73 @@
 ; changed to the real version later on.  String search for ``set! make''.
 ;
 
-(define make
-    (lambda (class . initargs)
-      (cond ((or (eq? class <class>)
-		 (eq? class <entity-class>))
-	     (let* ((new (%allocate-instance
-			  class
-			  (length the-slots-of-a-class)))
-		    (dsupers (getl initargs 'direct-supers '()))
-		    (class-name (getl initargs 'class-name 'unknown))
-		    (dslots  (map list
-				  (getl initargs 'direct-slots  '())))
-		    (cpl     (let loop ((sups dsupers)
-					(so-far (list new)))
-				  (if (null? sups)
-				      (reverse so-far)
-				      (loop (class-direct-supers
-					     (car sups))
-					    (cons (car sups)
-						  so-far)))))
-		    (slots (apply append
-				  (cons dslots
-					(map class-direct-slots
-					     (cdr cpl)))))
-		    (nfields 0)
-		    (field-initializers '())
-		    (allocator
-		      (lambda (init)
-			(let ((f nfields))
-			  (set! nfields (+ nfields 1))
-			  (set! field-initializers
-				(cons init field-initializers))
-			  (list (lambda (o)   (%instance-ref  o f))
-				(lambda (o n) (%instance-set! o f n))))))
-		    (getters-n-setters
-		      (map (lambda (s)
-			     (cons (car s)
-				   (allocator (lambda () '()))))
-			   slots)))
+(define (make class . initargs)
+  (cond
+   ((or (eq? class <class>)
+	(eq? class <entity-class>))
 
-	       (slot-set! new 'direct-supers      dsupers)
-	       (slot-set! new 'direct-slots       dslots)
-	       (slot-set! new 'class-name         class-name)
-	       (slot-set! new 'cpl                cpl)
-	       (slot-set! new 'slots              slots)
-	       (slot-set! new 'nfields            nfields)
-	       (slot-set! new 'field-initializers (reverse
-						   field-initializers))
-	       (slot-set! new 'getters-n-setters  getters-n-setters)
-	       new))
-	    ((eq? class <generic>)
-	     (let ((new (%allocate-entity class
-					  (length (class-slots class)))))
-	       (slot-set! new 'methods '())
-	       new))
-	    ((eq? class <method>)
-	     (let ((new (%allocate-instance
-			 class
-			 (length (class-slots class)))))
-	       (slot-set! new
-			  'specializers
-			  (getl initargs 'specializers))
-	       (slot-set! new
-			  'procedure
-			  (getl initargs 'procedure))
-	       new)))))
+    (let* ((new (%allocate-instance
+		 class
+		 (length the-slots-of-a-class)))
+	   (dsupers (getl initargs 'direct-supers '()))
+	   (class-name (getl initargs 'class-name 'unknown))
+	   (dslots  (map list
+			 (getl initargs 'direct-slots  '())))
+	   (cpl     (let loop ((sups dsupers)
+			       (so-far (list new)))
+		      (if (null? sups)
+			  (reverse so-far)
+			  (loop (class-direct-supers
+				 (car sups))
+				(cons (car sups)
+				      so-far)))))
+	   (slots (apply append
+			 (cons dslots
+			       (map class-direct-slots
+				    (cdr cpl)))))
+	   (nfields 0)
+	   (field-initializers '())
+	   (allocator
+	    (lambda (init)
+	      (let ((f nfields))
+		(set! nfields (+ nfields 1))
+		(push! init field-initializers)
+		(list (lambda (o)   (%instance-ref  o f))
+		      (lambda (o n) (%instance-set! o f n))))))
+	   (getters-n-setters
+	    (map (lambda (s)
+		   (cons (car s)
+			 (allocator (lambda () '()))))
+		 slots)))
+
+      (slot-set! new 'direct-supers      dsupers)
+      (slot-set! new 'direct-slots       dslots)
+      (slot-set! new 'class-name         class-name)
+      (slot-set! new 'cpl                cpl)
+      (slot-set! new 'slots              slots)
+      (slot-set! new 'nfields            nfields)
+      (slot-set! new 'field-initializers (reverse
+					  field-initializers))
+      (slot-set! new 'getters-n-setters  getters-n-setters)
+      new))
+
+   ((eq? class <generic>)
+    (let ((new (%allocate-entity class
+				 (length (class-slots class)))))
+      (slot-set! new 'methods '())
+      new))
+
+   ((eq? class <method>)
+    (let ((new (%allocate-instance
+		class
+		(length (class-slots class)))))
+      (slot-set! new
+		 'specializers
+		 (getl initargs 'specializers))
+      (slot-set! new
+		 'procedure
+		 (getl initargs 'procedure))
+      new))))
 
 
 ;
@@ -396,30 +373,25 @@
 ; they can be defined up front like this.  Cool eh?
 ;
 ;
-(define slot-ref
-    (lambda (object slot-name)
-      (let* ((info   (lookup-slot-info (class-of object) slot-name))
-	     (getter (list-ref info 0)))
-	(getter object))))
+(define (slot-ref object slot-name)
+  (let* ((info (lookup-slot-info (class-of object) slot-name))
+	 (getter (list-ref info 0)))
+    (getter object)))
 
-(define slot-set!
-    (lambda (object slot-name new-value)
-      (let* ((info   (lookup-slot-info (class-of object) slot-name))
-	     (setter (list-ref info 1)))
-	(setter object new-value))))
+(define (slot-set! object slot-name new-value)
+  (let* ((info (lookup-slot-info (class-of object) slot-name))
+	 (setter (list-ref info 1)))
+    (setter object new-value)))
 
-(define lookup-slot-info
-    (lambda (class slot-name)
-      (let* ((getters-n-setters
-	       (if (eq? class <class>)           ;* This grounds out
-		   getters-n-setters-for-class   ;* the slot-ref tower.
-		   (slot-ref class 'getters-n-setters)))
-	     (entry (assq slot-name getters-n-setters)))
-	(if entry
-	    (cdr entry)
-	    (error "No slot" slot-name "in instances of" class)))))
-
-
+(define (lookup-slot-info class slot-name)
+  (let* ((getters-n-setters
+	  (if (eq? class <class>)           ;* This grounds out
+	      getters-n-setters-for-class   ;* the slot-ref tower.
+	      (slot-ref class 'getters-n-setters)))
+	 (entry (assq slot-name getters-n-setters)))
+    (if entry
+	(cdr entry)
+	(error "No slot" slot-name "in instances of" class))))
 
 ;
 ; Given that the early version of MAKE is allowed to call accessors on
@@ -427,38 +399,51 @@
 ; actual class definitions, which are coming up right afterwards.
 ;
 ;
-(define class-direct-slots
-    (lambda (class) (slot-ref class 'direct-slots)))
-(define class-direct-supers
-    (lambda (class) (slot-ref class 'direct-supers)))
-(define class-slots
-    (lambda (class) (slot-ref class 'slots)))
-(define class-cpl
-    (lambda (class) (slot-ref class 'cpl)))
+(define (class-direct-slots class)
+  (slot-ref class 'direct-slots))
 
-(define generic-methods
-    (lambda (generic) (slot-ref generic 'methods)))
+(define (class-direct-supers class)
+  (slot-ref class 'direct-supers))
 
-(define method-specializers
-    (lambda (method) (slot-ref method 'specializers)))
-(define method-procedure
-    (lambda (method) (slot-ref method 'procedure)))
+(define (class-slots class)
+  (slot-ref class 'slots))
+
+(define (class-cpl class)
+  (slot-ref class 'cpl))
+
+(define (generic-methods generic)
+  (slot-ref generic 'methods))
+
+(define (method-specializers method)
+  (slot-ref method 'specializers))
+
+(define (method-procedure method)
+  (slot-ref method 'procedure))
 
 ;
 ; The next 7 clusters define the 6 initial classes.  It takes 7 to 6
 ; because the first and fourth both contribute to <class>.
 ;
 (define the-slots-of-a-class     ;
-    '(direct-supers              ;(class ...)
-      direct-slots               ;((name . options) ...)
-      class-name
-      cpl                        ;(class ...)
-      slots                      ;((name . options) ...)
-      nfields                    ;an integer
-      field-initializers         ;(proc ...)
-      getters-n-setters))        ;((slot-name getter setter) ...)
-                                 ;
-(define getters-n-setters-for-class      ;see lookup-slot-info
+  '(direct-supers              ;(class ...)
+    direct-slots               ;((name . options) ...)
+    class-name
+    cpl                        ;(class ...)
+    slots                      ;((name . options) ...)
+    nfields                    ;an integer
+    field-initializers         ;(proc ...)
+    getters-n-setters))        ;((slot-name getter setter) ...)
+
+;(define getters-n-setters-for-class      ;see lookup-slot-info
+;  (let ((result nil))
+;    (dolist-idx ((slot idx) the-slots-of-a-class)
+;      (push! (list slot
+;		   (lambda (o) (%instance-ref o idx))
+;		   (lambda (o n) (%instance-set! o idx n)))
+;	     result))
+;    (reverse result)))
+
+(define getters-n-setters-for-class
     ;
     ; I know this seems like a silly way to write this.  The
     ; problem is that the obvious way to write it seems to
@@ -473,18 +458,23 @@
 	   the-slots-of-a-class)))
 
 
-(define <class> (%allocate-instance #f (length the-slots-of-a-class)))
+
+(define <class>
+  (%allocate-instance #f (length the-slots-of-a-class)))
+
 (%set-instance-class-to-self <class>)
 
-(define <top>          (make <class>
-			     'direct-supers (list)
-			     'direct-slots  (list)
-			     'class-name '<top>))
+(define <top>
+  (make <class>
+    'direct-supers (list)
+    'direct-slots  (list)
+    'class-name '<top>))
 
-(define <object>       (make <class>
-			     'direct-supers (list <top>)
-			     'direct-slots  (list)
-			     'class-name '<object>))
+(define <object>
+  (make <class>
+    'direct-supers (list <top>)
+    'direct-slots  (list)
+    'class-name '<object>))
 
 ;
 ; This cluster, together with the first cluster above that defines
@@ -496,63 +486,78 @@
 ;           'direct-slots  (list 'direct-supers ...)))
 ;
 
-(slot-set! <class> 'direct-supers      (list <object>))
-(slot-set! <class> 'direct-slots       (map list the-slots-of-a-class))
-(slot-set! <class> 'class-name         '<class>)
-(slot-set! <class> 'cpl                (list <class> <object> <top>))
-(slot-set! <class> 'slots              (map list the-slots-of-a-class))
-(slot-set! <class> 'nfields            (length the-slots-of-a-class))
-(slot-set! <class> 'field-initializers (map (lambda (s)
-					      (lambda () '()))
-					    the-slots-of-a-class))
-(slot-set! <class> 'getters-n-setters  '())
+(slot-set! <class> 'direct-supers
+	   (list <object>))
+
+(slot-set! <class> 'direct-slots
+	   (map list the-slots-of-a-class))
+
+(slot-set! <class> 'class-name
+	   '<class>)
+
+(slot-set! <class> 'cpl
+	   (list <class> <object> <top>))
+
+(slot-set! <class> 'slots
+	   (map list the-slots-of-a-class))
+
+(slot-set! <class> 'nfields
+	   (length the-slots-of-a-class))
+
+(slot-set! <class> 'field-initializers
+	   (map (lambda (s)
+		  (lambda () '()))
+		the-slots-of-a-class))
+
+;; when we (make) instances of the metaclass <class> we'll build the
+;; appropriate getters-n-setters. But we don't need to be
+;; getting-n-setting directly on the metaclass so those get turned
+;; off.
+(slot-set! <class> 'getters-n-setters nil)
 
 
-(define <procedure-class> (make <class>
-				'direct-supers (list <class>)
-				'direct-slots  (list)
-				'class-name    '<procedure-class>))
+;; now are basic make is useful since <class> is fully defined though
+;; we can really only use it to make things based on the metaclasses
+;; that simple-make is hardcoded to know about
+(define <procedure-class>
+  (make <class>
+    'direct-supers (list <class>)
+    'class-name '<procedure-class>))
 
-(define <entity-class>    (make <class>
-			        'direct-supers (list <procedure-class>)
-			        'direct-slots  (list)
-				'class-name    '<entity-class>))
+(define <entity-class>
+  (make <class>
+    'direct-supers (list <procedure-class>)
+    'class-name '<entity-class>))
 
-(define <generic>         (make <entity-class>
-			        'direct-supers (list <object>)
-			        'direct-slots  (list 'methods)
-				'class-name    '<generic>))
+(define <generic>
+  (make <entity-class>
+    'direct-supers (list <object>)
+    'direct-slots (list 'methods)
+    'class-name '<generic>))
 
-(define <method>          (make <class>
-			        'direct-supers (list <object>)
-			        'direct-slots  (list 'specializers
-						     'procedure)
-				'class-name    '<generic>))
-
-
+(define <method>
+  (make <class>
+    'direct-supers (list <object>)
+    'direct-slots (list 'specializers
+			'procedure)
+    'class-name '<generic>))
 
 ;
 ; These are the convenient syntax we expose to the base-level user.
 ;
 ;
-(define make-class
-    (lambda (direct-supers direct-slots)
-      (make <class>
-	    'direct-supers direct-supers
-	    'direct-slots  direct-slots)))
+(define (make-class direct-supers direct-slots)
+  (make <class>
+    'direct-supers direct-supers
+    'direct-slots  direct-slots))
 
-(define make-generic
-    (lambda ()
-      (make <generic>)))
+(define (make-generic)
+  (make <generic>))
 
-(define make-method
-    (lambda (specializers procedure)
-      (make <method>
-	    'specializers specializers
-	    'procedure    procedure)))
-
-
-
+(define (make-method specializers procedure)
+  (make <method>
+    'specializers specializers
+    'procedure    procedure))
 
 ;
 ; The initialization protocol
@@ -582,28 +587,26 @@
 (define compute-apply-methods         (make-generic))
 
 
-
-
 ;
 ; The next thing to do is bootstrap generic functions.
 ;
-(define generic-invocation-generics (list compute-apply-generic
-					  compute-methods
-					  compute-method-more-specific?
-					  compute-apply-methods))
+(define generic-invocation-generics
+  (list compute-apply-generic
+	compute-methods
+	compute-method-more-specific?
+	compute-apply-methods))
 
-(define add-method
-    (lambda (generic method)
-      (slot-set! generic
-		 'methods
-		 (cons method
-		       (collect-if
-			(lambda (m)
-			  (not (every eq?
-				      (method-specializers m)
-				      (method-specializers method))))
-			(slot-ref generic 'methods))))
-      (%set-instance-proc! generic (compute-apply-generic generic))))
+(define (add-method generic method)
+  (slot-set! generic
+	     'methods
+	     (cons method
+		   (collect-if
+		    (lambda (m)
+		      (not (every eq?
+				  (method-specializers m)
+				  (method-specializers method))))
+		    (slot-ref generic 'methods))))
+  (%set-instance-proc! generic (compute-apply-generic generic)))
 
 ;
 ; Adding a method calls COMPUTE-APPLY-GENERIC, the result of which calls
@@ -622,9 +625,9 @@
 ;
 ;
 (%set-instance-proc! compute-apply-generic
-     (lambda (generic)
-       (let ((method (car (generic-methods generic))))
-	 ((method-procedure method) #f generic))))
+  (lambda (generic)
+    (let ((method (car (generic-methods generic))))
+      ((method-procedure method) #f generic))))
 
 (add-method compute-apply-generic
     (make-method (list <generic>)
@@ -703,14 +706,11 @@
 				    (cons (one-step (cdr tail)) args)))))))
 	    ((one-step methods)))))))
 
-(define applicable?
-    (lambda (c arg)
-      (memq c (class-cpl (class-of arg)))))
+(define (applicable? c arg)
+  (memq c (class-cpl (class-of arg))))
 
-(define more-specific?
-    (lambda (c1 c2 arg)
-      (memq c2 (memq c1 (class-cpl (class-of arg))))))
-
+(define (more-specific? c1 c2 arg)
+  (memq c2 (memq c1 (class-cpl (class-of arg)))))
 
 
 (add-method initialize
@@ -849,28 +849,24 @@
 ; turn on the real MAKE.
 ;
 ;
-(set! make
-      (lambda (class . initargs)
-	(let ((instance (allocate-instance class)))
-	  (initialize instance initargs)
-	  instance)))
+(define (make class . initargs)
+  (let ((instance (allocate-instance class)))
+    (initialize instance initargs)
+    instance))
 
 ;
 ; Now define what CLOS calls `built in' classes.
 ;
 ;
 (define <primitive-class>
-    (make <class>
-	  'direct-supers (list <class>)
-	  'direct-slots  (list)
-	  'class-name    '<primitive-class>))
+  (make <class>
+    'direct-supers (list <class>)
+    'class-name    '<primitive-class>))
 
-(define make-primitive-class
-    (lambda (class name)
-      (make (if (null? class) <primitive-class> class)
-	    'direct-supers (list <top>)
-	    'direct-slots  (list)
-	    'class-name name)))
+(define (make-primitive-class class name)
+  (make (if (null? class) <primitive-class> class)
+    'direct-supers (list <top>)
+    'class-name name))
 
 
 (define <pair>        (make-primitive-class nil '<pair>))

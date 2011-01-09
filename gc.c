@@ -168,6 +168,10 @@ void mark_reachable(object * root) {
     mark_reachable(CENV(root));
     mark_reachable(CIENV(root));
     break;
+  case META_PROC:
+    mark_reachable(METAPROC(root));
+    mark_reachable(METADATA(root));
+    break;
   case HASH_TABLE:
     htb_iter_init(HTAB(root), &htab_iter);
     while(htab_iter.key != NULL) {
