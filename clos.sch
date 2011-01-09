@@ -99,10 +99,18 @@
 			     (char <char>))
   (write-char char (slot-ref stream 'port)))
 
+;; but this stream can handle blocks too so make that
+;; go fast
+(define-method (write-stream (stream <native-output-stream>)
+			     (str <string>))
+  (display-string str (slot-ref stream 'port)))
+
 (define stdout-stream (make <native-output-stream> 'port stdout))
 (define stderr-stream (make <native-output-stream> 'port stderr))
 
-;; building the print-object tools
+;; these overrides on print-object provide all of the functionality of
+;; the primitive writer but also give the user the opportunity to
+;; define their own printed form for their classes.
 
 (define-generic print-object
   "defines the standard written form of an object")
@@ -156,10 +164,6 @@
       (write-stream strm #\f)))
 
 (define-method (print-object (strm <output-stream>)
-			     (proc <procedure>))
-  (write-stream strm "#<procedure>"))
-
-(define-method (print-object (strm <output-stream>)
 			     (vect <vector>))
   (write-stream strm "#(")
   (let loop ((idx 0))
@@ -170,6 +174,22 @@
       (loop (+ idx 1))))
   (write-stream strm ")"))
 
+(define-method (print-object (strm <output-stream>)
+			     (char <char>))
+  (cond
+   ((eq? char #\space) (write-stream strm "#\space"))
+   ((eq? char #\newline) (write-stream strm "#\newline"))
+   (else (write-stream strm "#\\")
+	 (write-stream strm char))))
 
+(define-method (print-object (strm <output-stream>)
+			     (prim <procedure>))
+  (write-stream strm "#<procedure>"))
 
+(define-method (print-object (strm <output-stream>)
+			     (prim <input-port>))
+  (write-stream strm "#<input-port>"))
 
+(define-method (print-object (strm <output-stream>)
+			     (prim <output-port>))
+  (write-stream strm "#<output-port>"))
