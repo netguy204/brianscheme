@@ -250,7 +250,8 @@ DEFUN1(is_pair_proc) {
 }
 
 DEFUN1(is_procedure_proc) {
-  return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST));
+  return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST) ||
+		 is_compiled_proc(FIRST));
 }
 
 DEFUN1(is_compound_proc_proc) {

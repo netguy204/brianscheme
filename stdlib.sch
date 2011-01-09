@@ -55,9 +55,8 @@
 	  `(set! ,name nil)
 	  `(set! ,name . ,value-or-body))
       `(set! ,(car name)
-	     ((lambda (define)
-		(lambda ,(cdr name)
-		  (begin . ,value-or-body))) define-local))))
+	     (lambda ,(cdr name)
+	       (begin . ,value-or-body)))))
 
 
 (set! next-gensym 0)
@@ -80,7 +79,7 @@
 ;; let/letrec here but their definition depends on map so we better not
 ;; touch them yet.
 (define (reverse l)
-  (define (iter in out)
+  (define-local (iter in out)
     (if (null? in)
 	out
 	(iter (cdr in) (cons (car in) out))))
@@ -88,7 +87,7 @@
   (iter l nil))
 
 (define (mapr fn lst)
-  (define (iter done rest)
+  (define-local (iter done rest)
     (if (null? rest)
 	done
 	(iter (cons (fn (car rest)) done) (cdr rest))))
@@ -459,13 +458,14 @@
   "read from a port"
   (read-port port))
 
+(define load-eval eval)
+
 (define (load name)
   "read and evaluate all forms in a file called name"
   (letrec ((in (open-input-port name))
-	   (eval0 eval)
 	   (iter (lambda (form)
 		   (unless (eof-object? form)
-			   (write (eval0 form base-env))
+			   (write (load-eval form base-env))
 			   (newline)
 			   (iter (read-port in))))))
     (iter (read-port in))

@@ -178,15 +178,7 @@
 ; interesting, we have to muck around for a bit first.  First, we need
 ; to load the support library.
 ;
-; Note that there is no extension on the filename in the following load,
-; in particular, it isn't "support.scm" even though that is the name of
-; the file in the distribution at PARC.  The idea is that when people
-; install the code at their site, they should rename all the files to
-; the appropriate extension, and then not change the load.  This should
-; also make things work with binary files and the like.  This comes from
-; my understanding of the CL world...  I hope it is right.
-;
-;
+
 (require "clos/support.sch")
 
 ;

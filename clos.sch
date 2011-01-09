@@ -331,8 +331,7 @@
     'buffer buffer
     'read-index 0))
 
-(define-method (read-stream (instrm <input-string-buffer>)
-			    (char <char>))
+(define-method (read-stream (instrm <input-string-buffer>))
   (let ((strm (slot-ref instrm 'buffer)))
     (if (= (slot-ref instrm 'read-index)
 	   (slot-ref strm 'string-length))

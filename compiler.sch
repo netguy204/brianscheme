@@ -425,7 +425,7 @@
   (dovector (instr (compiled-bytecode fn))
 	    (if (is instr 'fn)
 		(show-fn (second instr) (+ indent 4))
-		(begin 
+		(begin
 		  (map display (list (make-space indent) instr))
 		  (newline)))))
 
@@ -460,7 +460,7 @@
   "replace a given function with a compiled version"
   `(begin
      (env-push! (compound-environment ,fn))
-     (let ((result 
+     (let ((result
 	    (set! ,fn ((compiler (compound->lambda ,fn))))))
        (env-pop!)
        result)))
@@ -482,4 +482,14 @@
 ; now we can compile functions to bytecode and print the results like
 ; this:
 ; (comp-show '(if (= x y) (f (g x)) (h x y (h 1 2))))
+(define (load-eval form env)
+  (if (eq? (first form)
+	   'define-syntax)
+      (eval form env)
+      (begin
+	(env-push! env)
+	(let ((result ((compiler form))))
+	  (env-pop!)
+	  result))))
+
 (provide 'compiler)
