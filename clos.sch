@@ -25,30 +25,11 @@
 
 (require "clos/clos.sch")
 
-;; syntax for building generic methods
-(define-syntax (define-generic name . documentation)
-  "syntax for declaring new generic functions"
-  (if documentation
-      (add-documentation name (car documentation)))
-  `(define ,name (make-generic)))
-
-(define-syntax (define-method name-and-specialized-args . body)
-  "syntax for adding a method to a generic function"
-  (let ((args (gensym)))
-    `(add-method ,(first name-and-specialized-args)
-       (make-method (list . ,(map second
-				  (filter pair?
-				    (rest name-and-specialized-args))))
-         (lambda (call-next-method
-		  . ,(map (lambda (v)
-			    (if (pair? v)
-				(first v)
-				v))
-			  (rest name-and-specialized-args)))
-	   . ,body)))))
-
 (define <standard-class> (make-class (list <class>)
-				     (list)))
+				     nil))
+
+(define <standard-object> (make-class (list <object>)
+				      nil))
 
 (define (initialize-slots object initargs)
   "initialize slots by keyword slot names"
@@ -60,6 +41,9 @@
 	    'do-nothing
 	    (slot-set! object name value))))))
 
+(define-method (initialize (obj <standard-object>) args)
+  (call-next-method)
+  (initialize-slots obj args))
 
 (define-syntax (define-class name supers documentation slots)
   "creates a new class of type <standard-class> with slots initialized using keyword args and user defined supers (or <object>)"
@@ -67,12 +51,12 @@
      (define ,name (make <standard-class>
 		     'direct-supers ,(if supers
 					 `(list . ,supers)
-					 `(list <object>))
+					 `(list <standard-object>))
 		     'direct-slots (list . ,slots)
-		     'class-name ',name))
-     (define-method (initialize (obj ,name) args)
-       (call-next-method)
-       (initialize-slots obj args))))
+		     'class-name ',name))))
+;     (define-method (initialize (obj ,name) args)
+;       (call-next-method)
+;       (initialize-slots obj args))))
 
 (define-class <output-stream> ()
   "Most basic output stream abstraction.")
@@ -260,7 +244,8 @@
   "accumulates the values written to it in a string"
   ('string
    'string-length
-   'storage-length))
+   'storage-length
+   'read-index))
 
 (define (make-string-buffer . initial-value)
   "construct a new string buffer, optionally with an initial value"
@@ -268,13 +253,15 @@
       (make <string-buffer>
 	'string (car initial-value)
 	'string-length (string-length (car initial-value))
-	'storage-length (string-length (car initial-value)))
+	'storage-length (string-length (car initial-value))
+	'read-index 0)
 
       (let ((length 64))
 	(make <string-buffer>
 	  'string (make-string length)
 	  'string-length 0
-	  'storage-length length))))
+	  'storage-length length
+	  'read-index 0))))
 
 (define (string-buffer->string buffer)
   "convert a <string-buffer> to a string"
@@ -330,11 +317,10 @@
 (define (string-buffer-example)
   "example of using string-buffer"
   (set! tt (make-string-buffer "hello crazy world"))
-  (set! tt2 (string-buffer->input-stream tt))
-  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (print-object stdout-stream (read-stream-until tt #\space))
   (newline)
-  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (print-object stdout-stream (read-stream-until tt #\space))
   (newline)
-  (print-object stdout-stream (read-stream-until tt2 #\space))
+  (print-object stdout-stream (read-stream-until tt #\space))
   (newline))
 
