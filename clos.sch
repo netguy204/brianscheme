@@ -100,6 +100,14 @@
 (define-generic print-object
   "defines the standard written form of an object")
 
+;; basic catch-all
+(define-method (print-object (strm <output-stream>)
+			     (obj <object>))
+  (write-stream strm "#<instance-of: #")
+  (print-object strm (slot-ref (class-of obj)
+			       'class-name))
+  (write-stream strm ">"))
+
 (define-method (print-object (strm <output-stream>)
 			     (cls <class>))
   (write-stream strm #\#)

@@ -551,7 +551,7 @@
     'direct-supers (list <object>)
     'direct-slots (list 'specializers
 			'procedure)
-    'class-name '<generic>))
+    'class-name '<method>))
 
 ;
 ; These are the convenient syntax we expose to the base-level user.
@@ -864,6 +864,50 @@
   (let ((instance (allocate-instance class)))
     (initialize instance initargs)
     instance))
+
+
+;
+; now we define some of the generic function/method stack again in a
+; way that caches as much information as possible. We couldn't so this
+; before because the pre-computations would have depended on generic
+; methods that weren't implemented yet.
+;
+
+(define-method (compute-apply-generic (generic <generic>))
+  (let ((method-applier (compute-apply-methods generic))
+	(method-computer (compute-methods generic)))
+
+    (lambda args
+      (if (and (memq generic generic-invocation-generics)     ;* G  c
+	       (memq (car args) generic-invocation-generics)) ;* r  a
+	  (apply (method-procedure                            ;* o  s
+		  (last (generic-methods generic)))           ;* u  e
+		 (cons #f args))                              ;* n
+	                                                      ;* d
+	  (method-applier (method-computer args) args)))))
+
+
+(define-method (compute-methods (generic <generic>))
+  (let ((more-specific?
+	 (compute-method-more-specific? generic))
+	(methods (generic-methods generic)))
+
+    (lambda (args)
+      (let ((applicable
+	     (collect-if (lambda (method)
+			   ;;
+			   ;; Note that every only goes as far as the
+			   ;; shortest list!
+			   ;;
+			   (every applicable?
+				  (method-specializers method)
+				  args))
+			 methods)))
+
+	(gsort (lambda (m1 m2)
+		 (more-specific? m1 m2 args)) applicable)))))
+
+
 
 ;
 ; Now define what CLOS calls `built in' classes.
