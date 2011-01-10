@@ -233,22 +233,20 @@
        (get-vector
 	(lambda (closure)
 	  (if (and (meta? closure)
-		   (eq? (meta-data closure) metatag))
-	      (closure metatag)
+		   (pair? (meta-data closure))
+		   (eq? (car (meta-data closure)) metatag))
+	      (cdr (meta-data closure))
 	      nil))))
 
   (define (%allocate-instance-internal class lock proc nfields)
     (letrec ((vector (make-vector (+ nfields 3) #f))
 	     (closure (lambda args
-			(if (and (pair? args)
-				 (eq? (car args) metatag))
-			    vector
-			    (apply (vector-ref vector 0) args)))))
+			(apply (vector-ref vector 0) args))))
 
       (vector-set! vector 0 proc)
       (vector-set! vector 1 lock)
       (vector-set! vector 2 class)
-      (meta-wrap closure metatag)))
+      (meta-wrap closure (cons metatag vector))))
 
   (define (%instance? x)
     (not (null? (get-vector x))))
@@ -308,7 +306,6 @@
 ; For Bootstrapping, we define an early version of MAKE.  It will be
 ; changed to the real version later on.  String search for ``set! make''.
 ;
-'foo
 
 (define (make class . initargs)
   (cond
@@ -345,12 +342,9 @@
 		      (lambda (o n) (%instance-set! o f n))))))
 	   (getters-n-setters
 	    (let ((ht (make-hashtab-eq 10)))
-	      (display "stuff ") (newline)
 	      (dolist (s slots)
-		      (display (car s)) (newline)
 		      (hashtab-set! ht (car s)
 				    (allocator (lambda () '()))))
-	      (display "done") (newline)
 	      ht)))
 
       (slot-set! new 'direct-supers      dsupers)
@@ -382,8 +376,6 @@
 		 (getl initargs 'procedure))
       new))))
 
-'foo
-
 ;
 ; These are the real versions of slot-ref and slot-set!.  Because of the
 ; way the new slot access protocol works, with no generic call in line,
@@ -394,7 +386,6 @@
   (let* ((info (lookup-slot-info (class-of object) slot-name))
 	 (getter (list-ref info 0)))
     (getter object)))
-'foo
 
 (define (slot-set! object slot-name new-value)
   (let* ((info (lookup-slot-info (class-of object) slot-name))
@@ -460,7 +451,7 @@
 ;		   (lambda (o n) (%instance-set! o idx n)))
 ;	     result))
 ;    (reverse result)))
-'foo
+
 (define getters-n-setters-for-class
     ;
     ; I know this seems like a silly way to write this.  The
@@ -705,11 +696,11 @@
 				(method-specializers method)
 				args))
 		       (generic-methods generic))))
-      (let ((more-specific?
+      (let ((method-more-specific?
 	     (compute-method-more-specific? generic)))
 
 	(gsort (lambda (m1 m2)
-		 (more-specific? m1 m2 args)) applicable)))))
+		 (method-more-specific? m1 m2 args)) applicable)))))
 
 
 (define-method (compute-method-more-specific? (generic <generic>))
@@ -750,10 +741,33 @@
       ((one-step methods)))))
 
 (define (applicable? c arg)
-  (memq c (class-cpl (class-of arg))))
+  (let ((cls (class-of arg)))
+    (cond
+     ((eq? cls c) #t)
+     (else (memq c (class-cpl (class-of arg)))))))
 
 (define (more-specific? c1 c2 arg)
-  (memq c2 (memq c1 (class-cpl (class-of arg)))))
+  (let ((cls (class-of arg)))
+    (cond
+     ((eq? cls c1) #t)
+     ((eq? cls c2) #f)
+     (else
+      (memq c2 (memq c1 (class-cpl cls)))))))
+
+
+;
+; now we define some of the generic function/method stack again in a
+; way that caches as much information as possible. We couldn't so this
+; before because the pre-computations would have depended on generic
+; methods that weren't implemented yet.
+;
+
+(define-method (compute-apply-generic (generic <generic>))
+  (let ((method-applier (compute-apply-methods generic))
+	(method-computer (compute-methods generic)))
+
+    (lambda args
+      (method-applier (method-computer args) args))))
 
 
 (define-method (initialize (object <object>) initargs)
@@ -878,49 +892,6 @@
 
 
 ;
-; now we define some of the generic function/method stack again in a
-; way that caches as much information as possible. We couldn't so this
-; before because the pre-computations would have depended on generic
-; methods that weren't implemented yet.
-;
-
-(define-method (compute-apply-generic (generic <generic>))
-  (let ((method-applier (compute-apply-methods generic))
-	(method-computer (compute-methods generic)))
-
-    (lambda args
-      (if (and (memq generic generic-invocation-generics)     ;* G  c
-	       (memq (car args) generic-invocation-generics)) ;* r  a
-	  (apply (method-procedure                            ;* o  s
-		  (last (generic-methods generic)))           ;* u  e
-		 (cons #f args))                              ;* n
-	                                                      ;* d
-	  (method-applier (method-computer args) args)))))
-
-
-(define-method (compute-methods (generic <generic>))
-  (let ((more-specific?
-	 (compute-method-more-specific? generic))
-	(methods (generic-methods generic)))
-
-    (lambda (args)
-      (let ((applicable
-	     (collect-if (lambda (method)
-			   ;;
-			   ;; Note that every only goes as far as the
-			   ;; shortest list!
-			   ;;
-			   (every applicable?
-				  (method-specializers method)
-				  args))
-			 methods)))
-
-	(gsort (lambda (m1 m2)
-		 (more-specific? m1 m2 args)) applicable)))))
-
-
-
-;
 ; Now define what CLOS calls `built in' classes.
 ;
 ;
@@ -946,6 +917,40 @@
 (define <string>      (make-primitive-class nil '<string>))
 (define  <input-port> (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
+
+
+; now we can override this since all of our primitive classes
+; are finally available
+
+
+(define-method (compute-methods (generic <generic>))
+  (let ((more-specific?
+	 (compute-method-more-specific? generic))
+	(methods (generic-methods generic))
+	(last-result nil))
+
+    (lambda (args)
+      (let ((arg-classes (map class-of args)))
+	(if (and last-result
+		 (equal? (car last-result)
+			 arg-classes))
+	    ;; return from cache
+	    (rest last-result)
+	    ;; compute a new value
+	    (let ((applicable
+		   (collect-if (lambda (method)
+				 (every applicable?
+					(method-specializers method)
+					args))
+			       methods)))
+
+	      (let ((result (gsort (lambda (m1 m2)
+				     (more-specific? m1 m2 args))
+				   applicable)))
+		(set! last-result
+		      (cons arg-classes result))
+		result)))))))
+
 
 ;
 ; All done.
