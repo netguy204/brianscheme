@@ -915,14 +915,12 @@
 (define <vector>      (make-primitive-class nil '<vector>))
 (define <char>        (make-primitive-class nil '<char>))
 (define <string>      (make-primitive-class nil '<string>))
-(define  <input-port> (make-primitive-class nil '<input-port>))
+(define <input-port>  (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
 
 
 ; now we can override this since all of our primitive classes
 ; are finally available
-
-
 (define-method (compute-methods (generic <generic>))
   (let ((more-specific?
 	 (compute-method-more-specific? generic))
@@ -936,7 +934,7 @@
 			 arg-classes))
 	    ;; return from cache
 	    (rest last-result)
-	    ;; compute a new value
+	    ;; missed cache. compute a new value
 	    (let ((applicable
 		   (collect-if (lambda (method)
 				 (every applicable?
@@ -951,6 +949,10 @@
 		      (cons arg-classes result))
 		result)))))))
 
+
+; make sure everyone is using the new cacheing version
+(dolist (generic (list initialize allocate-instance compute-getter-and-setter compute-cpl compute-slots compute-apply-generic compute-methods compute-method-more-specific? compute-apply-methods))
+	(%set-instance-proc! generic (compute-apply-generic generic)))
 
 ;
 ; All done.
