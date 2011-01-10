@@ -1,0 +1,33 @@
+
+* Game Theme
+
+From the contest rules:
+
+** Restaurant
+
+** Side Scrolling
+
+** No Bitmap (Image files)
+
+
+* Gameplay Ideas
+
+Platformer. Waiter walking collecting food falling from the sky and
+delivering it to customers tables.
+
+
+Recipes:
+
+hot dogs
+hamburgers
+(relish, ketchup, mayo, onions, mustard, ...)
+
+sundays
+spaghetti
+
+pizza
+- wedges for cheese
+- round things for pep
+- mushroom
+- curlies for peppers
+
