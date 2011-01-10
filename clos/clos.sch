@@ -308,6 +308,7 @@
 ; For Bootstrapping, we define an early version of MAKE.  It will be
 ; changed to the real version later on.  String search for ``set! make''.
 ;
+'foo
 
 (define (make class . initargs)
   (cond
@@ -343,10 +344,14 @@
 		(list (lambda (o)   (%instance-ref  o f))
 		      (lambda (o n) (%instance-set! o f n))))))
 	   (getters-n-setters
-	    (map (lambda (s)
-		   (cons (car s)
-			 (allocator (lambda () '()))))
-		 slots)))
+	    (let ((ht (make-hashtab-eq 10)))
+	      (display "stuff ") (newline)
+	      (dolist (s slots)
+		      (display (car s)) (newline)
+		      (hashtab-set! ht (car s)
+				    (allocator (lambda () '()))))
+	      (display "done") (newline)
+	      ht)))
 
       (slot-set! new 'direct-supers      dsupers)
       (slot-set! new 'direct-slots       dslots)
@@ -377,6 +382,7 @@
 		 (getl initargs 'procedure))
       new))))
 
+'foo
 
 ;
 ; These are the real versions of slot-ref and slot-set!.  Because of the
@@ -388,6 +394,7 @@
   (let* ((info (lookup-slot-info (class-of object) slot-name))
 	 (getter (list-ref info 0)))
     (getter object)))
+'foo
 
 (define (slot-set! object slot-name new-value)
   (let* ((info (lookup-slot-info (class-of object) slot-name))
@@ -399,9 +406,9 @@
 	  (if (eq? class <class>)           ;* This grounds out
 	      getters-n-setters-for-class   ;* the slot-ref tower.
 	      (slot-ref class 'getters-n-setters)))
-	 (entry (assq slot-name getters-n-setters)))
+	 (entry (hashtab-ref getters-n-setters slot-name nil)))
     (if entry
-	(cdr entry)
+	entry
 	(error "No slot" slot-name "in instances of" class))))
 
 ;
@@ -453,21 +460,23 @@
 ;		   (lambda (o n) (%instance-set! o idx n)))
 ;	     result))
 ;    (reverse result)))
-
+'foo
 (define getters-n-setters-for-class
     ;
     ; I know this seems like a silly way to write this.  The
     ; problem is that the obvious way to write it seems to
     ; tickle a bug in MIT Scheme!
     ;
-    (let ((make-em (lambda (s f)
-		     (list s
-			   (lambda (o)   (%instance-ref  o f))
-			   (lambda (o n) (%instance-set! o f n))))))
-      (map (lambda (s)
-	     (make-em s (position-of s the-slots-of-a-class)))
-	   the-slots-of-a-class)))
+  (let ((ht (make-hashtab-eq 10))
+	(make-em (lambda (s f)
+		   (list
+		    (lambda (o)   (%instance-ref  o f))
+		    (lambda (o n) (%instance-set! o f n))))))
 
+    (dolist (s the-slots-of-a-class)
+	    (hashtab-set! ht s
+			  (make-em s (position-of s the-slots-of-a-class))))
+    ht))
 
 
 (define <class>
@@ -524,7 +533,7 @@
 ;; appropriate getters-n-setters. But we don't need to be
 ;; getting-n-setting directly on the metaclass so those get turned
 ;; off.
-(slot-set! <class> 'getters-n-setters nil)
+(slot-set! <class> 'getters-n-setters (make-hashtab-eq 10))
 
 
 ;; now are basic make is useful since <class> is fully defined though
@@ -776,12 +785,14 @@
 	      (list (lambda (o)   (%instance-ref  o f))
 		    (lambda (o n) (%instance-set! o f n))))))
 	 (getters-n-setters
-	  (map (lambda (slot)
-		 (cons (car slot)
-		       (compute-getter-and-setter class
-						  slot
-						  allocator)))
-	       (slot-ref class 'slots))))
+	  (let ((ht (make-hashtab-eq 10)))
+	    (dolist (slot (slot-ref class 'slots))
+		    (hashtab-set! ht (car slot)
+				  (compute-getter-and-setter class
+							     slot
+							     allocator)))
+	    ht)))
+
     (slot-set! class 'nfields nfields)
     (slot-set! class 'field-initializers field-initializers)
     (slot-set! class 'getters-n-setters getters-n-setters)))
