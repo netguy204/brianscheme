@@ -20,6 +20,7 @@
 ; it can find the standard libraries.
 
 (require 'ffi)
+(require 'clos)
 
 (let* ((wisp (ffi:dlopen "libwisp.so"))
        (init (ffi:dlsym wisp "wisp_init"))
@@ -55,3 +56,9 @@
       #t)))
 
 (wisp:init)
+
+(define (wisp:eval sexp)
+  "Evaluate an s-expression directly in Wisp."
+  (let ((sb (make-string-buffer)))
+    (print-object sb sexp)
+    (wisp:eval-string (string-buffer->string sb))))
