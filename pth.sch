@@ -34,9 +34,11 @@
        (resume (ffi:dlsym pth "pth_resume"))
        (sleep (ffi:dlsym pth "pth_sleep"))
        (usleep (ffi:dlsym pth "pth_usleep"))
+       (event (ffi:dlsym pth "pth_event"))
+       (wait (ffi:dlsym pth "pth_wait"))
        (kill (ffi:dlsym pth "pth_kill")))
 
-  ;; Define a wrapper class to hide Pth's alien nature
+  ;; Define wrapper classes to hide Pth's alien nature
 
   (define-class <pth:thread> ()
     "Instance of a Pth thread."
@@ -48,6 +50,14 @@
       (write-stream strm "#<pth:thread ")
       (write-stream strm (number->string (ffi:alien-to-int address)))
       (write-stream strm ">")))
+
+  (define-class <pth:event> ()
+    "Instance of a Pth event."
+    ('alien-event))
+
+  (define-method (print-object (strm <output-stream>)
+                               (event <pth:event>))
+    (write-stream strm "#<pth:event>"))
 
   ;; Create bindings to Pth
 
@@ -98,8 +108,34 @@
     "Like POSIX usleep(), but doesn't block all threads."
     (= 0 (ffi:funcall usleep 'ffi-uint (ffi:int-to-alien usec))))
 
+  (define (pth:event type handle)
+    "Create a new Pth event."
+    (make <pth:event>
+      'alien-event (ffi:funcall event 'ffi-pointer
+                                (ffi:int-to-alien type)
+                                (ffi:int-to-alien handle))))
+
+  (define (pth:wait event)
+    "Wait on the given Pth event."
+    (ffi:funcall wait 'ffi-pointer (slot-ref event 'alien-event)))
+
   (define (pth:kill)
     "Tear down the Pth library."
     (= 1 (ffi:funcall kill 'ffi-uint))))
+
+; event subject classes
+(define nc:event-fd 2)
+(define nc:event-select 4)
+(define nc:event-sigs 8)
+(define nc:event-time 16)
+(define nc:event-msg 32)
+(define nc:event-mutex 64)
+(define nc:event-cond 128)
+(define nc:event-tid 256)
+(define nc:event-func 512)
+
+; event occurange restrictions
+(define nc:until-fd-readable 4096)
+(define nc:until-fd-writeable 8192)
 
 (pth:init)
