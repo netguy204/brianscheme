@@ -22,6 +22,7 @@
 ; threading library, try not to abort your threads.
 
 (require 'ffi)
+(require 'clos)
 
 (let* ((pth (ffi:dlopen "libpth.so"))
        (init (ffi:dlsym pth "pth_init"))
@@ -35,6 +36,21 @@
        (usleep (ffi:dlsym pth "pth_usleep"))
        (kill (ffi:dlsym pth "pth_kill")))
 
+  ;; Define a wrapper class to hide Pth's alien nature
+
+  (define-class <pth:thread> ()
+    "Instance of a Pth thread."
+    ('alien-thread))
+
+  (define-method (print-object (strm <output-stream>)
+                               (thr <pth:thread>))
+    (let ((address (ffi:address-of (slot-ref thr 'alien-thread))))
+      (write-stream strm "#<pth:thread ")
+      (write-stream strm (number->string (ffi:alien-to-int address)))
+      (write-stream strm ">")))
+
+  ;; Create bindings to Pth
+
   (define (pth:init)
     "Initialize the Pth library."
     (= 1 (ffi:funcall init 'ffi-uint)))
@@ -44,11 +60,13 @@
     (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
            (closure (ffi:create-closure (ffi:cif-cif cif)
                                         func
-                                        (ffi:alien-to-int 0))))
-      (ffi:funcall spawn 'ffi-pointer
-                   (ffi:int-to-alien 0)
-                   closure
-                   (ffi:int-to-alien 0))))
+                                        (ffi:alien-to-int 0)))
+           (thr (ffi:funcall spawn 'ffi-pointer
+                             (ffi:int-to-alien 0)
+                             closure
+                             (ffi:int-to-alien 0))))
+      (make <pth:thread>
+        'alien-thread thr)))
 
   (define (pth:yield)
     "Yield to the Pth scheduler."
@@ -60,15 +78,17 @@
 
   (define (pth:join pth)
     "Join the current thread with given thread."
-    (= 1 (ffi:funcall join 'ffi-uint pth (ffi:int-to-alien 0))))
+    (= 1 (ffi:funcall join 'ffi-uint
+                      (slot-ref pth 'alien-thread)
+                      (ffi:int-to-alien 0))))
 
   (define (pth:suspend pth)
     "Suspend the given thread, current thread is not allowed."
-    (= 1 (ffi:funcall suspend 'ffi-uint pth)))
+    (= 1 (ffi:funcall suspend 'ffi-uint (slot-ref pth 'alien-thread))))
 
   (define (pth:resume pth)
     "Resume the previously suspended thread."
-    (= 1 (ffi:funcall resume 'ffi-uint pth)))
+    (= 1 (ffi:funcall resume 'ffi-uint (slot-ref pth 'alien-thread))))
 
   (define (pth:sleep sec)
     "Like POSIX sleep(), but doesn't block all threads."
