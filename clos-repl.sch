@@ -17,6 +17,8 @@
 	    (newline)
 	    (clos-repl))))
 
+(define exit-hook clos-repl)
+
 (print-object stdout-stream
 	      "Evaluate 'quit to exit the advanced REPL\n")
 

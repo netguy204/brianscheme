@@ -114,17 +114,6 @@
 	    ((eq? (car list) x) (cdr list))
 	    (else (cons (car list) (remove x (cdr list)))))))
 
-(define getl
-    (lambda (initargs name . not-found)
-      (letrec ((scan (lambda (tail)
-		       (cond ((null? tail)
-			      (if (pair? not-found)
-				  (car not-found)
-				  (error "GETL couldn't find" name)))
-			     ((eq? (car tail) name) (cadr tail))
-			     (else (scan (cddr tail)))))))
-	(scan initargs))))
-
 (define union
     (lambda lists
       (letrec ((clean (lambda (list result)

@@ -178,6 +178,7 @@ freed later."
 	(lfork (ffi:dlsym handle "fork"))
 	(lgetenv (ffi:dlsym handle "getenv"))
 	(lsleep (ffi:dlsym handle "sleep"))
+	(lusleep (ffi:dlsym handle "usleep"))
 	(lputchar (ffi:dlsym handle "putchar"))
 	(lwait (ffi:dlsym handle "wait"))
 	(ltest-fn (ffi:dlsym handle "test_fn")))
@@ -200,6 +201,10 @@ freed later."
 
     (define (sleep seconds)
       (ffi:funcall lsleep 'ffi-uint seconds))
+
+    (define (usleep useconds)
+      (ffi:funcall lusleep 'ffi-uint useconds))
+
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive

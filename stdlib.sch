@@ -338,7 +338,7 @@
 
 (define (debug-repl)
   "repl that allows last-gasp debugging of a dying interpreter"
-  (display "debug-repl>")
+  ;(display "debug-repl>")
   (let ((result (eval (read-port stdin) base-env)))
     (write-port result stdout)
     (newline)
@@ -354,12 +354,12 @@
   ;; disable the exit-hook in case the thing that kicked us off was an
   ;; exception during writing out something that's going to appear in
   ;; the backtrace
-  (set! exit-hook nil)
+  ;(set! exit-hook nil)
 
   ;; now dump an approximation of the backtrace (it's missing all
   ;; tail-calls) and launch a debug repl.
-  (print-backtrace)
-  (display "evaluate 'quit to exit")
+  ;(print-backtrace)
+  ;(display "evaluate 'quit to exit")
   (debug-repl))
 
 ;; We want to also provide a way to exit without invoking the exit
@@ -648,6 +648,19 @@
     (if (null? init)
 	(iter (car lst) (cdr lst))
 	(iter (car init) lst))))
+
+;; originally found in tiny-clos but this was generally useful
+;; enough to promote
+(define (getl initargs name . not-found)
+  "look for name in initargs and return the next thing in the list if it's found. return not-found otherwised"
+  (letrec ((scan (lambda (tail)
+		   (cond ((null? tail)
+			  (if (pair? not-found)
+			      (car not-found)
+			      (error "GETL couldn't find" name)))
+			 ((eq? (car tail) name) (cadr tail))
+			 (else (scan (cddr tail)))))))
+    (scan initargs)))
 
 (define (string-append . args)
   "join a series of strings"
