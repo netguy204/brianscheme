@@ -221,16 +221,17 @@ specified"
     ;; clear the screen initially
     (nc:clear)
 
-    (let ((done #f)
-	  (view (make <curses-view>
-		  'screen-ul-row 0
-		  'screen-ul-col 0))
-	  (player (build-game-object waiter-sprite)))
+    (let* ((done #f)
+	   (view (make <curses-view>
+		   'screen-ul-row 0
+		   'screen-ul-col 0))
+	   (player (build-game-object waiter-sprite))
+	   (bottom (bottom-bound scene view)))
 
       (push! player scene)
       (set! scene (sort-list z-order scene))
       (slot-set! player 'ul-row
-		 (- (bottom-bound scene view)
+		 (- bottom
 		    (height player)))
 
       (dowhile (not done)
@@ -258,6 +259,9 @@ specified"
 	(nc:clear)
 	(dolist (obj scene)
           (draw obj view))
+	(nc:mvprintw (+ bottom 1)
+		     15
+		     "Arrow keys move. Enter exits.")
 	(nc:refresh)))))
 
 
