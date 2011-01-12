@@ -10,7 +10,6 @@
 (require 'ncurses)
 
 (define counter 0)
-(define getch-event (pth:event 4098 0))
 
 (define (hello)
   (inc! counter)
@@ -21,8 +20,7 @@
   (hello))
 
 (define (goodbye)
-  (pth:wait getch-event)
-  (nc:getch)
+  (pth:getch)
   (nc:mvprintw 1 0 "goodbye")
   (nc:refresh)
   (goodbye))

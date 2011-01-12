@@ -123,6 +123,8 @@
     "Tear down the Pth library."
     (= 1 (ffi:funcall kill 'ffi-uint))))
 
+(pth:init)
+
 ; event subject classes
 (define nc:event-fd 2)
 (define nc:event-select 4)
@@ -138,4 +140,14 @@
 (define nc:until-fd-readable 4096)
 (define nc:until-fd-writeable 8192)
 
-(pth:init)
+; predefined events
+(define stdin-event (pth:event 4098 0))
+
+(define-syntax (on-event event . body)
+  "Run body after event has occurred."
+  `(begin (pth:wait ,event) . ,body))
+
+(define (pth:getch)
+  "For use with ncurses, a thread-friendly getch."
+  (on-event stdin-event
+    (nc:getch)))
