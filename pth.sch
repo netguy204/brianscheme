@@ -117,7 +117,7 @@
 
   (define (pth:wait event)
     "Wait on the given Pth event."
-    (ffi:funcall wait 'ffi-pointer (slot-ref event 'alien-event)))
+    (ffi:funcall wait 'ffi-uint (slot-ref event 'alien-event)))
 
   (define (pth:kill)
     "Tear down the Pth library."
