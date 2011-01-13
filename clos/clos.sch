@@ -925,15 +925,14 @@
   (let ((more-specific?
 	 (compute-method-more-specific? generic))
 	(methods (generic-methods generic))
-	(last-result nil))
+	(method-cache nil))
 
     (lambda (args)
-      (let ((arg-classes (map class-of args)))
-	(if (and last-result
-		 (equal? (car last-result)
-			 arg-classes))
+      (let* ((arg-classes (map class-of args))
+	     (match (assoc arg-classes method-cache)))
+	(if match
 	    ;; return from cache
-	    (rest last-result)
+	    (rest match)
 	    ;; missed cache. compute a new value
 	    (let ((applicable
 		   (collect-if (lambda (method)
@@ -945,8 +944,8 @@
 	      (let ((result (gsort (lambda (m1 m2)
 				     (more-specific? m1 m2 args))
 				   applicable)))
-		(set! last-result
-		      (cons arg-classes result))
+		(push! (cons arg-classes result)
+		       method-cache)
 		result)))))))
 
 
