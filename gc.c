@@ -264,7 +264,7 @@ object *alloc_object(void) {
     if(freed == 0 || Next_Heap_Extension / freed > 2) {
       debug_gc("extending the heap\n");
       extend_heap(Next_Heap_Extension);
-      Next_Heap_Extension *= 1.8;
+      Next_Heap_Extension *= 3;
     }
 
     if(Free_Objects == NULL) {
