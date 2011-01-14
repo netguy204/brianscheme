@@ -951,7 +951,12 @@
 
 
 ; make sure everyone is using the new cacheing version
-(dolist (generic (list initialize allocate-instance compute-getter-and-setter compute-cpl compute-slots compute-apply-generic compute-methods compute-method-more-specific? compute-apply-methods))
+(dolist (generic (list initialize allocate-instance
+		       compute-getter-and-setter compute-cpl
+		       compute-slots compute-apply-generic
+		       compute-methods compute-method-more-specific?
+		       compute-apply-methods))
+
 	(%set-instance-proc! generic (compute-apply-generic generic)))
 
 ;
