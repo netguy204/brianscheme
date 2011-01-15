@@ -992,8 +992,9 @@ void pop_callstack() {
   do {						\
     object *temp = result;			\
     D1("result", temp, level);			\
-    pop_root(&env);				\
-    pop_root(&exp);				\
+    if(env_protected) {				\
+      pop_root(&env);				\
+    }						\
     pop_callstack();				\
     return temp;				\
   } while(0)
@@ -1004,8 +1005,7 @@ object *interp1(object * exp, object * env, int level) {
    * protected here because the tail recursive call can rebind these
    * two items to something new
    */
-  push_root(&exp);
-  push_root(&env);
+  char env_protected = 0;
   push_callstack(exp);
 
 interp_restart:
@@ -1017,7 +1017,7 @@ interp_restart:
   else if(is_atom(exp)) {
     INTERP_RETURN(exp);
   }
-  else if(is_pair(exp)) {
+  else {
     object *head = car(exp);
     if(head == quote_symbol) {
       INTERP_RETURN(second(exp));
@@ -1111,13 +1111,18 @@ interp_restart:
 	/* expand the macro and evaluate that */
 	object *expansion = expand_macro(fn, args, env, level);
 	if(is_pair(expansion)) {
+	  /* replace the macro call with the result */
 	  set_car(exp, car(expansion));
 	  set_cdr(exp, cdr(expansion));
 	} else {
 	  exp = expansion;
 	}
 	pop_root(&fn);
-	goto interp_restart;
+
+	push_root(&exp);
+	object *result = interp1(exp, env, level+1);
+	pop_root(&exp);
+	INTERP_RETURN(result);
       }
 
       /* evaluate the arguments */
@@ -1152,6 +1157,11 @@ interp_restart:
       else if(is_compound_proc(fn)) {
 	env = extend_environment(fn->data.compound_proc.parameters,
 				 evald_args, fn->data.compound_proc.env);
+	if(!env_protected) {
+	  push_root(&env);
+	  env_protected = 1;
+	}
+
 	exp = fn->data.compound_proc.body;
 
 	pop_root(&result);
