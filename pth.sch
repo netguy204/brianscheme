@@ -42,7 +42,8 @@
 
   (define-class <pth:thread> ()
     "Instance of a Pth thread."
-    ('alien-thread))
+    ('alien-thread
+     'thread-fn))
 
   (define-method (print-object (strm <output-stream>)
                                (thr <pth:thread>))
@@ -65,18 +66,22 @@
     "Initialize the Pth library."
     (= 1 (ffi:funcall init 'ffi-uint)))
 
-  (define (pth:spawn func)
-    "Create a thread."
-    (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
-           (closure (ffi:create-closure (ffi:cif-cif cif)
-                                        func
-                                        (ffi:alien-to-int 0)))
-           (thr (ffi:funcall spawn 'ffi-pointer
-                             (ffi:int-to-alien 0)
-                             closure
-                             (ffi:int-to-alien 0))))
-      (make <pth:thread>
-        'alien-thread thr)))
+  (let ((threads nil))
+    (define (pth:spawn func)
+      "Create a thread."
+      (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
+	     (closure (ffi:create-closure (ffi:cif-cif cif)
+					  func
+					  (ffi:alien-to-int 0)))
+	     (thr (ffi:funcall spawn 'ffi-pointer
+			       (ffi:int-to-alien 0)
+			       closure
+			       (ffi:int-to-alien 0)))
+	     (thread (make <pth:thread>
+		       'alien-thread thr
+		       'thread-fn func)))
+	(push! thread threads)
+	thread)))
 
   (define (pth:yield)
     "Yield to the Pth scheduler."
