@@ -1,32 +1,17 @@
-; DESCRIPTION: Displays a counter, and an extra message when any key
-; is pressed.
-
-; NOTE: This test requires ncurses because I want to use
-; getch(). Without threads the only way to implement this would be
-; with halfdelay(), and that still wouldn't behave quite right due to
-; the minimal delay.
-
 (require 'pth)
-(require 'ncurses)
 
-(define counter 0)
+(define (looper str)
+  (let ((count 0))
+    (letrec ((f (lambda ()
+                  (inc! count)
+                  (display (concat str (number->string count)))
+                  (display "\n")
+                  (pth:usleep (* 10 1000))
+                  (f))))
+      f)))
 
-(define (hello)
-  (inc! counter)
-  (nc:mvprintw 1 0 "       ")
-  (nc:mvprintw 0 0 (concat "hello " (number->string counter)))
-  (nc:refresh)
-  (pth:usleep (* 1400 1000))
-  (hello))
-
-(define (goodbye)
-  (pth:getch)
-  (nc:mvprintw 1 0 "goodbye")
-  (nc:refresh)
-  (goodbye))
-
-(with-curses win
- (nc:noecho)
- (nc:cbreak)
- (pth:spawn hello)
- (pth:join (pth:spawn goodbye)))
+(pth:spawn (looper "hello:   "))
+(pth:spawn (looper "goodbye: "))
+(pth:spawn (looper "middle:  "))
+(pth:spawn (looper "end:     "))
+(pth:join (pth:spawn (looper "count: ")))

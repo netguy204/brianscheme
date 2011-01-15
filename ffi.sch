@@ -157,7 +157,7 @@ freed later."
 
     ;; cleanup
     (let ((call-result (ffi:from-alien result ,result-type)))
-      (ffi:free-values values)
+      ;(ffi:free-values values)
       ;(ffi:free-cif fnspec)
       (ffi:free result)
 

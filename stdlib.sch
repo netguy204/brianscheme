@@ -954,3 +954,4 @@ body. always executes at least once"
 
 (provide 'stdlib)
 
+(load "tests/pth-test.sch")

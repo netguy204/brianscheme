@@ -105,6 +105,7 @@ DEFUN1(free_ptr) {
 }
 
 DEFUN1(free_ffi_alien_object) {
+  return;
   object *alien = FIRST;
   object *releaser = ALIEN_RELEASER(alien);
 
