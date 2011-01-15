@@ -208,15 +208,14 @@ void htb_iter_inc(hashtab_iter_t * ii) {
 }
 
 int htb_hash(void *key, size_t hashtab_size) {
-  /* One-at-a-time hash */
-  uint32_t hash, i;
-  for(hash = 0, i = 0; i < sizeof(key); ++i) {
-    hash += ((char *)key)[i];
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
+  /* the compiler should eliminate this branch */
+  uint32_t hash;
+
+  if(sizeof(key) == 4) {
+    hash = ((long)key) >> 2;
+  } else {
+    hash = ((long)key) >> 3;
   }
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
+
   return (hash % hashtab_size);
 }
