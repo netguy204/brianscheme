@@ -83,7 +83,6 @@
 (replace-with-compiled env-pop!)
 (replace-with-compiled env-push!)
 (replace-with-compiled make-space)
-(replace-with-compiled gen-set-local)
 (replace-with-compiled string)
 (replace-with-compiled new-fun)
 (replace-with-compiled num-args)
