@@ -59,11 +59,6 @@
 		      (gen-set (second x) env)
 		      (when (not val?) (gen 'pop))
 		      (unless more? (gen 'return))))
-	   (set-local! (arg-count x 2 2)
-		       (seq (comp (third x) env #t #t)
-			    (gen-set-local (second x) env)
-			    (when (not val?) (gen 'pop))
-			    (unless more? (gen 'return))))
 	   (if (arg-count x 2 3)
 	       (comp-if (second x) (third x) (fourth x)
 			env val? more?))
@@ -343,10 +338,6 @@
 	(if (assoc var *primitive-fns*)
 	    (throw-error "can't alter the constant" +)
 	    (gen 'gset var)))))
-
-(define (gen-set-local var env)
-  (write-dbg 'gen-set-local var)
-  (gen 'llset var))
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))

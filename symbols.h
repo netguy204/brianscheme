@@ -14,7 +14,6 @@ extern object *quote_symbol;
 extern object *quasiquote_symbol;
 extern object *unquote_symbol;
 extern object *set_symbol;
-extern object *set_local_symbol;
 extern object *if_symbol;
 extern object *begin_symbol;
 extern object *lambda_symbol;

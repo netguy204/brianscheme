@@ -44,7 +44,6 @@ object *lvar_op;
 object *save_op;
 object *gvar_op;
 object *lset_op;
-object *llset_op;
 object *gset_op;
 object *pop_op;
 
@@ -148,9 +147,7 @@ object *vm_execute(object * fn, object * stack, long n_args) {
   VM_ASSERT(is_compiled_proc(fn), "object is not compiled-procedure");
 
 vm_fn_begin:
-  ienv = extend_environment(the_empty_list,
-			    the_empty_list,
-			    CIENV(fn));
+  ienv = CIENV(fn);
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -324,11 +321,6 @@ vm_begin:
 
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
     }
-    else if(opcode == llset_op) {
-      object *var = ARG1(instr);
-      object *val = VARRAY(stack)[stack_top - 1];
-      define_local_variable(var, val, ienv);
-    }
     else if(opcode == gvar_op) {
       object *var = lookup_variable_value(ARG1(instr), ienv);
       push_root(&var);
@@ -390,7 +382,6 @@ void vm_init(void) {
   save_op = make_symbol("save");
   gvar_op = make_symbol("gvar");
   lset_op = make_symbol("lset");
-  llset_op = make_symbol("llset");
   gset_op = make_symbol("gset");
   pop_op = make_symbol("pop");
 

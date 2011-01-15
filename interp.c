@@ -1040,17 +1040,12 @@ interp_restart:
       exp = car(exp);
       goto interp_restart;
     }
-    else if(head == set_symbol ||
-	    head == set_local_symbol) {
+    else if(head == set_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1);
       push_root(&val);
 
-      if(head == set_symbol) {
-	define_variable(first(args), val, env);
-      } else {
-	define_local_variable(first(args), val, env);
-      }
+      define_variable(first(args), val, env);
 
       pop_root(&val);
 
@@ -1351,7 +1346,6 @@ void init() {
   quote_symbol = make_symbol("quote");
   quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
-  set_local_symbol = make_symbol("set-local!");
   if_symbol = make_symbol("if");
   begin_symbol = make_symbol("begin");
   lambda_symbol = make_symbol("lambda");
