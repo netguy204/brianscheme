@@ -227,9 +227,9 @@ typedef struct object_pointer_list {
   long size;
 } object_pointer_list;
 
-static doubly_linked_list Heap_Objects;
+static doubly_linked_list Active_Heap_Objects;
+static doubly_linked_list Old_Heap_Objects;
 
-static object *First_Taken_Object = NULL;
 static object *Next_Free_Object = NULL;
 struct object_pointer_list *Root_Objects = NULL;
 
@@ -249,15 +249,18 @@ void extend_heap(long);
 void gc_init(void) {
   ensure_root_objects();
 
-  Heap_Objects.head = NULL;
-  Heap_Objects.tail = NULL;
-  Heap_Objects.num_objects = 0;
+  Active_Heap_Objects.head = NULL;
+  Active_Heap_Objects.tail = NULL;
+  Active_Heap_Objects.num_objects = 0;
+
+  Old_Heap_Objects.head = NULL;
+  Old_Heap_Objects.tail = NULL;
+  Old_Heap_Objects.num_objects = 0;
 
   extend_heap(1000);
 
   /* everything is free right now */
-  Next_Free_Object = Heap_Objects.head;
-  First_Taken_Object = NULL;
+  Next_Free_Object = Active_Heap_Objects.head;
 }
 
 object *push_root(object ** stack) {
@@ -295,6 +298,9 @@ void pop_root(object ** stack) {
   }
 }
 
+/* extends the front of the heap. assumes the heap has already
+ * been scavanged for any live objects
+ */
 void extend_heap(long extension) {
   int ii;
   object *new_heap = MALLOC(sizeof(object) * extension);
@@ -310,24 +316,24 @@ void extend_heap(long extension) {
   }
 
   const long last = extension - 1;
-  new_heap[last].next = Heap_Objects.head;
+  new_heap[last].next = Active_Heap_Objects.head;
   new_heap[last].prev = &new_heap[last - 1];
 
-  if(Heap_Objects.head) {
-    Heap_Objects.head->prev = &new_heap[last];
+  if(Active_Heap_Objects.head) {
+    Active_Heap_Objects.head->prev = &new_heap[last];
   } else {
     /* this is the first heap allocation */
-    Heap_Objects.tail = &new_heap[last];
+    Active_Heap_Objects.tail = &new_heap[last];
   }
   new_heap[last].color = current_color;
 
-  Heap_Objects.head = new_heap;
+  Active_Heap_Objects.head = new_heap;
 
   /* bump next free back */
   Next_Free_Object = new_heap;
 
-  Heap_Objects.num_objects += extension;
-  debug_validate(&Heap_Objects);
+  Active_Heap_Objects.num_objects += extension;
+  debug_validate(&Active_Heap_Objects);
 }
 
 void move_reachable(object * root, doubly_linked_list *to_set) {
@@ -344,11 +350,11 @@ void move_reachable(object * root, doubly_linked_list *to_set) {
 
   /* unlink from old list, maintaining the old lists
    * head and tail. */
-  debug_list_contains(&Heap_Objects, root);
-  debug_validate(&Heap_Objects);
-  move_object_to_head(root, &Heap_Objects, to_set);
+  debug_list_contains(&Active_Heap_Objects, root);
+  debug_validate(&Active_Heap_Objects);
+  move_object_to_head(root, &Active_Heap_Objects, to_set);
   debug_list_contains(to_set, root);
-  debug_validate(&Heap_Objects);
+  debug_validate(&Active_Heap_Objects);
 
   /* scan fields */
   switch (root->type) {
@@ -404,88 +410,26 @@ void finalize_object(object *head) {
   }
 }
 
-#ifdef DEBUG_GC
-void debug_heap_partitioning(doubly_linked_list *heap) {
-  /* ensure that the heap is partitioned correctly */
-  object *iter = heap->head;
-  /* 0 - newly allocated
-   * 1 - ready to be allocated
-   * 2 - active from last time */
-  char state = 0;
-  while(iter) {
-    if (iter == Next_Free_Object) {
-      assert_gc(state == 0, "next free did not follow newly allocated");
-      state = 1;
-    }
-    if (iter == First_Taken_Object) {
-      assert_gc(state == 1, "first taken did not follow next free");
-      state = 2;
-    }
-
-    switch(state) {
-    case 0:
-      assert_gc(iter->color == current_color,
-		"newly allocated had color %d instead of %d",
-		iter->color, current_color);
-      break;
-    case 1:
-      assert_gc(iter->color != current_color,
-		"unallocated has current color %d",
-		current_color);
-      break;
-    case 2:
-      assert_gc(iter->color == current_color - 1,
-		"taken partitioned had color %d instead of %d",
-		iter->color, current_color - 1);
-      break;
-    }
-    iter = iter->next;
-  }
-}
-#else
-#define debug_heap_partitioning(a)
-#endif
-
 long baker_collect() {
-  /* move everything reachable from a root */
+  /* merge everything into one big heap */
+  append_to_tail(&Active_Heap_Objects, &Old_Heap_Objects);
+
+  /* move everything reachable from a root into the old set */
   ++current_color;
-
-  doubly_linked_list to_set;
-  to_set.head = NULL;
-  to_set.tail = NULL;
-  to_set.num_objects = 0;
-
   int ii = 0;
   for(ii = 0; ii < Root_Objects->top; ++ii) {
     object **next = Root_Objects->objs[ii];
-    move_reachable(*next, &to_set);
+    move_reachable(*next, &Old_Heap_Objects);
   }
-
   ++current_color;
 
-  /* these conditions should hold we rejoin the spaces */
-  debug_validate(&to_set);
-  debug_validate(&Heap_Objects);
+  /* both sets should be valid */
+  debug_validate(&Old_Heap_Objects);
+  debug_validate(&Active_Heap_Objects);
 
-  /* now to_set is the live stuff and everything left is garbage */
-  First_Taken_Object = to_set.head;
-  if(Heap_Objects.head) {
-    Next_Free_Object = Heap_Objects.head;
-  } else {
-    /* heap is completely filled */
-    Next_Free_Object = First_Taken_Object;
-  }
-
-  long num_free = Heap_Objects.num_objects;
-  debug_validate(&Heap_Objects);
-  append_to_tail(&Heap_Objects, &to_set);
-
-  /* these conditions should be maintained
-  */
-  debug_validate(&Heap_Objects);
-  debug_list_contains(&Heap_Objects, Next_Free_Object);
-  debug_list_contains(&Heap_Objects, First_Taken_Object);
-  debug_heap_partitioning(&Heap_Objects);
+  /* now everything left in Active is garbage and can be reused */
+  Next_Free_Object = Active_Heap_Objects.head;
+  long num_free = Active_Heap_Objects.num_objects;
 
   return num_free;
 }
@@ -498,7 +442,7 @@ object *alloc_object(void) {
      baker_collect();
    */
 
-  if(Next_Free_Object == First_Taken_Object) {
+  if(Next_Free_Object == NULL) {
     debug_gc("no space. trying baker-collect\n");
     print_backtrace();
 
@@ -514,7 +458,7 @@ object *alloc_object(void) {
       Next_Heap_Extension *= 3;
     }
 
-    if(Next_Free_Object == First_Taken_Object) {
+    if(Next_Free_Object == NULL) {
       throw_gc("extend_heap didn't work");
     }
   }
