@@ -31,3 +31,7 @@ pizza
 - mushroom
 - curlies for peppers
 
+Work shifts with rushes at the right times. Get a schedule and the
+gameplay difficulty depends on the schedule.
+
+Powerups?

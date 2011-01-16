@@ -77,7 +77,7 @@
 		  (if (null? in)
 		      out
 		      (iter (cdr in) (cons (car in) out)))))
-     
+
      (iter l nil)) nil))
 
 (define (mapr fn lst)
@@ -124,6 +124,13 @@
 (define (fourth x) (cadddr x))
 (define (fifth x) (caddddr x))
 
+(define (length=1 lst)
+  (if (null? (car lst))
+      #f
+      (if (null? (cdr lst))
+	  #t
+	  #f)))
+
 (define-syntax (push! obj dst)
   `(set! ,dst (cons ,obj ,dst)))
 
@@ -138,9 +145,14 @@
 ;; redefine define to include a docstring
 (define define0 define)
 (define-syntax (define name . value-or-body)
-  (if (string? (car value-or-body))
-    (add-documentation (car name) (car value-or-body)))
-  `(define0 ,name . ,value-or-body))
+  (if (length=1 value-or-body)
+      `(define0 ,name . ,value-or-body)
+      (if (string? (car value-or-body))
+	  (begin
+	    (add-documentation (car name) (car value-or-body))
+	    `(define0 ,name . ,(cdr value-or-body)))
+	  `(define0 ,name . ,value-or-body))
+      `(define0 ,name . ,value-or-body)))
 
 (define define-syntax0 define-syntax)
 (define-syntax (define-syntax name . value-or-body)
@@ -226,13 +238,6 @@
   `(if ,pred
        #f
        #t))
-
-(define (length=1 lst)
-  (if (not (null? (car lst)))
-      (if (null? (cdr lst))
-	  #t
-	  #f)
-      #f))
 
 (define-syntax (when pred . conseq)
   "evaluates consequence if predicate evaluates true"

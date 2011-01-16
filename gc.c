@@ -26,8 +26,6 @@
  * DEBUG_GC
  */
 
-#define DEBUG_GC 1
-
 void *MALLOC(long size) {
   void *obj = malloc(size);
   if(obj == NULL) {
@@ -92,41 +90,34 @@ typedef struct doubly_linked_list {
 void move_object_to_head(object* obj, doubly_linked_list* src,
 			 doubly_linked_list* dest) {
   /* unlink from the old list */
-  if(obj == src->head &&
-     obj == src->tail) {
-    src->head = NULL;
-    src->tail = NULL;
-  } else if(obj == src->tail) {
-    src->tail = obj->prev;
-    src->tail->next = NULL;
-  } else if(obj == src->head) {
+  if(obj->prev == NULL) {
     src->head = obj->next;
-    src->head->prev = NULL;
   } else {
     obj->prev->next = obj->next;
+  }
+  if(obj->next == NULL) {
+    src->tail = obj->prev;
+  } else {
     obj->next->prev = obj->prev;
   }
   src->num_objects--;
 
   /* link into new list */
   if(dest->head == NULL) {
-    /* this is the first object in dest */
-    assert_gc(dest->tail == NULL,
-	      "destination list is inconsistent");
-    dest->head = dest->tail = obj;
-    obj->next = obj->prev = NULL;
-  } else {
-    /* this object becomes the new head */
-    obj->next = dest->head;
-    dest->head->prev = obj;
+    dest->head = obj;
+    dest->tail = obj;
+    obj->next = NULL;
     obj->prev = NULL;
+  } else {
+    obj->prev = NULL;
+    obj->next = dest->head;
+    obj->next->prev = obj;
     dest->head = obj;
   }
+
   dest->num_objects++;
 }
 
-/* src maintains bounds on list but will be inconsistent
- * at the ends */
 void append_to_tail(doubly_linked_list* dest,
 		    doubly_linked_list* src) {
   if(dest->tail == NULL) {
@@ -137,13 +128,98 @@ void append_to_tail(doubly_linked_list* dest,
   } else {
     /* link end of dest to start of src */
     dest->tail->next = src->head;
-    src->head->prev = dest->tail;
+    dest->tail->next->prev = dest->tail;
     dest->tail = src->tail;
   }
 
   dest->num_objects += src->num_objects;
+
+  src->head = NULL;
+  src->tail = NULL;
+  src->num_objects = 0;
 }
 
+/* these debug_* functions are far too slow to be called at normal
+ * runtime but they're really useful for calling from gdb to make sure
+ * my assumptions are holding at each step of garbage collection.
+ */
+#ifdef DEBUG_GC
+long debug_list_contains(doubly_linked_list *list,
+			 object *obj) {
+  object *iter = list->head;
+  if(iter == list->tail) {
+    assert_gc(iter == obj, "object %p not in length1 list\n", obj);
+    return 0;
+  }
+
+  long pos = 0;
+  while(iter != list->tail) {
+    if(iter == obj) {
+      return pos;
+    }
+    iter = iter->next;
+    ++pos;
+  }
+  assert_gc(iter == obj, "object %p not in list\n", obj);
+  return list->num_objects - 1;
+}
+
+
+void debug_validate(doubly_linked_list *list) {
+  /* verify the structure of a linked list */
+  if(list->head == NULL || list->tail == NULL) {
+    assert_gc(list->head == NULL &&
+	      list->tail == NULL, "head and tail must be null together");
+    assert_gc(list->num_objects == 0, "head is null. count != 0");
+    return;
+  }
+
+  assert_gc(list->head->prev == NULL, "head's prev is not null");
+
+  if(list->head == list->tail) {
+    assert_gc(list->num_objects == 1, "1 length list invalid");
+    assert_gc(list->head->next == NULL, "next of only item not null");
+    assert_gc(list->tail->prev == NULL, "prev of only item not null");
+    return;
+  }
+
+  assert_gc(list->head->next != NULL, "list head next is null");
+
+  object *iter = list->head->next;
+  object *last = NULL;
+
+  long idx = 1;
+  while(iter != list->tail) {
+    assert_gc(iter->prev != NULL, "central node %ld prev is null",
+	      idx);
+    assert_gc(iter->next != NULL, "central node %ld next is null",
+	      idx);
+    if(last) {
+      assert_gc(iter->prev == last,
+		"central node %ld prev is wrong. Is %p. Should be %p",
+		idx, iter->prev, last);
+    }
+
+    ++idx;
+
+    last = iter;
+    iter = iter->next;
+  }
+
+  ++idx;
+  assert_gc(iter->next == NULL, "list tail next is not null");
+  assert_gc(iter->prev != NULL, "list tail prev is null");
+  assert_gc(iter->prev == last,
+	    "list tail prev is wrong. Is %p. Should be %p",
+	    iter->prev, last);
+  assert_gc(idx == list->num_objects,
+	    "list object count is wrong %ld != %ld",
+	    idx, list->num_objects);
+}
+#else
+#define debug_list_contains(a, b)
+#define debug_validate(a)
+#endif
 
 typedef struct object_pointer_list {
   object ***objs;
@@ -235,7 +311,7 @@ void extend_heap(long extension) {
 
   const long last = extension - 1;
   new_heap[last].next = Heap_Objects.head;
-  new_heap[last].prev = &new_heap[last - 2];
+  new_heap[last].prev = &new_heap[last - 1];
 
   if(Heap_Objects.head) {
     Heap_Objects.head->prev = &new_heap[last];
@@ -251,6 +327,7 @@ void extend_heap(long extension) {
   Next_Free_Object = new_heap;
 
   Heap_Objects.num_objects += extension;
+  debug_validate(&Heap_Objects);
 }
 
 void move_reachable(object * root, doubly_linked_list *to_set) {
@@ -267,7 +344,11 @@ void move_reachable(object * root, doubly_linked_list *to_set) {
 
   /* unlink from old list, maintaining the old lists
    * head and tail. */
+  debug_list_contains(&Heap_Objects, root);
+  debug_validate(&Heap_Objects);
   move_object_to_head(root, &Heap_Objects, to_set);
+  debug_list_contains(to_set, root);
+  debug_validate(&Heap_Objects);
 
   /* scan fields */
   switch (root->type) {
@@ -323,6 +404,48 @@ void finalize_object(object *head) {
   }
 }
 
+#ifdef DEBUG_GC
+void debug_heap_partitioning(doubly_linked_list *heap) {
+  /* ensure that the heap is partitioned correctly */
+  object *iter = heap->head;
+  /* 0 - newly allocated
+   * 1 - ready to be allocated
+   * 2 - active from last time */
+  char state = 0;
+  while(iter) {
+    if (iter == Next_Free_Object) {
+      assert_gc(state == 0, "next free did not follow newly allocated");
+      state = 1;
+    }
+    if (iter == First_Taken_Object) {
+      assert_gc(state == 1, "first taken did not follow next free");
+      state = 2;
+    }
+
+    switch(state) {
+    case 0:
+      assert_gc(iter->color == current_color,
+		"newly allocated had color %d instead of %d",
+		iter->color, current_color);
+      break;
+    case 1:
+      assert_gc(iter->color != current_color,
+		"unallocated has current color %d",
+		current_color);
+      break;
+    case 2:
+      assert_gc(iter->color == current_color - 1,
+		"taken partitioned had color %d instead of %d",
+		iter->color, current_color - 1);
+      break;
+    }
+    iter = iter->next;
+  }
+}
+#else
+#define debug_heap_partitioning(a)
+#endif
+
 long baker_collect() {
   /* move everything reachable from a root */
   ++current_color;
@@ -338,6 +461,16 @@ long baker_collect() {
     move_reachable(*next, &to_set);
   }
 
+  ++current_color;
+
+  /* these conditions should hold */
+  debug_validate(&to_set);
+  debug_validate(&Heap_Objects);
+  if(First_Taken_Object != NULL &&
+     First_Taken_Object->color == current_color) {
+    debug_list_contains(&to_set, First_Taken_Object);
+  }
+
   /* now to_set is the live stuff and everything left is garbage */
   First_Taken_Object = to_set.head;
   if(Heap_Objects.head) {
@@ -348,66 +481,26 @@ long baker_collect() {
   }
 
   long num_free = Heap_Objects.num_objects;
+  debug_validate(&Heap_Objects);
   append_to_tail(&Heap_Objects, &to_set);
 
+  /* these conditions should be maintained
+  */
+  debug_validate(&Heap_Objects);
   debug_list_contains(&Heap_Objects, Next_Free_Object);
+  debug_list_contains(&Heap_Objects, First_Taken_Object);
+  debug_heap_partitioning(&Heap_Objects);
 
   return num_free;
-}
-
-void debug_list_contains(doubly_linked_list *list,
-			 object *obj) {
-  object *iter = list->head;
-  while(iter != list->tail) {
-    if(iter == obj) {
-      return;
-    }
-    iter = iter->next;
-  }
-  assert_gc(iter == obj, "object not in list");
-}
-
-void debug_validate(doubly_linked_list *list) {
-  /* verify the structure of a linked list */
-  if(list->head == NULL) {
-    assert_gc(list->tail == NULL, "head is null but tail isn't");
-    assert_gc(list->num_objects == 0, "head is null. count != 0");
-    return;
-  }
-
-  if(list->head == list->tail) {
-    assert_gc(list->num_objects == 1, "1 length list invalid");
-    assert_gc(list->head->next == NULL, "next of only item not null");
-    assert_gc(list->tail->prev == NULL, "prev of only item not null");
-  }
-
-  assert_gc(list->head->prev == NULL, "head's prev is not null");
-
-  object *iter = list->head->next;
-
-  long idx = 1;
-  while(iter != list->tail) {
-    assert_gc(iter->prev != NULL, "central node %ld prev is null",
-	      idx);
-    assert_gc(iter->next != NULL, "central node %ld next is null",
-	      idx);
-    ++idx;
-    iter = iter->next;
-  }
-
-  ++idx;
-  assert_gc(iter->next == NULL, "list tail next is not null");
-  assert_gc(iter->prev != NULL, "list tail prev is null");
-  assert_gc(idx == list->num_objects, "list object count is wrong");
 }
 
 static long Alloc_Count = 0;
 static long Next_Heap_Extension = 1000;
 
 object *alloc_object(void) {
-  /* always sweep while we're debugging
-   */
+  /* always scavenge while we're debugging
      baker_collect();
+   */
 
   if(Next_Free_Object == First_Taken_Object) {
     debug_gc("no space. trying baker-collect\n");
@@ -419,7 +512,8 @@ object *alloc_object(void) {
 
     /* did we free enough? */
     if(freed == 0 || Next_Heap_Extension / freed > 2) {
-      debug_gc("extending the heap\n");
+      debug_gc("only freed %ld. extending the heap by %ld\n",
+	       freed, Next_Heap_Extension);
       extend_heap(Next_Heap_Extension);
       Next_Heap_Extension *= 3;
     }
@@ -430,12 +524,9 @@ object *alloc_object(void) {
   }
 
   object *obj = Next_Free_Object;
-  Next_Free_Object = Next_Free_Object->next;
+  obj->color = current_color;
 
-  /* clear when we're debugging so things fail
-   * quickly
-   memset(obj, 0, sizeof(object));
-   */
+  Next_Free_Object = Next_Free_Object->next;
 
   return obj;
 }
