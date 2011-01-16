@@ -463,13 +463,9 @@ long baker_collect() {
 
   ++current_color;
 
-  /* these conditions should hold */
+  /* these conditions should hold we rejoin the spaces */
   debug_validate(&to_set);
   debug_validate(&Heap_Objects);
-  if(First_Taken_Object != NULL &&
-     First_Taken_Object->color == current_color) {
-    debug_list_contains(&to_set, First_Taken_Object);
-  }
 
   /* now to_set is the live stuff and everything left is garbage */
   First_Taken_Object = to_set.head;
