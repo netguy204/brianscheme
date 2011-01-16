@@ -692,7 +692,7 @@ DEFUN1(stats_proc) {
 }
 
 DEFUN1(mark_and_sweep_proc) {
-  return make_fixnum(mark_and_sweep());
+  return make_fixnum(baker_collect());
 }
 
 DEFUN1(clock_proc) {

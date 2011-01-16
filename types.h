@@ -94,7 +94,9 @@ typedef struct object {
 
   /* garbage collection data */
   struct object* next;
-  char mark;
+  struct object* prev;
+
+  char color;
 } object;
 
 typedef struct object* (prim_proc)(struct object*,
