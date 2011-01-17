@@ -367,10 +367,9 @@
 ;; one and replace it.
 (define throw-exit exit)
 
-(define-syntax (throw-error . objs)
-  `(begin
-     (error . ,objs)
-     (throw-exit 1)))
+(define (throw-error . objs)
+  (apply error objs)
+  (throw-exit 1))
 
 (define (exit val)
   "exit without activating the exit hook"

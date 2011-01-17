@@ -49,10 +49,10 @@ object *pop_op;
 
 object *error_sym;
 
-#define VM_ASSERT(test, msg)			\
+#define VM_ASSERT(test, msg, ...)		\
   do {						\
     if(!(test)) {				\
-      fprintf(stderr, "%s\n", msg);		\
+      fprintf(stderr, msg, ##__VA_ARGS__);	\
       VM_RETURN(error_sym);			\
     }						\
   } while(0)
@@ -171,7 +171,9 @@ vm_begin:
 
   case SYMBOL:
     if(opcode == args_op) {
-      VM_ASSERT(n_args == LONG(ARG1(instr)), "wrong number of args");
+      VM_ASSERT(n_args == LONG(ARG1(instr)),
+		"wrong number of args. expected %ld, got %ld\n",
+		LONG(ARG1(instr)), n_args);
 
       int ii;
       int num_args = LONG(ARG1(instr));
