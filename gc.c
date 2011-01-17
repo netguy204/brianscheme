@@ -466,6 +466,9 @@ object *alloc_object(void) {
   object *obj = Next_Free_Object;
   obj->color = current_color;
 
+  /* run any pending finalizations from this object's previous life */
+  finalize_object(obj);
+
   Next_Free_Object = Next_Free_Object->next;
 
   return obj;

@@ -83,6 +83,7 @@
       'height exp-height
       'current-frame 0)))
 
+;; various pre-defined levels for the drawing depth sort
 (define background-1 0)
 (define background-2 1)
 (define background-3 2)
