@@ -10,7 +10,7 @@
       (throw-error message)
       #t))
 
-(define-syntax vm-test (expr)
+(define-syntax (vm-test expr)
   `(let ((exp ',expr)
 	 (comp nil)
 	 (evres nil)
@@ -65,5 +65,5 @@
 (dotimes (i 10)
 	 (time (map2 f big-list)))
 
-;(exit 0)
+(exit 0)
 
