@@ -212,12 +212,49 @@ specified"
 
 (require "shiney/game-objects.sch")
 
+(define (control-object player)
+  (dotimes (ii 9)
+    ;; loop a bunch to suck characters off the queue
+    (let ((chr (nc:getch))
+	  (rr (slot-ref player 'ul-row))
+	  (cc (slot-ref player 'ul-col)))
+      ;;(usleep 100)
+      (cond
+       ((= nc:key-left chr)
+	(slot-set! player 'ul-col (- cc 1))
+	(increment-frame player))
+       ((= nc:key-right chr)
+	(slot-set! player 'ul-col (+ cc 1))
+	(increment-frame player))
+       ((= nc:key-up chr)
+	(slot-set! player 'ul-row (- rr 1))
+	(increment-frame player))
+       ((= nc:key-down chr)
+	(slot-set! player 'ul-row (+ rr 1))
+	(increment-frame player))
+       ((= nc:key-enter chr)
+	(set! done #t))))))
+
+(define-generic update-object
+  "update the state of a game object. methods return list of updated
+objects")
+
+(define-method (update-object (obj <game-object>) player)
+  (list obj))
+
+(define (update-objects objects)
+  "returns an updated list of objects. may destructively modify
+members of objects"
+  (filter (compliment null?)
+	  (mappend update-object objects)))
+
 (define (test)
   (with-curses win
     (nc:noecho)
     (nc:cbreak)
     (nc:keypad win #t)
-    (nc:halfdelay 1)
+    (nc:nodelay win #t)
+    (nc:curs-set 0)
 
     ;; clear the screen initially
     (nc:clear)
@@ -237,25 +274,7 @@ specified"
 
       (dowhile (not done)
 	;; get the input
-	(let ((chr (nc:getch))
-	      (rr (slot-ref player 'ul-row))
-	      (cc (slot-ref player 'ul-col)))
-
-	  (cond
-	   ((= nc:key-left chr)
-	    (slot-set! player 'ul-col (- cc 1))
-	    (increment-frame player))
-	   ((= nc:key-right chr)
-	    (slot-set! player 'ul-col (+ cc 1))
-	    (increment-frame player))
-	   ((= nc:key-up chr)
-	    (slot-set! player 'ul-row (- rr 1))
-	    (increment-frame player))
-	   ((= nc:key-down chr)
-	    (slot-set! player 'ul-row (+ rr 1))
-	    (increment-frame player))
-	   ((= nc:key-enter chr)
-	    (set! done #t))))
+	(control-object player)
 
 	(nc:clear)
 	(dolist (obj scene)

@@ -26,6 +26,7 @@
        (refresh (ffi:dlsym nc "refresh"))
        (nodelay (ffi:dlsym nc "nodelay"))
        (halfdelay (ffi:dlsym nc "halfdelay"))
+       (curs-set (ffi:dlsym nc "curs_set"))
        (endwin (ffi:dlsym nc "endwin")))
 
   (define nc:stdwin
@@ -87,6 +88,10 @@
   (define (nc:halfdelay wait)
     "allow getch to block for data up to time milliseconds"
     (ffi:funcall halfdelay 'ffi-uint wait))
+
+  (define (nc:curs-set visibility)
+    "0 - invisible, 1 - normal, 2 - very visible"
+    (ffi:funcall curs-set 'ffi-uint visibility))
 
   (define (nc:endwin)
     "return the terminal to normal mode"
