@@ -345,52 +345,63 @@ void move_reachable(object * root, doubly_linked_list *to_set) {
   if(root->color == current_color)
     return;
 
-  /* mark this and move it into the to_set */
+  /* mark this and move it into the to_set we will be building a queue
+     of objects to scan from the front and scanning in the prev
+     direction */
   root->color = current_color;
-
-  /* unlink from old list, maintaining the old lists
-   * head and tail. */
-  debug_list_contains(&Active_Heap_Objects, root);
-  debug_validate(&Active_Heap_Objects);
   move_object_to_head(root, &Active_Heap_Objects, to_set);
-  debug_list_contains(to_set, root);
-  debug_validate(&Active_Heap_Objects);
 
-  /* scan fields */
-  switch (root->type) {
-  case PAIR:
-    move_reachable(car(root), to_set);
-    move_reachable(cdr(root), to_set);
-    break;
-  case COMPOUND_PROC:
-    move_reachable(root->data.compound_proc.env, to_set);
-  case SYNTAX_PROC:
-    move_reachable(root->data.compound_proc.parameters, to_set);
-    move_reachable(root->data.compound_proc.body, to_set);
-    break;
-  case VECTOR:
-    for(ii = 0; ii < VSIZE(root); ++ii) {
-      move_reachable(VARRAY(root)[ii], to_set);
+  object *scan_iter = to_set->head;
+
+  /* we do the same thing a lot... make a macro! */
+  object *temp;
+#define maybe_move(obj)						\
+  do {								\
+    temp = obj;							\
+    if(temp->color != current_color) {				\
+      move_object_to_head(temp, &Active_Heap_Objects, to_set);	\
+      temp->color = current_color;				\
+    }								\
+  } while(0)
+
+  while(scan_iter != NULL) {
+    /* scan fields */
+    switch (scan_iter->type) {
+    case PAIR:
+      maybe_move(CAR(scan_iter));
+      maybe_move(CDR(scan_iter));
+      break;
+    case COMPOUND_PROC:
+      maybe_move(COMPOUND_ENV(scan_iter));
+    case SYNTAX_PROC:
+      maybe_move(COMPOUND_PARAMS(scan_iter));
+      maybe_move(COMPOUND_BODY(scan_iter));
+      break;
+    case VECTOR:
+      for(ii = 0; ii < VSIZE(scan_iter); ++ii) {
+	maybe_move(VARRAY(scan_iter)[ii]);
+      }
+      break;
+    case COMPILED_PROC:
+      maybe_move(BYTECODE(scan_iter));
+      maybe_move(CENV(scan_iter));
+      maybe_move(CIENV(scan_iter));
+      break;
+    case META_PROC:
+      maybe_move(METAPROC(scan_iter));
+      maybe_move(METADATA(scan_iter));
+      break;
+    case HASH_TABLE:
+      htb_iter_init(HTAB(scan_iter), &htab_iter);
+      while(htab_iter.key != NULL) {
+	maybe_move((object *) htab_iter.key);
+	maybe_move((object *) htab_iter.value);
+	htb_iter_inc(&htab_iter);
+      }
+    default:
+      break;
     }
-    break;
-  case COMPILED_PROC:
-    move_reachable(BYTECODE(root), to_set);
-    move_reachable(CENV(root), to_set);
-    move_reachable(CIENV(root), to_set);
-    break;
-  case META_PROC:
-    move_reachable(METAPROC(root), to_set);
-    move_reachable(METADATA(root), to_set);
-    break;
-  case HASH_TABLE:
-    htb_iter_init(HTAB(root), &htab_iter);
-    while(htab_iter.key != NULL) {
-      move_reachable((object *) htab_iter.key, to_set);
-      move_reachable((object *) htab_iter.value, to_set);
-      htb_iter_inc(&htab_iter);
-    }
-  default:
-    break;
+    scan_iter = scan_iter->prev;
   }
 }
 

@@ -101,19 +101,19 @@ char is_pair(object * obj) {
 }
 
 object *car(object * pair) {
-  return pair->data.pair.car;
+  return CAR(pair);
 }
 
 void set_car(object * obj, object * value) {
-  obj->data.pair.car = value;
+  CAR(obj) = value;
 }
 
 object *cdr(object * pair) {
-  return pair->data.pair.cdr;
+  return CDR(pair);
 }
 
 void set_cdr(object * obj, object * value) {
-  obj->data.pair.cdr = value;
+  CDR(obj) = value;
 }
 
 object *make_unfilled_vector(long size) {

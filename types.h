@@ -202,6 +202,8 @@ long get_cons_count();
 #define list4(a,b,c,d) cons(a,list3(b,c,d))
 #define list5(a,b,c,d,e) cons(a,list4(b,c,d,e))
 
+#define CAR(x) (x->data.pair.car)
+#define CDR(x) (x->data.pair.cdr)
 #define LONG(x) (x->data.fixnum.value)
 #define CHAR(x) (x->data.character.value)
 #define STRING(x) (x->data.string.value)
@@ -209,6 +211,9 @@ long get_cons_count();
 #define BOOLEAN(x) (x->data.boolean.value)
 #define INPUT(x) (x->data.input_port.stream)
 #define OUTPUT(x) (x->data.output_port.stream)
+#define COMPOUND_BODY(x) (x->data.compound_proc.body)
+#define COMPOUND_ENV(x) (x->data.compound_proc.env)
+#define COMPOUND_PARAMS(x) (x->data.compound_proc.parameters)
 #define VARRAY(obj) (obj->data.vector.objects)
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
