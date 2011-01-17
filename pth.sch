@@ -22,6 +22,7 @@
 ; threading library, try not to abort your threads.
 
 (require 'ffi)
+(require 'clos)
 
 (let* ((pth (ffi:dlopen "libpth.so"))
        (init (ffi:dlsym pth "pth_init"))
@@ -33,22 +34,54 @@
        (resume (ffi:dlsym pth "pth_resume"))
        (sleep (ffi:dlsym pth "pth_sleep"))
        (usleep (ffi:dlsym pth "pth_usleep"))
+       (event (ffi:dlsym pth "pth_event"))
+       (wait (ffi:dlsym pth "pth_wait"))
        (kill (ffi:dlsym pth "pth_kill")))
+
+  ;; Define wrapper classes to hide Pth's alien nature
+
+  (define-class <pth:thread> ()
+    "Instance of a Pth thread."
+    ('alien-thread
+     'thread-fn))
+
+  (define-method (print-object (strm <output-stream>)
+                               (thr <pth:thread>))
+    (let ((address (ffi:address-of (slot-ref thr 'alien-thread))))
+      (write-stream strm "#<pth:thread ")
+      (write-stream strm (number->string (ffi:alien-to-int address)))
+      (write-stream strm ">")))
+
+  (define-class <pth:event> ()
+    "Instance of a Pth event."
+    ('alien-event))
+
+  (define-method (print-object (strm <output-stream>)
+                               (event <pth:event>))
+    (write-stream strm "#<pth:event>"))
+
+  ;; Create bindings to Pth
 
   (define (pth:init)
     "Initialize the Pth library."
     (= 1 (ffi:funcall init 'ffi-uint)))
 
-  (define (pth:spawn func)
-    "Create a thread."
-    (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
-           (closure (ffi:create-closure (ffi:cif-cif cif)
-                                        func
-                                        (ffi:alien-to-int 0))))
-      (ffi:funcall spawn 'ffi-pointer
-                   (ffi:int-to-alien 0)
-                   closure
-                   (ffi:int-to-alien 0))))
+  (let ((threads nil))
+    (define (pth:spawn func)
+      "Create a thread."
+      (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
+	     (closure (ffi:create-closure (ffi:cif-cif cif)
+					  func
+					  (ffi:alien-to-int 0)))
+	     (thr (ffi:funcall spawn 'ffi-pointer
+			       (ffi:int-to-alien 0)
+			       closure
+			       (ffi:int-to-alien 0)))
+	     (thread (make <pth:thread>
+		       'alien-thread thr
+		       'thread-fn func)))
+	(push! thread threads)
+	thread)))
 
   (define (pth:yield)
     "Yield to the Pth scheduler."
@@ -60,15 +93,17 @@
 
   (define (pth:join pth)
     "Join the current thread with given thread."
-    (= 1 (ffi:funcall join 'ffi-uint pth (ffi:int-to-alien 0))))
+    (= 1 (ffi:funcall join 'ffi-uint
+                      (slot-ref pth 'alien-thread)
+                      (ffi:int-to-alien 0))))
 
   (define (pth:suspend pth)
     "Suspend the given thread, current thread is not allowed."
-    (= 1 (ffi:funcall suspend 'ffi-uint pth)))
+    (= 1 (ffi:funcall suspend 'ffi-uint (slot-ref pth 'alien-thread))))
 
   (define (pth:resume pth)
     "Resume the previously suspended thread."
-    (= 1 (ffi:funcall resume 'ffi-uint pth)))
+    (= 1 (ffi:funcall resume 'ffi-uint (slot-ref pth 'alien-thread))))
 
   (define (pth:sleep sec)
     "Like POSIX sleep(), but doesn't block all threads."
@@ -78,8 +113,46 @@
     "Like POSIX usleep(), but doesn't block all threads."
     (= 0 (ffi:funcall usleep 'ffi-uint (ffi:int-to-alien usec))))
 
+  (define (pth:event type handle)
+    "Create a new Pth event."
+    (make <pth:event>
+      'alien-event (ffi:funcall event 'ffi-pointer
+                                (ffi:int-to-alien type)
+                                (ffi:int-to-alien handle))))
+
+  (define (pth:wait event)
+    "Wait on the given Pth event."
+    (ffi:funcall wait 'ffi-uint (slot-ref event 'alien-event)))
+
   (define (pth:kill)
     "Tear down the Pth library."
     (= 1 (ffi:funcall kill 'ffi-uint))))
 
 (pth:init)
+
+; event subject classes
+(define nc:event-fd 2)
+(define nc:event-select 4)
+(define nc:event-sigs 8)
+(define nc:event-time 16)
+(define nc:event-msg 32)
+(define nc:event-mutex 64)
+(define nc:event-cond 128)
+(define nc:event-tid 256)
+(define nc:event-func 512)
+
+; event occurange restrictions
+(define nc:until-fd-readable 4096)
+(define nc:until-fd-writeable 8192)
+
+; predefined events
+(define stdin-event (pth:event 4098 0))
+
+(define-syntax (on-event event . body)
+  "Run body after event has occurred."
+  `(begin (pth:wait ,event) . ,body))
+
+(define (pth:getch)
+  "For use with ncurses, a thread-friendly getch."
+  (on-event stdin-event
+    (nc:getch)))
