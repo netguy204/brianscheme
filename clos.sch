@@ -25,11 +25,15 @@
 
 (require "clos/clos.sch")
 
-(define <standard-class> (make-class (list <class>)
-				     nil))
+(define <standard-class> (make <class>
+			   'direct-supers (list <class>)
+			   'direct-slots nil
+			   'class-name '<standard-class>))
 
-(define <standard-object> (make-class (list <object>)
-				      nil))
+(define <standard-object> (make <class>
+			    'direct-supers (list <object>)
+			    'direct-slots nil
+			    'class-name '<standard-object>))
 
 (define (initialize-slots object initargs)
   "initialize slots by keyword slot names"
@@ -54,9 +58,6 @@
 					 `(list <standard-object>))
 		     'direct-slots (list . ,slots)
 		     'class-name ',name))))
-;     (define-method (initialize (obj ,name) args)
-;       (call-next-method)
-;       (initialize-slots obj args))))
 
 (define-class <output-stream> ()
   "Most basic output stream abstraction.")

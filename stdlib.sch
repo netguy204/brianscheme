@@ -503,6 +503,9 @@
 	  (write-char #\space port)
 	  (write-with-spaces port (cdr lst))))
 
+(define (display-with-spaces . args)
+  (write-with-spaces stdout args))
+
 (define (write obj . port)
   (let ((p (car-else port stdout)))
     (write-port obj p)))

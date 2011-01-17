@@ -392,15 +392,22 @@
 	 (setter (list-ref info 1)))
     (setter object new-value)))
 
-(define (lookup-slot-info class slot-name)
-  (let* ((getters-n-setters
-	  (if (eq? class <class>)           ;* This grounds out
-	      getters-n-setters-for-class   ;* the slot-ref tower.
-	      (slot-ref class 'getters-n-setters)))
-	 (entry (hashtab-ref getters-n-setters slot-name nil)))
-    (if entry
-	entry
-	(error "No slot" slot-name "in instances of" class))))
+(let ((gns-cache (make-hashtab-eq 30)))
+  (define (lookup-slot-info class slot-name)
+    (let ((cached (hashtab-ref gns-cache class)))
+      (let* ((getters-n-setters
+	      (cond
+	       (cached cached)
+	       ((eq? class <class>)           ;* This grounds out
+		getters-n-setters-for-class)  ;* the slot-ref tower.
+	       (else (slot-ref class 'getters-n-setters))))
+	     (entry (hashtab-ref getters-n-setters slot-name nil)))
+	(unless cached
+	  (hashtab-set! gns-cache class getters-n-setters))
+
+	(if entry
+	    entry
+	    (error "No slot" slot-name "in instances of" class))))))
 
 ;
 ; Given that the early version of MAKE is allowed to call accessors on
@@ -744,7 +751,7 @@
   (let ((cls (class-of arg)))
     (cond
      ((eq? cls c) #t)
-     (else (memq c (class-cpl (class-of arg)))))))
+     (else (memq c (class-cpl cls))))))
 
 (define (more-specific? c1 c2 arg)
   (let ((cls (class-of arg)))
