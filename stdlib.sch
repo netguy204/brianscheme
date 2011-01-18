@@ -59,18 +59,12 @@
     (string->uninterned-symbol
      (concat "#" (number->string next-gensym)))))
 
-(define-syntax (let bindings . body)
-  `((lambda ,(map car bindings)
-      (begin . ,body))
-    . ,(map second bindings)))
-
-;; We used map in our definition of let so we had better go ahead and
-;; define that too. Note that these functions are not type-safe. We
-;; should probably override them later with versions that are.
+;; We used map in our definition of let0 so we had better go ahead and
+;; define that early.
 ;;
 ;; Note the trick to confine the scope of iter. Normally we'd use
-;; let/letrec here but their definition depends on map so we better not
-;; touch them yet.
+;; let/letrec here but their definition depends on map so we better
+;; not touch them yet.
 (define (reverse l)
   ((lambda (iter)
      (set! iter (lambda (in out)
@@ -92,21 +86,114 @@
 (define (map fn lst)
   (reverse (mapr fn lst)))
 
-;; now we can define let* and letrec and we don't really have to do any
-;; strange trickery anymore
-(define-syntax (let* bindings . body)
+(define-syntax (let0 bindings . body)
+  `((lambda ,(map car bindings)
+      (begin . ,body))
+    . ,(map second bindings)))
+
+;; now we can use let0 to define let*0 and letrec0
+(define-syntax (let*0 bindings . body)
   (if (null? bindings)
       `(begin . ,body)
-      `(let (,(first bindings))
-	 (let* ,(cdr bindings) . ,body))))
+      `(let0 (,(first bindings))
+	 (let*0 ,(cdr bindings) . ,body))))
 
-(define-syntax (letrec bindings . body)
-  `(let ,(map (lambda (b) (list (first b) 'nil))
+(define-syntax (letrec0 bindings . body)
+  `(let0 ,(map (lambda (b) (list (first b) 'nil))
 	      bindings)
      (begin
        . ,(map (lambda (b) (list 'set! (first b) (second b)))
 	       bindings))
      (begin . ,body)))
+
+;; now we define everything we need so that we can enable the real
+;; destructuring versions of let and the named-let form
+(define-syntax (push! obj dst)
+  `(set! ,dst (cons ,obj ,dst)))
+
+(define-syntax (pop! dst)
+  `((lambda (top)
+     (set! ,dst (cdr ,dst))
+     top) (car ,dst)))
+
+(define-syntax (cond . clauses)
+  "evaluates the cdr of the first clause whose car evaluates true"
+  (if (null? clauses)
+      #f
+      (if (eq? (first (car clauses)) 'else)
+	  `(begin . ,(rest (car clauses)))
+	  (let0 ((result (gensym)))
+	    `(let0 ((,result ,(first (car clauses))))
+	       (if ,result
+		   ,(if (rest (car clauses))
+			`(begin . ,(rest (car clauses)))
+			result)
+		   (cond . ,(cdr clauses))))))))
+
+(define (append-all lists)
+  "append the lists inside the argument together end-to-end"
+  (letrec0 ((iter (lambda (result current-list remaining-lists)
+		   (if (null? current-list)
+		       (if (null? remaining-lists)
+			   result
+			   (iter result
+				 (car remaining-lists)
+				 (cdr remaining-lists)))
+		       (iter (cons (car current-list) result)
+			     (cdr current-list)
+			     remaining-lists)))))
+    (reverse (iter nil nil lists))))
+
+(define (append . lists)
+  "append a series of lists together"
+  (append-all lists))
+
+(define (mappend fn lst)
+  "map fn over list and append the resulting lists together"
+  (append-all (map fn lst)))
+
+(define (destructure-into-bindings var-forms value-forms)
+  "produces let style binding pairs with operations on value-forms
+that decompose it according to the structure of var-forms"
+  (letrec0 ((result nil)
+	    (iter
+	     (lambda (vars values)
+	       (cond
+		((symbol? vars)
+		 (push! (list vars values) result))
+		((pair? vars)
+		 (iter (car vars) `(car ,values))
+		 (iter (cdr vars) `(cdr ,values)))
+		((null? vars) #t)
+		(else (throw-error "don't know what to do with" vars))))))
+    (iter var-forms value-forms)
+    (reverse result)))
+
+(define (destructure-all-bindings bindings)
+  (mappend (lambda (binding)
+	     (destructure-into-bindings (first binding)
+					(second binding)))
+	   bindings))
+
+;; Now we're finally ready to enable destructuring
+;; named-let/let*/letrec
+(define-syntax (let name-or-bindings . bindings-or-body)
+  (if (symbol? name-or-bindings)
+      (let0 ((name name-or-bindings)
+	     (bindings (destructure-all-bindings (first bindings-or-body)))
+	     (body (rest bindings-or-body)))
+
+        `(letrec0 ((,name
+		   (lambda ,(map first bindings)
+		     . ,body)))
+	   (,name . ,(map second bindings))))
+      `(let0 ,(destructure-all-bindings name-or-bindings) . ,bindings-or-body)))
+
+(define-syntax (let* bindings . body)
+  `(let*0 ,(destructure-all-bindings bindings) . ,body))
+
+(define-syntax (letrec bindings . body)
+  `(letrec0 ,(destructure-all-bindings bindings) . ,body))
 
 (define (cadr x) (car (cdr x)))
 (define (cadr x) (car (cdr x)))
@@ -131,14 +218,6 @@
 	  #t
 	  #f)))
 
-(define-syntax (push! obj dst)
-  `(set! ,dst (cons ,obj ,dst)))
-
-(define-syntax (pop! dst)
-  `((lambda (top)
-     (set! ,dst (cdr ,dst))
-     top) (car ,dst)))
-
 (define-syntax (inc! dst)
   `(set! ,dst (+ 1 ,dst)))
 
@@ -154,12 +233,16 @@
 	  `(define0 ,name . ,value-or-body))
       `(define0 ,name . ,value-or-body)))
 
+;; redefined define-syntax to include a docstring and argument
+;; destructuring
 (define define-syntax0 define-syntax)
-(define-syntax (define-syntax name . value-or-body)
-  (if (string? (car value-or-body))
-    (add-documentation (car name) (car value-or-body)))
-  `(define-syntax0 ,name . ,value-or-body))
-
+(define-syntax (define-syntax name-and-args . maybe-doc-and-body)
+  (if (string? (car maybe-doc-and-body))
+    (add-documentation (car name-and-args) (car maybe-doc-and-body)))
+  (let ((args (gensym)))
+    `(define-syntax0 (,(car name-and-args) . ,args)
+       (let ((,(cdr name-and-args) ,args))
+	 . ,maybe-doc-and-body))))
 
 (let ((docs nil))
   (define (add-documentation name string)
@@ -251,20 +334,6 @@
        nil
        (begin . ,conseq)))
 
-(define-syntax (cond . clauses)
-  "evaluates the cdr of the first clause whose car evaluates true"
-  (if (null? clauses)
-      #f
-      (if (eq? (first (car clauses)) 'else)
-	  `(begin . ,(rest (car clauses)))
-	  (let ((result (gensym)))
-	    `(let ((,result ,(first (car clauses))))
-	       (if ,result
-		   ,(if (rest (car clauses))
-			`(begin . ,(rest (car clauses)))
-			result)
-		   (cond . ,(cdr clauses))))))))
-
 (define-syntax (and . clauses)
   "evaluates clauses until one is false"
   (cond
@@ -297,23 +366,8 @@
 			     . ,(cdr c))))
 		     clauses)))))
 
-(define-syntax (funcall fn . args)
-  `(,fn . ,args))
-
-; enable that really cool rebinding let syntax that I've seen
-; used but haven't found documented anywhere...
-(define let0 let)
-(define-syntax (let name-or-bindings . bindings-or-body)
-  (if (symbol? name-or-bindings)
-      (let0 ((name name-or-bindings)
-	     (bindings (first bindings-or-body))
-	     (body (rest bindings-or-body)))
-
-        `(letrec ((,name
-		   (lambda ,(map first bindings)
-		     . ,body)))
-	   (,name . ,(map second bindings))))
-      `(let0 ,name-or-bindings . ,bindings-or-body)))
+(define (funcall fn . args)
+  (apply fn args))
 
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
@@ -422,28 +476,6 @@
 		       count
 		       (iter (cdr a) (+ 1 count))))))
     (iter items 0)))
-
-(define (append-all lists)
-  "append the lists inside the argument together end-to-end"
-  (letrec ((iter (lambda (result current-list remaining-lists)
-		   (if (null? current-list)
-		       (if (null? remaining-lists)
-			   result
-			   (iter result
-				 (car remaining-lists)
-				 (cdr remaining-lists)))
-		       (iter (cons (car current-list) result)
-			     (cdr current-list)
-			     remaining-lists)))))
-    (reverse (iter nil nil lists))))
-
-(define (append . lists)
-  "append a series of lists together"
-  (append-all lists))
-
-(define (mappend fn lst)
-  "map fn over list and append the resulting lists together"
-  (append-all (map fn lst)))
 
 (define (for-each f l)
   "call fn with each element of list"
