@@ -587,6 +587,7 @@ not be quoted or escaped."
     result))
 
 (define (error . objs)
+  "write forms to stderr"
   (write-with-spaces stderr objs)
   (newline))
 
@@ -599,58 +600,47 @@ not be quoted or escaped."
   (not (pair? obj)))
 
 (define (list? obj)
+  "true if obj appears to be a proper sublist"
   (and (pair? obj)
        (or (null? (cdr obj))
 	   (pair? (cdr obj)))))
 
 (define (do-times fn times)
-  (letrec ((iter (lambda (n)
-		   (if (< n times)
-		       (begin
-			 (fn n)
-			 (iter (+ n 1)))
-		       #t))))
-    (iter 0)))
+  "call fn times with oone argument that goese from 0 to times-1"
+  (let loop ((n 0))
+    (when (< n times)
+      (fn n)
+      (loop (+ n 1))))
+  #t)
 
-(define-syntax (dotimes args . body)
-  `(do-times (lambda (,(first args)) . ,body)
-	     ,(second args)))
+(define-syntax (dotimes (idx max) . body)
+  "execute body max times with idx going from 0 to max-1"
+  `(do-times (lambda (,idx) . ,body) ,max))
 
-(define (find fn lst)
-  (letrec ((iter (lambda (rest)
-		   (if (null? rest)
-		       #f
-		       (let ((res (fn (car rest))))
-			 (if res
-			     (car rest)
-			     (iter (cdr rest))))))))
-    (iter lst)))
+(define (find pred lst)
+  "return the first element of lst for which pred is true. #f if none"
+  (let loop ((remainder lst))
+    (cond
+     ((null? remainder) #f)
+     ((pred (car remainder)) (car remainder))
+     (else (loop (cdr remainder))))))
 
 (define (filter fn lst)
   "create a new list that includes only the elements of lst for which fn evaluates true"
-  (letrec ((iter (lambda (lst result)
-		   (cond
-		    ((null? lst) result)
-		    ((fn (car lst))
-		     (iter (cdr lst) (cons (car lst) result)))
-		    (else (iter (cdr lst) result))))))
-    (reverse (iter lst nil))))
+  (let loop ((remainder lst)
+	     (result nil))
+    (cond
+     ((null? remainder) (reverse result))
+     ((fn (car remainder))
+      (loop (cdr remainder)
+	    (cons (car remainder) result)))
+     (else (loop (cdr remainder) result)))))
 
 (define filter-in filter)
 
 (define (starts-with? exp val test)
   "true if a pair begins with val according to test"
   (and (pair? exp) (test (car exp) val)))
-
-(define (assq key list)
-  "find the first pair in list thats car is eq? to key"
-  (find (lambda (e) (starts-with? e key eq?))
-	list))
-
-(define (assoc key list)
-  "find the first pair in list thats car is eq? to key"
-  (find (lambda (e) (starts-with? e key equal?))
-	list))
 
 (define (equal? a b)
   "true if each node in trees a and b are eq?"
@@ -671,6 +661,16 @@ not be quoted or escaped."
        (else #t))))
    (else (eq? a b))))
 
+(define (assq key list)
+  "find the first pair in list thats car is eq? to key"
+  (find (lambda (e) (starts-with? e key eq?))
+	list))
+
+(define (assoc key list)
+  "find the first pair in list thats car is eq? to key"
+  (find (lambda (e) (starts-with? e key equal?))
+	list))
+
 (define eqv? equal?)
 
 (define (zero? val)
@@ -680,7 +680,8 @@ not be quoted or escaped."
   (eq? v1 v2))
 
 (define (reduce fn lst . init)
-  "apply fn to its previous result and each value of list. return final value"
+  "apply fn to its previous result and each value of list. return
+final value"
   (letrec ((iter (lambda (last rest)
 		   (if (null? rest)
 		       last
@@ -692,7 +693,8 @@ not be quoted or escaped."
 ;; originally found in tiny-clos but this was generally useful
 ;; enough to promote
 (define (getl initargs name . not-found)
-  "look for name in initargs and return the next thing in the list if it's found. return not-found otherwised"
+  "look for name in initargs and return the next thing in the list if
+it's found. return not-found otherwised"
   (letrec ((scan (lambda (tail)
 		   (cond ((null? tail)
 			  (if (pair? not-found)
