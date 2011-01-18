@@ -271,23 +271,20 @@ that decompose it according to the structure of var-forms"
 
 (define (index-of fn lst)
   "the first index for which fn evaluates true"
-  (letrec ((iter (lambda (n rest)
-		   (if (null? rest)
-		       nil
-		       (if (fn (car rest))
-			   n
-			   (iter (+ n 1) (cdr rest)))))))
-
-    (iter 0 lst)))
+  (let loop ((n 0)
+	     (remaining lst))
+    (cond
+     ((null? remaining) nil)
+     ((fn (car remaining)) n)
+     (else (loop (+ n 1) (cdr remaining))))))
 
 (define (list-tail lst n)
   "the remainder of the list after calling cdr n times"
-  (letrec ((iter (lambda (i rest)
-		   (if (= i n)
-		       rest
-		       (iter (+ i 1) (cdr rest))))))
-
-    (iter 0 lst)))
+  (let loop ((i 0)
+	     (rest lst))
+    (if (= i n)
+	rest
+	(loop (+ i 1) (cdr rest)))))
 
 (define (list-ref lst n)
   "the car of the nth element of the list"
@@ -299,10 +296,11 @@ that decompose it according to the structure of var-forms"
 
 (define (member-of eq val lst)
   "the remainder of the list that begins with val"
-  (let ((idx (index-of
-	      (lambda (item) (eq item val)) lst)))
-    (when idx
-	  (list-tail lst idx))))
+  (let loop ((remaining lst))
+    (cond
+     ((null? remaining) nil)
+     ((eq (car remaining) val) remaining)
+     (else (loop (cdr remaining))))))
 
 (define (member obj lst)
   "the remainder of the list that begins with val. uses equal?"
@@ -360,14 +358,12 @@ that decompose it according to the structure of var-forms"
   (let ((key-val (gensym)))
     `(let ((,key-val ,key))
        (cond . ,(map (lambda (c)
-		       (if (starts-with? c 'else eq?)
-			   c
-			   `((member? ,key-val ',(first c))
-			     . ,(cdr c))))
+		       (cond
+			((starts-with? c 'else eq?) c)
+			((pair? (first c))
+			 `((memq ,key-val ',(first c)) . ,(cdr c)))
+			(else `((eq? ,key-val ',(first c)) . ,(cdr c)))))
 		     clauses)))))
-
-(define (funcall fn . args)
-  (apply fn args))
 
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
@@ -430,15 +426,28 @@ that decompose it according to the structure of var-forms"
   (set! exit-hook nil)
   (throw-exit val))
 
+(define (every-pair? pred lst)
+  "true if binary-pred is true for every pair as it slides down the
+list"
+  (let loop ((remaining lst))
+    (cond
+     ((null? remaining) #t)
+     ((null? (cdr remaining)) #t)
+     ((pred (first remaining)
+	    (second remaining)) (loop (cdr remaining)))
+     (else #f))))
+
 (define (<=2 a b)
   (or (< a b) (= a b)))
 
-(define-syntax (<= . values)
-  (if (or (null? values)
-	  (null? (cdr values)))
-      #t
-      `(and (<=2 ,(first values) ,(second values))
-	    (<= . ,(cdr values)))))
+(define (<= . values)
+  (every-pair? <=2 values))
+
+(define (>=2 a b)
+  (or (> a b) (= a b)))
+
+(define (>= . values)
+  (every-pair? >=2 values))
 
 ;; Now go on and define a few useful higher level functions. This list
 ;; of things is largely driven by personal need at this point. Perhaps
@@ -452,22 +461,15 @@ that decompose it according to the structure of var-forms"
 
 (define (every? fn lst)
   "true if every list element causes fn to evaluate true"
-  (letrec ((iter (lambda (rest)
-		   (if (null? rest)
-		       #t
-		       (if (fn (car rest))
-			   (iter (cdr rest))
-			   #f)))))
-
-    (iter lst)))
+  (let loop ((remaining lst))
+    (cond
+     ((null? remaining) #t)
+     ((fn (car remaining)) (loop (cdr remaining)))
+     (else #f))))
 
 (define (member? val lst)
   "true if val is lst or if val is found eq? in list"
-  (if (pair? lst)
-      (if (null? (index-eq val lst))
-	  #f
-	  #t)
-      (eq? val lst)))
+  (and (memq val lst) #t))
 
 (define (length items)
   "number of elements in a list"
@@ -489,6 +491,8 @@ that decompose it according to the structure of var-forms"
   "read from a port"
   (read-port port))
 
+;; the definition of eval that load will used. this is convenient so
+;; that we can override the behavior of load later if we wish
 (define load-eval eval)
 
 (define (load name)
@@ -510,7 +514,7 @@ that decompose it according to the structure of var-forms"
     (define (require name)
       "load file name if it hasn't already been loaded"
       (let ((name (sym-to-name name)))
-	(unless (member? name required)
+	(unless (memq name required)
 		(push! name required)
 		(load name))))
 
@@ -526,19 +530,23 @@ that decompose it according to the structure of var-forms"
       (car obj)))
 
 (define (newline . port)
+  "write a newline to port (defaults to stdout)"
   (let ((port (car-else port stdout)))
     (write-char #\newline port)))
 
 (define (write-with-spaces port lst)
+  "write a series of forms to port"
   (write-port (car lst) port)
   (unless (null? (cdr lst))
 	  (write-char #\space port)
 	  (write-with-spaces port (cdr lst))))
 
 (define (display-with-spaces . args)
+  "write a series of forms to stdout"
   (write-with-spaces stdout args))
 
 (define (write obj . port)
+  "write a form to port (defaults to stdout)"
   (let ((p (car-else port stdout)))
     (write-port obj p)))
 
@@ -555,6 +563,8 @@ that decompose it according to the structure of var-forms"
   (integer? obj)) ;; we only have 1 kind right now
 
 (define (display obj . port)
+  "write form to port (stdout default) in display format. strings will
+not be quoted or escaped."
   (let ((port (car-else port stdout)))
     (cond
      ((string? obj) (display-string obj port))
@@ -563,18 +573,14 @@ that decompose it according to the structure of var-forms"
      (else (write-port obj port)))))
 
 (define (call-with-input-file file proc)
-  (display "call-with-input-file: ")
-  (display file)
-  (newline)
+  "open file and pass the port to proc, close when proc returns"
   (let* ((in (open-input-port file))
 	 (result (proc in)))
     (close-input-port in)
     result))
 
 (define (call-with-output-file file proc)
-  (display "call-with-output-file: ")
-  (display file)
-  (newline)
+  "open file and pass the port to proc, close when proc returns"
   (let* ((out (open-output-port file))
 	 (result (proc out)))
     (close-output-port out)
