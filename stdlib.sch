@@ -51,6 +51,11 @@
 	     (lambda ,(cdr name)
 	       (begin . ,value-or-body)))))
 
+(define (concat . strings)
+  "Concatenate any number of strings."
+  (if (null? strings)
+      ""
+      (prim-concat (first strings) (apply concat (rest strings)))))
 
 (set! next-gensym 0)
 (define (gensym)
