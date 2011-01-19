@@ -209,12 +209,12 @@ that decompose it according to the structure of var-forms"
 (define (cddddr x) (cdr (cdddr x)))
 (define (caddddr x) (car (cddddr x)))
 
-(define (first x) (car x))
-(define (rest x) (cdr x))
-(define (second x) (cadr x))
-(define (third x) (caddr x))
-(define (fourth x) (cadddr x))
-(define (fifth x) (caddddr x))
+(define first car)
+(define rest cdr)
+(define second cadr)
+(define third caddr)
+(define fourth cadddr)
+(define fifth caddddr)
 
 (define (length=1 lst)
   (if (null? (car lst))
