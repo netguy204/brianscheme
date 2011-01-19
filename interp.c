@@ -152,10 +152,11 @@ void define_global_variable(object * var, object * new_val, object * env) {
  * creates a binding in the local frame
  */
 void define_local_variable(object * var, object * val, object * env) {
-  object * frame = first_frame(env);
+  object *frame = first_frame(env);
   if(is_hashtab(frame)) {
     set_hashtab(frame, var, val);
-  } else {
+  }
+  else {
     add_binding_to_frame(var, val, frame);
   }
 }
@@ -1109,13 +1110,14 @@ interp_restart:
 	  /* replace the macro call with the result */
 	  set_car(exp, car(expansion));
 	  set_cdr(exp, cdr(expansion));
-	} else {
+	}
+	else {
 	  exp = expansion;
 	}
 	pop_root(&fn);
 
 	push_root(&exp);
-	object *result = interp1(exp, env, level+1);
+	object *result = interp1(exp, env, level + 1);
 	pop_root(&exp);
 	INTERP_RETURN(result);
       }

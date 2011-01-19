@@ -82,22 +82,24 @@ void assert_gc(char test, char *msg, ...) {
 
 
 typedef struct doubly_linked_list {
-  object * head;
-  object * tail;
+  object *head;
+  object *tail;
   long num_objects;
 } doubly_linked_list;
 
-void move_object_to_head(object* obj, doubly_linked_list* src,
-			 doubly_linked_list* dest) {
+void move_object_to_head(object * obj, doubly_linked_list * src,
+			 doubly_linked_list * dest) {
   /* unlink from the old list */
   if(obj->prev == NULL) {
     src->head = obj->next;
-  } else {
+  }
+  else {
     obj->prev->next = obj->next;
   }
   if(obj->next == NULL) {
     src->tail = obj->prev;
-  } else {
+  }
+  else {
     obj->next->prev = obj->prev;
   }
   src->num_objects--;
@@ -108,7 +110,8 @@ void move_object_to_head(object* obj, doubly_linked_list* src,
     dest->tail = obj;
     obj->next = NULL;
     obj->prev = NULL;
-  } else {
+  }
+  else {
     obj->prev = NULL;
     obj->next = dest->head;
     obj->next->prev = obj;
@@ -118,14 +121,15 @@ void move_object_to_head(object* obj, doubly_linked_list* src,
   dest->num_objects++;
 }
 
-void append_to_tail(doubly_linked_list* dest,
-		    doubly_linked_list* src) {
+void append_to_tail(doubly_linked_list * dest, doubly_linked_list * src) {
   if(dest->tail == NULL) {
     dest->head = src->head;
     dest->tail = src->tail;
-  } else if(src->head == NULL) {
+  }
+  else if(src->head == NULL) {
     return;
-  } else {
+  }
+  else {
     /* link end of dest to start of src */
     dest->tail->next = src->head;
     dest->tail->next->prev = dest->tail;
@@ -144,8 +148,7 @@ void append_to_tail(doubly_linked_list* dest,
  * my assumptions are holding at each step of garbage collection.
  */
 #ifdef DEBUG_GC
-long debug_list_contains(doubly_linked_list *list,
-			 object *obj) {
+long debug_list_contains(doubly_linked_list * list, object * obj) {
   object *iter = list->head;
   if(iter == list->tail) {
     assert_gc(iter == obj, "object %p not in length1 list\n", obj);
@@ -165,7 +168,7 @@ long debug_list_contains(doubly_linked_list *list,
 }
 
 
-void debug_validate(doubly_linked_list *list) {
+void debug_validate(doubly_linked_list * list) {
   /* verify the structure of a linked list */
   if(list->head == NULL || list->tail == NULL) {
     assert_gc(list->head == NULL &&
@@ -190,10 +193,8 @@ void debug_validate(doubly_linked_list *list) {
 
   long idx = 1;
   while(iter != list->tail) {
-    assert_gc(iter->prev != NULL, "central node %ld prev is null",
-	      idx);
-    assert_gc(iter->next != NULL, "central node %ld next is null",
-	      idx);
+    assert_gc(iter->prev != NULL, "central node %ld prev is null", idx);
+    assert_gc(iter->next != NULL, "central node %ld next is null", idx);
     if(last) {
       assert_gc(iter->prev == last,
 		"central node %ld prev is wrong. Is %p. Should be %p",
@@ -210,11 +211,9 @@ void debug_validate(doubly_linked_list *list) {
   assert_gc(iter->next == NULL, "list tail next is not null");
   assert_gc(iter->prev != NULL, "list tail prev is null");
   assert_gc(iter->prev == last,
-	    "list tail prev is wrong. Is %p. Should be %p",
-	    iter->prev, last);
+	    "list tail prev is wrong. Is %p. Should be %p", iter->prev, last);
   assert_gc(idx == list->num_objects,
-	    "list object count is wrong %ld != %ld",
-	    idx, list->num_objects);
+	    "list object count is wrong %ld != %ld", idx, list->num_objects);
 }
 #else
 #define debug_list_contains(a, b)
@@ -281,13 +280,13 @@ void pop_root(object ** stack) {
   if(Root_Objects->objs[--Root_Objects->top] != stack) {
     /* scan back until we find it */
     int idx = Root_Objects->top - 1;
-    object ** last = Root_Objects->objs[Root_Objects->top];
+    object **last = Root_Objects->objs[Root_Objects->top];
     int done = 0;
-    for(;idx >= 0 && !done; --idx) {
+    for(; idx >= 0 && !done; --idx) {
       if(Root_Objects->objs[idx] == stack) {
 	done = 1;
       }
-      object ** temp = Root_Objects->objs[idx];
+      object **temp = Root_Objects->objs[idx];
       Root_Objects->objs[idx] = last;
       last = temp;
     }
@@ -321,7 +320,8 @@ void extend_heap(long extension) {
 
   if(Active_Heap_Objects.head) {
     Active_Heap_Objects.head->prev = &new_heap[last];
-  } else {
+  }
+  else {
     /* this is the first heap allocation */
     Active_Heap_Objects.tail = &new_heap[last];
   }
@@ -336,7 +336,7 @@ void extend_heap(long extension) {
   debug_validate(&Active_Heap_Objects);
 }
 
-void move_reachable(object * root, doubly_linked_list *to_set) {
+void move_reachable(object * root, doubly_linked_list * to_set) {
   int ii;
   hashtab_iter_t htab_iter;
 
@@ -405,7 +405,7 @@ void move_reachable(object * root, doubly_linked_list *to_set) {
   }
 }
 
-void finalize_object(object *head) {
+void finalize_object(object * head) {
   /* free any extra memory associated with this type */
   switch (head->type) {
   case STRING:

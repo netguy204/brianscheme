@@ -209,11 +209,11 @@ DEFUN1(ffi_call_proc) {
   return true;
 }
 
-void interp_trampoline(ffi_cif *cif, void *ret,
-		       void ** args, void * target_ptr) {
-  object * target = (object*)target_ptr;
-  object * exp = the_empty_list;
-  object * alien = make_alien(args, the_empty_list);
+void interp_trampoline(ffi_cif * cif, void *ret,
+		       void **args, void *target_ptr) {
+  object *target = (object *) target_ptr;
+  object *exp = the_empty_list;
+  object *alien = make_alien(args, the_empty_list);
 
   push_root(&exp);
   push_root(&alien);
@@ -229,16 +229,17 @@ void interp_trampoline(ffi_cif *cif, void *ret,
 DEFUN1(create_closure_proc) {
   ffi_cif *cif = ALIEN_PTR(FIRST);
   object *target = SECOND;
-  void * ret = THIRD;
+  void *ret = THIRD;
 
   ffi_closure *closure;
   FN_PTR fn_with_closure;
-  closure = ffi_closure_alloc(sizeof(ffi_closure), (void**)&fn_with_closure);
+  closure = ffi_closure_alloc(sizeof(ffi_closure), (void **)&fn_with_closure);
   if(!closure) {
     return false;
   }
 
-  if(ffi_prep_closure_loc(closure, cif, interp_trampoline, target, fn_with_closure) != FFI_OK) {
+  if(ffi_prep_closure_loc
+     (closure, cif, interp_trampoline, target, fn_with_closure) != FFI_OK) {
     ffi_closure_free(closure);
     return false;
   }
@@ -249,7 +250,7 @@ DEFUN1(create_closure_proc) {
 /* provides an example function that can be called from userland to
    demonstrate the ffi closure functionality
 */
-void test_fn(void (*rfn)(int)) {
+void test_fn(void (*rfn) (int)) {
   rfn(42);
 }
 

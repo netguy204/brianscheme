@@ -213,7 +213,8 @@ int htb_hash(void *key, size_t hashtab_size) {
 
   if(sizeof(key) == 4) {
     hash = ((long)key) >> 2;
-  } else {
+  }
+  else {
     hash = ((long)key) >> 3;
   }
 
