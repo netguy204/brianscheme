@@ -13,8 +13,52 @@
 ; limitations under the License.
 ;
 
-(define (neg v)
-  (- 0 v))
+;; build the proper promoting forms of the standard operators
+(define (promoting-arithmatic op-integer op-real x y)
+  "does standard type promotion on x and y and then calls the
+appropriate operation for the types they end up as"
+  (cond
+   ((and (integer? x) (integer? y))
+    (op-integer x y))
+   ((and (real? x) (real? y))
+    (op-real x y))
+   ((and (integer? x) (real? y))
+    (op-real (integer->real x) y))
+   ((and (real? x) (integer? y))
+    (op-real x (integer->real y)))
+   (else (throw-error "cannot do arithmatic on " x " and " y))))
+
+(define (+ . args)
+  (reduce (lambda (x y)
+	    (promoting-arithmatic fixnum-add real-add x y))
+	  args))
+
+(define (- . args)
+  (if (length=1 args)
+      (cond
+       ((integer? (first args)) (fixnum-sub 0 (first args)))
+       ((real? (first args)) (real-sub 0.0 (first args)))
+       (else (throw-error "cannot negate" (first args))))
+      (reduce (lambda (x y)
+		(promoting-arithmatic fixnum-sub real-sub x y))
+	      args)))
+
+(define (* . args)
+  (reduce (lambda (x y)
+	    (promoting-arithmatic fixnum-mul real-mul x y))
+	  args))
+
+(define (/ . args)
+  (if (length=1 args)
+      (cond
+       ((integer? (first args))
+	(real-div 1.0 (integer->real (first args))))
+       ((real? (first args))
+	(real-div 1.0 (first args)))
+       (else (throw-error "cannot invert" (first args))))
+      (reduce (lambda (x y)
+		(promoting-arithmatic fixnum-div real-div x y))
+	      args)))
 
 (define (abs a)
   (if (< a 0)

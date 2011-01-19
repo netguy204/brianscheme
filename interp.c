@@ -19,9 +19,11 @@
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
+#include <math.h>
 
 #include "types.h"
 #include "interp.h"
+#include "read.h"
 #include "gc.h"
 #include "vm.h"
 
@@ -238,6 +240,10 @@ DEFUN1(is_integer_proc) {
   return AS_BOOL(is_fixnum(FIRST));
 }
 
+DEFUN1(is_real_proc) {
+  return AS_BOOL(is_real(FIRST));
+}
+
 DEFUN1(is_char_proc) {
   return AS_BOOL(is_character(FIRST));
 }
@@ -285,7 +291,7 @@ DEFUN1(is_compiled_proc_proc) {
   return AS_BOOL(is_compiled_proc(FIRST));
 }
 
-DEFUN1(add_proc) {
+DEFUN1(add_fixnum_proc) {
   long result = 0;
   while(!is_the_empty_list(arguments)) {
     result += LONG(FIRST);
@@ -294,7 +300,16 @@ DEFUN1(add_proc) {
   return make_fixnum(result);
 }
 
-DEFUN1(sub_proc) {
+DEFUN1(add_real_proc) {
+  double result = 0;
+  while(!is_the_empty_list(arguments)) {
+    result += DOUBLE(FIRST);
+    NEXT;
+  }
+  return make_real(result);
+}
+
+DEFUN1(sub_fixnum_proc) {
   long result = LONG(FIRST);
   while(!is_the_empty_list(NEXT)) {
     result -= LONG(FIRST);
@@ -302,13 +317,62 @@ DEFUN1(sub_proc) {
   return make_fixnum(result);
 }
 
-DEFUN1(mul_proc) {
+DEFUN1(sub_real_proc) {
+  double result = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result -= DOUBLE(FIRST);
+  }
+  return make_real(result);
+}
+
+DEFUN1(mul_fixnum_proc) {
   long result = 1;
   while(!is_the_empty_list(arguments)) {
     result *= LONG(FIRST);
     NEXT;
   }
   return make_fixnum(result);
+}
+
+DEFUN1(mul_real_proc) {
+  double result = 1;
+  while(!is_the_empty_list(arguments)) {
+    result *= DOUBLE(FIRST);
+    NEXT;
+  }
+  return make_real(result);
+}
+
+DEFUN1(div_fixnum_proc) {
+  long result = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result /= LONG(FIRST);
+  }
+  return make_fixnum(result);
+}
+
+DEFUN1(div_real_proc) {
+  double result = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result /= DOUBLE(FIRST);
+  }
+  return make_real(result);
+}
+
+DEFUN1(floor_proc) {
+  return make_fixnum((long)floor(DOUBLE(FIRST)));
+}
+
+DEFUN1(ceil_proc) {
+  return make_fixnum((long)ceil(DOUBLE(FIRST)));
+}
+
+DEFUN1(round_proc) {
+  return make_fixnum((long)round(DOUBLE(FIRST)));
+}
+
+DEFUN1(fixnum_to_real_proc) {
+  return make_real((double)LONG(FIRST));
 }
 
 DEFUN1(debug_proc) {
@@ -319,14 +383,6 @@ DEFUN1(debug_proc) {
     debug_enabled = 1;
   }
   return FIRST;
-}
-
-DEFUN1(div_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result /= LONG(FIRST);
-  }
-  return make_fixnum(result);
 }
 
 DEFUN1(cons_proc) {
@@ -583,12 +639,18 @@ DEFUN1(string_set_proc) {
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];
-  snprintf(buffer, 100, "%ld", LONG(FIRST));
+  if(is_fixnum(FIRST)) {
+    snprintf(buffer, 100, "%ld", LONG(FIRST));
+  } else if(is_real(FIRST)) {
+    snprintf(buffer, 100, "%lf", DOUBLE(FIRST));
+  } else {
+    throw_interp("obj is not a number");
+  }
   return make_string(buffer);
 }
 
 DEFUN1(string_to_number_proc) {
-  return make_fixnum(atoi(STRING(FIRST)));
+  return string_to_number(STRING(FIRST));
 }
 
 DEFUN1(symbol_to_string_proc) {
@@ -790,7 +852,10 @@ void owrite(FILE * out, object * obj) {
     fprintf(out, "%s", obj->data.symbol.value);
     break;
   case FIXNUM:
-    fprintf(out, "%ld", obj->data.fixnum.value);
+    fprintf(out, "%ld", LONG(obj));
+    break;
+  case FLOATNUM:
+    fprintf(out, "%lf", DOUBLE(obj));
     break;
   case CHARACTER:
     fprintf(out, "#\\");
@@ -1219,6 +1284,7 @@ void init_prim_environment(object * env) {
   add_procedure("boolean?", is_boolean_proc);
   add_procedure("symbol?", is_symbol_proc);
   add_procedure("integer?", is_integer_proc);
+  add_procedure("real?", is_real_proc);
   add_procedure("char?", is_char_proc);
   add_procedure("string?", is_string_proc);
   add_procedure("pair?", is_pair_proc);
@@ -1232,10 +1298,18 @@ void init_prim_environment(object * env) {
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
   add_procedure("meta?", is_meta_proc);
 
-  add_procedure("+", add_proc);
-  add_procedure("-", sub_proc);
-  add_procedure("*", mul_proc);
-  add_procedure("/", div_proc);
+  add_procedure("fixnum-add", add_fixnum_proc);
+  add_procedure("real-add", add_real_proc);
+  add_procedure("fixnum-sub", sub_fixnum_proc);
+  add_procedure("real-sub", sub_real_proc);
+  add_procedure("fixnum-mul", mul_fixnum_proc);
+  add_procedure("real-mul", mul_real_proc);
+  add_procedure("fixnum-div", div_fixnum_proc);
+  add_procedure("real-div", div_real_proc);
+  add_procedure("floor", floor_proc);
+  add_procedure("ceiling", ceil_proc);
+  add_procedure("round", round_proc);
+  add_procedure("integer->real", fixnum_to_real_proc);
   add_procedure("<", is_less_than_proc);
   add_procedure(">", is_greater_than_proc);
   add_procedure("=", is_number_equal_proc);
@@ -1284,7 +1358,7 @@ void init_prim_environment(object * env) {
   add_procedure("string-ref", string_ref_proc);
   add_procedure("string-set!", string_set_proc);
   add_procedure("number->string", number_to_string_proc);
-  add_procedure("string->number", string_to_symbol_proc);
+  add_procedure("string->number", string_to_number_proc);
   add_procedure("symbol->string", symbol_to_string_proc);
   add_procedure("string->symbol", string_to_symbol_proc);
   add_procedure("string->uninterned-symbol",

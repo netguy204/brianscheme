@@ -35,6 +35,10 @@
 ;; Some very basic defines to get us started
 
 (set! nil '())
+(set! + fixnum-add)
+(set! - fixnum-sub)
+(set! * fixnum-mul)
+(set! / fixnum-div)
 
 (set! define-syntax
       (macro (name-and-vars . body)
@@ -60,7 +64,7 @@
 (set! next-gensym 0)
 (define (gensym)
   (begin
-    (set! next-gensym (+ next-gensym 1))
+    (set! next-gensym (fixnum-add next-gensym 1))
     (string->uninterned-symbol
      (concat "#" (number->string next-gensym)))))
 
@@ -1012,6 +1016,5 @@ body. always executes at least once"
 
 
 (require 'math)
-
 (provide 'stdlib)
 

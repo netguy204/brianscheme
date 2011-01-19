@@ -23,7 +23,7 @@
 /* first implementing the classic tagged type. This specific
    inplementation is stolen from Peter Michaux's bootstrap-scheme. */
 
-typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM,
+typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM, FLOATNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
@@ -42,6 +42,9 @@ typedef struct object {
     struct {
       long value;
     } fixnum;
+    struct {
+      double value;
+    } floatnum;
     struct {
       char value;
     } character;
@@ -126,6 +129,10 @@ object *make_fixnum(long value);
 
 char is_fixnum(object *obj);
 
+object *make_real(double value);
+
+char is_real(object *obj);
+
 object *make_character(char value);
 
 char is_character(object *obj);
@@ -205,6 +212,7 @@ long get_cons_count();
 #define CAR(x) (x->data.pair.car)
 #define CDR(x) (x->data.pair.cdr)
 #define LONG(x) (x->data.fixnum.value)
+#define DOUBLE(x) (x->data.floatnum.value)
 #define CHAR(x) (x->data.character.value)
 #define STRING(x) (x->data.string.value)
 #define SYMBOL(x) (x->data.symbol.value)

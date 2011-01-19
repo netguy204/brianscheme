@@ -45,12 +45,23 @@ char is_symbol(object * obj) {
 object *make_fixnum(long value) {
   object *obj = alloc_object();
   obj->type = FIXNUM;
-  obj->data.fixnum.value = value;
+  LONG(obj) = value;
   return obj;
 }
 
 char is_fixnum(object * obj) {
   return obj->type == FIXNUM;
+}
+
+object *make_real(double value) {
+  object *obj = alloc_object();
+  obj->type = FLOATNUM;
+  DOUBLE(obj) = value;
+  return obj;
+}
+
+char is_real(object * obj) {
+  return obj->type == FLOATNUM;
 }
 
 object *make_character(char value) {

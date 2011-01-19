@@ -7,7 +7,7 @@ HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
-LDFLAGS = -leditline -lffi -ldl -rdynamic
+LDFLAGS = -leditline -lffi -ldl -lm -rdynamic
 
 CC = gcc
 

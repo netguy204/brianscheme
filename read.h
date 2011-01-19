@@ -18,6 +18,7 @@
 #define READ_H
 
 object *obj_read(FILE *in);
+object *string_to_number(char * str);
 
 extern char* prompt;
 

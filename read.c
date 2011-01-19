@@ -309,11 +309,58 @@ object *obj_read(FILE * in) {
   return obj;
 }
 
+object *string_to_number(char * buffer) {
+  char * iter = buffer;
+  char floatnum = 0;
+  char c;
+
+  while(*iter) {
+    c = *iter; ++iter;
+
+    if(c == '.') {
+      if(!floatnum) {
+	floatnum = 1;
+      } else {
+	return throw_read("number contained multiple decimal points\n");
+      }
+    }
+  }
+
+  if(floatnum) {
+    return make_real(atof(buffer));
+  } else {
+    return make_fixnum(atol(buffer));
+  }
+}
+
+object *read_number(char c, read_buffer * in) {
+  char buffer[128];
+  int idx = 0;
+
+  while(idx < 128 &&
+	(c == '-' || c == '.' || isdigit(c))) {
+    if(idx == 127) {
+      return throw_read("too many digits in number");
+    }
+
+    buffer[idx++] = c;
+    c = read_getc(in);
+  }
+
+  if(is_delimiter(c)) {
+    read_ungetc(c, in);
+  } else {
+    return throw_read("number was not followed by delimiter");
+  }
+
+  buffer[idx] = '\0';
+
+  return string_to_number(buffer);
+}
+
 object *lisp_read(read_buffer * in) {
   int c;
-  short sign = 1;
   int i;
-  long num = 0;
 #define BUFFER_MAX 1000
   char buffer[BUFFER_MAX];
 
@@ -336,25 +383,7 @@ object *lisp_read(read_buffer * in) {
     }
   }
   else if(isdigit(c) || (c == '-' && (isdigit(peek(in))))) {
-    if(c == '-') {
-      sign = -1;
-    }
-    else {
-      sign = 1;
-      read_ungetc(c, in);
-    }
-
-    while(isdigit(c = read_getc(in))) {
-      num = (num * 10) + (c - '0');
-    }
-    num *= sign;
-    if(is_delimiter(c)) {
-      read_ungetc(c, in);
-      return make_fixnum(num);
-    }
-    else {
-      return throw_read("number was not followed by delimiter");
-    }
+    return read_number(c, in);
   }
   else if(is_initial(c) || ((c == '+' || c == '-') && is_delimiter(peek(in)))) {
     i = 0;
