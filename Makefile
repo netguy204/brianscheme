@@ -1,4 +1,4 @@
-TARGETS = main
+TARGETS = bsch
 
 default: $(TARGETS)
 
@@ -22,8 +22,8 @@ else
 endif
 endif
 
-main: $(OBJECTS) main.o $(HEADERS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) main.o
+bsch: $(OBJECTS) bsch.o $(HEADERS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bsch.o
 
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)
