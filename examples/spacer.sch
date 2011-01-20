@@ -102,6 +102,7 @@
 
 (define (init-game)
   "Reinitialize game structures."
+  (nc:clear)
   (set! done #f)
   (set! objects '())
   (dotimes (i initial-ships)
@@ -168,11 +169,11 @@
     (step object)))
 
 (define (play-game)
-  (init-game)
   (with-curses win
     (nc:noecho)
     (nc:cbreak)
     (nc:keypad win #t)
     (nc:curs-set 0)
+    (init-game)
     (pth:spawn simulate-loop)
     (control-player)))
