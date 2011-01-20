@@ -39,7 +39,7 @@
     (set! y (logxor y (logand 4022730752 (ash y 15))))
     (set! y (logxor y (ash y -18)))
     (slot-set! rng 'index (mod (+ 1 (slot-ref rng 'index)) 624))
-    y))
+    (logand 2147483647 y)))
 
 (define-generic copy
   "Copy an object.")
