@@ -220,33 +220,70 @@ void debug_validate(doubly_linked_list * list) {
 #define debug_validate(a)
 #endif
 
-typedef struct object_pointer_list {
-  object ***objs;
+typedef struct stack_set {
+  void **objs;
   long top;
   long size;
-} object_pointer_list;
+} stack_set;
+
+stack_set* make_stack_set(int initial_size) {
+  stack_set * ss = MALLOC(sizeof(stack_set));
+  ss->top = 0;
+  ss->size = initial_size;
+  ss->objs = MALLOC(sizeof(void*) * initial_size);
+  return ss;
+}
+
+void clear_stack_set(stack_set* ss) {
+  ss->top = 0;
+}
+
+void stack_set_push(stack_set * ss, void * value) {
+  /* grow the stack if we need to */
+  if(ss->top == ss->size) {
+    long new_size = ss->size * 2;
+    ss->objs = realloc(ss->objs, sizeof(void*) * new_size);
+    ss->size = new_size;
+  }
+
+  ss->objs[ss->top++] = value;
+}
+
+char stack_set_pop(stack_set * ss, void * value) {
+  if(ss->objs[--ss->top] != value) {
+    /* scan back until we find it */
+    int idx = ss->top - 1;
+    object **last = ss->objs[ss->top];
+    int done = 0;
+    for(; idx >= 0 && !done; --idx) {
+      if(ss->objs[idx] == value) {
+	done = 1;
+      }
+      object **temp = ss->objs[idx];
+      ss->objs[idx] = last;
+      last = temp;
+    }
+    return done;
+  }
+  return 1;
+}
 
 static doubly_linked_list Active_Heap_Objects;
 static doubly_linked_list Old_Heap_Objects;
 
 static object *Next_Free_Object = NULL;
-struct object_pointer_list *Root_Objects = NULL;
+struct stack_set *Root_Objects = NULL;
+struct stack_set *Finalizable_Objects = NULL;
+struct stack_set *Finalizable_Objects_Next = NULL;
 
 char current_color = 0;
-
-void ensure_root_objects(void) {
-  if(Root_Objects == NULL) {
-    Root_Objects = MALLOC(sizeof(Root_Objects));
-    Root_Objects->top = 0;
-    Root_Objects->size = 400;
-    Root_Objects->objs = MALLOC(sizeof(object **) * Root_Objects->size);
-  }
-}
 
 void extend_heap(long);
 
 void gc_init(void) {
-  ensure_root_objects();
+  Root_Objects = make_stack_set(400);
+  Finalizable_Objects = make_stack_set(400);
+  Finalizable_Objects_Next = make_stack_set(400);
 
   Active_Heap_Objects.head = NULL;
   Active_Heap_Objects.tail = NULL;
@@ -262,38 +299,15 @@ void gc_init(void) {
   Next_Free_Object = Active_Heap_Objects.head;
 }
 
-object *push_root(object ** stack) {
-  /* grow the stack if we need to */
-  if(Root_Objects->top == Root_Objects->size) {
-    long new_size = Root_Objects->size * 2;
-    Root_Objects->objs = realloc(Root_Objects->objs,
-				 sizeof(object **) * new_size);
-    Root_Objects->size = new_size;
-    debug_gc("grew root stack to %ld objects\n", new_size);
-  }
-
-  Root_Objects->objs[Root_Objects->top++] = stack;
-  return *stack;
+object *push_root(object ** root) {
+  stack_set_push(Root_Objects, root);
+  return *root;
 }
 
-void pop_root(object ** stack) {
-  if(Root_Objects->objs[--Root_Objects->top] != stack) {
-    /* scan back until we find it */
-    int idx = Root_Objects->top - 1;
-    object **last = Root_Objects->objs[Root_Objects->top];
-    int done = 0;
-    for(; idx >= 0 && !done; --idx) {
-      if(Root_Objects->objs[idx] == stack) {
-	done = 1;
-      }
-      object **temp = Root_Objects->objs[idx];
-      Root_Objects->objs[idx] = last;
-      last = temp;
-    }
-    if(!done) {
-      print_backtrace();
-      throw_gc("pop_stack_root - object not found\n");
-    }
+void pop_root(object ** root) {
+  if(!stack_set_pop(Root_Objects, root)) {
+    print_backtrace();
+    throw_gc("pop_stack_root - object not found\n");
   }
 }
 
@@ -432,6 +446,24 @@ long baker_collect() {
     object **next = Root_Objects->objs[ii];
     move_reachable(*next, &Old_Heap_Objects);
   }
+
+  /* now finalize anything that needs it */
+  long idx = 0;
+  for(idx = 0; idx < Finalizable_Objects->top; ++idx) {
+    object * obj = Finalizable_Objects->objs[idx];
+    if(obj->color != current_color) {
+      finalize_object(obj);
+    } else {
+      stack_set_push(Finalizable_Objects_Next, obj);
+    }
+  }
+
+  /* now swap the stacks and clear the old one */
+  stack_set * temp = Finalizable_Objects;
+  Finalizable_Objects = Finalizable_Objects_Next;
+  Finalizable_Objects_Next = temp;
+  clear_stack_set(Finalizable_Objects_Next);
+
   ++current_color;
 
   /* both sets should be valid */
@@ -442,13 +474,14 @@ long baker_collect() {
   Next_Free_Object = Active_Heap_Objects.head;
   long num_free = Active_Heap_Objects.num_objects;
 
+
   return num_free;
 }
 
 static long Alloc_Count = 0;
 static long Next_Heap_Extension = 1000;
 
-object *alloc_object(void) {
+object *alloc_object(char needs_finalization) {
   /* always scavenge while we're debugging
      baker_collect();
    */
@@ -477,8 +510,9 @@ object *alloc_object(void) {
   object *obj = Next_Free_Object;
   obj->color = current_color;
 
-  /* run any pending finalizations from this object's previous life */
-  finalize_object(obj);
+  if(needs_finalization) {
+    stack_set_push(Finalizable_Objects, obj);
+  }
 
   Next_Free_Object = Next_Free_Object->next;
 

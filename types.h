@@ -109,7 +109,7 @@ typedef struct object* (prim_proc)(struct object*,
 
 void *MALLOC(long size);
 
-object *alloc_object(void);
+object *alloc_object(char needs_finalization);
 
 object *make_uninterned_symbol(char *value);
 

@@ -43,7 +43,7 @@ char is_symbol(object * obj) {
 }
 
 object *make_fixnum(long value) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = FIXNUM;
   LONG(obj) = value;
   return obj;
@@ -54,7 +54,7 @@ char is_fixnum(object * obj) {
 }
 
 object *make_real(double value) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = FLOATNUM;
   DOUBLE(obj) = value;
   return obj;
@@ -65,7 +65,7 @@ char is_real(object * obj) {
 }
 
 object *make_character(char value) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = CHARACTER;
   obj->data.character.value = value;
   return obj;
@@ -76,7 +76,7 @@ char is_character(object * obj) {
 }
 
 object *make_empty_string(long len) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(1);
   obj->type = STRING;
   obj->data.string.value = MALLOC(len);
   return obj;
@@ -95,7 +95,7 @@ char is_string(object * obj) {
 
 static long Cons_Count = 0;
 object *cons(object * car, object * cdr) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = PAIR;
   obj->data.pair.car = car;
   obj->data.pair.cdr = cdr;
@@ -128,7 +128,7 @@ void set_cdr(object * obj, object * value) {
 }
 
 object *make_unfilled_vector(long size) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(1);
   obj->type = VECTOR;
   VARRAY(obj) = MALLOC(sizeof(object) * size);
   VSIZE(obj) = size;
@@ -154,7 +154,7 @@ char is_alien(object * obj) {
 }
 
 object *make_alien(void *ptr, object * releaser) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = ALIEN;
   ALIEN_PTR(obj) = ptr;
   ALIEN_RELEASER(obj) = releaser;
@@ -162,7 +162,7 @@ object *make_alien(void *ptr, object * releaser) {
 }
 
 object *make_alien_fn(void (*fn) (void), object * releaser) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = ALIEN;
   ALIEN_FN_PTR(obj) = fn;
   ALIEN_RELEASER(obj) = releaser;
@@ -174,7 +174,7 @@ char is_meta(object * obj) {
 }
 
 object *make_meta_proc(object * proc, object * meta) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = META_PROC;
   METAPROC(obj) = proc;
   METADATA(obj) = meta;
@@ -208,7 +208,7 @@ object *list_to_vector(object * list) {
 }
 
 object *make_hashtab(long size) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(1);
   obj->type = HASH_TABLE;
   HTAB(obj) = htb_init(size, NULL);
   return obj;
@@ -251,7 +251,7 @@ object *get_hashtab_keys(object * table) {
 }
 
 object *make_primitive_proc(prim_proc fn) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = PRIMITIVE_PROC;
   obj->data.primitive_proc.fn = fn;
   return obj;
@@ -262,7 +262,7 @@ char is_primitive_proc(object * obj) {
 }
 
 object *make_compound_proc(object * parameters, object * body, object * env) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
 
   obj->type = COMPOUND_PROC;
   obj->data.compound_proc.parameters = parameters;
@@ -276,7 +276,7 @@ char is_compound_proc(object * obj) {
 }
 
 object *make_syntax_proc(object * parameters, object * body) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
 
   obj->type = SYNTAX_PROC;
   obj->data.compound_proc.parameters = parameters;
@@ -290,7 +290,7 @@ char is_syntax_proc(object * obj) {
 }
 
 object *make_compiled_proc(object * bytecode, object * env, object * ienv) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
 
   obj->type = COMPILED_PROC;
   BYTECODE(obj) = bytecode;
@@ -305,7 +305,7 @@ char is_compiled_proc(object * obj) {
 }
 
 object *make_input_port(FILE * stream) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
 
   obj->type = INPUT_PORT;
   obj->data.input_port.stream = stream;
@@ -325,7 +325,7 @@ char is_eof_object(object * obj) {
 }
 
 object *make_output_port(FILE * stream) {
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
 
   obj->type = OUTPUT_PORT;
   obj->data.output_port.stream = stream;
@@ -348,7 +348,7 @@ object *find_symbol(char *value) {
 
 object *make_uninterned_symbol(char *value) {
   size_t len = strlen(value) + 1;
-  object *obj = alloc_object();
+  object *obj = alloc_object(0);
   obj->type = SYMBOL;
   obj->data.symbol.value = MALLOC(len);
   strncpy(obj->data.symbol.value, value, len);

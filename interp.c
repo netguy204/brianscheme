@@ -1381,23 +1381,23 @@ void init_prim_environment(object * env) {
 void init() {
   gc_init();
 
-  the_empty_list = alloc_object();
+  the_empty_list = alloc_object(0);
   the_empty_list->type = THE_EMPTY_LIST;
   the_empty_list->data.pair.car = the_empty_list;
   the_empty_list->data.pair.cdr = the_empty_list;
   push_root(&the_empty_list);
 
-  the_empty_vector = alloc_object();
+  the_empty_vector = alloc_object(0);
   the_empty_vector->type = VECTOR;
   VSIZE(the_empty_vector) = 0;
   push_root(&the_empty_vector);
 
-  false = alloc_object();
+  false = alloc_object(0);
   false->type = BOOLEAN;
   false->data.boolean.value = 0;
   push_root(&false);
 
-  true = alloc_object();
+  true = alloc_object(0);
   true->type = BOOLEAN;
   true->data.boolean.value = 1;
   push_root(&true);
@@ -1418,7 +1418,7 @@ void init() {
   stderr_symbol = make_symbol("stderr");
   exit_hook_symbol = make_symbol("exit-hook");
 
-  eof_object = alloc_object();
+  eof_object = alloc_object(0);
   eof_object->type = EOF_OBJECT;
   push_root(&eof_object);
 

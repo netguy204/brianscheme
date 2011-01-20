@@ -23,7 +23,7 @@ long baker_collect();
 object *push_root(object **stack);
 void pop_root(object **stack);
 
-object *alloc_object(void);
+object *alloc_object(char needs_finalization);
 long get_alloc_count();
 
 #endif
