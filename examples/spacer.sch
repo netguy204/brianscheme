@@ -12,15 +12,7 @@
 (require 'clos)
 (require 'pth)
 (require 'ncurses)
-
-;; Ad-hoc random number generator
-(define random-seed 168230232)
-(define (random n)
-  "Generate a 16-bit random number using the middle-square method."
-  (set! random-seed (logand 65535 (ash (* random-seed random-seed) -7)))
-  (if n
-      (mod random-seed n)
-      random-seed))
+(require 'random)
 
 ;; Game settings
 (define game-speed 100) ; ms
