@@ -124,3 +124,7 @@ appropriate operation for the types they end up as"
   (make-rat (* (numerator a) (denominator b))
 	    (* (denominator a) (numerator b))))
 
+(define (sqrt x)
+  (if (integer? x)
+      (fixnum-sqrt x)
+      (real-sqrt x)))
