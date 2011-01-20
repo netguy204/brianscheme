@@ -40,7 +40,8 @@
   #t)
 
 (define (comp x env val? more?)
-  "compile an expression in the given environment optionally caring about its value and optionally with more forms following"
+  "compile an expression in the given environment optionally caring
+about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
   (cond
    ;; expand anything with a macro at the head
