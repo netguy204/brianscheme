@@ -151,19 +151,6 @@ void define_global_variable(object * var, object * new_val, object * env) {
 }
 
 /**
- * creates a binding in the local frame
- */
-void define_local_variable(object * var, object * val, object * env) {
-  object *frame = first_frame(env);
-  if(is_hashtab(frame)) {
-    set_hashtab(frame, var, val);
-  }
-  else {
-    add_binding_to_frame(var, val, frame);
-  }
-}
-
-/**
  * like set_variable_value but we define the variable if it doesn't
  * exist in a reachable frame.
  */
