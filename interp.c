@@ -402,6 +402,18 @@ DEFUN1(logxor_proc) {
   return make_fixnum(result);
 }
 
+DEFUN1(ash_proc) {
+  long result = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    long n = LONG(FIRST);
+    if (n > 0)
+      result <<= n;
+    else
+      result >>= -n;
+  }
+  return make_fixnum(result);
+}
+
 DEFUN1(floor_proc) {
   return make_fixnum((long)floor(DOUBLE(FIRST)));
 }
@@ -1356,6 +1368,7 @@ void init_prim_environment(object * env) {
   add_procedure("logand", logand_proc);
   add_procedure("logor", logor_proc);
   add_procedure("logxor", logxor_proc);
+  add_procedure("ash", ash_proc);
   add_procedure("floor", floor_proc);
   add_procedure("ceiling", ceil_proc);
   add_procedure("round", round_proc);
