@@ -16,6 +16,7 @@
 (define objects '())
 (define game-speed 100) ; ms
 (define initial-ships 10)
+(define shot-speed 4)
 (define width 80)
 (define height 24)
 (define map-factor 4)
@@ -51,6 +52,19 @@
 	       (/ (slot-ref shot 'x) map-factor)
 	       "-"))
 
+(define-generic erase
+  "Erase an object from the screen.")
+
+(define-method (erase (ship <ship>))
+  (nc:mvprintw (/ (slot-ref ship 'y) map-factor)
+	       (/ (slot-ref ship 'x) map-factor)
+	       " "))
+
+(define-method (erase (shot <shot>))
+  (nc:mvprintw (/ (slot-ref shot 'y) map-factor)
+	       (/ (slot-ref shot 'x) map-factor)
+	       " "))
+
 (define-generic shoot
   "Shoot a new shot.")
 
@@ -58,13 +72,14 @@
   (push! (make <shot>
 	   'x (slot-ref ship 'x)
 	   'y (slot-ref ship 'y)
-	   'speed (* 4 (slot-ref ship 'speed))) objects))
+	   'speed (* shot-speed (slot-ref ship 'speed))) objects))
 
 (define-generic step
   "Advance object in simulation.")
 
 (define-method (step (ship <ship>))
   (slot-set! ship 'x (+ (slot-ref ship 'x) (slot-ref ship 'speed)))
+  (if (= 0 (random 50)) (shoot ship))
   (if (or (> (slot-ref ship 'x) map-width)
 	  (< (slot-ref ship 'x) 0))
       (remove ship)))
@@ -100,6 +115,7 @@
 (define (simulate-loop)
   (if (= 1 (random 10))
       (spawn-ship))
+  (erase-map)
   (sim-step)
   (draw-map)
   (pth:usleep (* game-speed 1000))
@@ -108,6 +124,7 @@
 
 (define (control-player)
   (let ((chr (pth:getch)))
+    (erase player)
     (cond
      ((= nc:key-left chr)
       (move 'x -1))
@@ -136,10 +153,13 @@
 	    (slot-set! player slot max)
 	    (slot-set! player slot new-p)))))
 
+(define (erase-map)
+  (for-each erase objects)
+  (erase player))
+
 (define (draw-map)
-  (nc:clear)
-  (dolist (object objects)
-    (draw object))
+  (nc:mvprintw 0 0 (number->string (length objects)))
+  (for-each draw objects)
   (draw player)
   (nc:refresh))
 
