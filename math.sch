@@ -128,3 +128,9 @@ appropriate operation for the types they end up as"
   (if (integer? x)
       (fixnum-sqrt x)
       (real-sqrt x)))
+
+(define (log x)
+  "Natural log."
+  (if (integer? x)
+      (fixnum-log x)
+      (real-log x)))

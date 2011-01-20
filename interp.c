@@ -426,6 +426,18 @@ DEFUN1(sqrt_real_proc) {
   return make_real(result);
 }
 
+DEFUN1(log_fixnum_proc) {
+  long input = LONG(FIRST);
+  double result = log(input);
+  return make_real(result);
+}
+
+DEFUN1(log_real_proc) {
+  double input = DOUBLE(FIRST);
+  double result = log(input);
+  return make_real(result);
+}
+
 DEFUN1(floor_proc) {
   return make_fixnum((long)floor(DOUBLE(FIRST)));
 }
@@ -1383,6 +1395,8 @@ void init_prim_environment(object * env) {
   add_procedure("ash", ash_proc);
   add_procedure("fixnum-sqrt", sqrt_fixnum_proc);
   add_procedure("real-sqrt", sqrt_real_proc);
+  add_procedure("fixnum-log", log_fixnum_proc);
+  add_procedure("real-log", log_real_proc);
   add_procedure("floor", floor_proc);
   add_procedure("ceiling", ceil_proc);
   add_procedure("round", round_proc);
