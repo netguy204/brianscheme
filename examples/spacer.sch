@@ -14,7 +14,7 @@
       random-seed))
 
 (define objects '())
-(define game-speed 250) ; ms
+(define game-speed 100) ; ms
 (define initial-ships 10)
 (define width 80)
 (define height 24)
@@ -51,18 +51,37 @@
 	       (/ (slot-ref shot 'x) map-factor)
 	       "-"))
 
+(define-generic shoot
+  "Shoot a new shot.")
+
+(define-method (shoot (ship <ship>))
+  (push! (make <shot>
+	   'x (slot-ref ship 'x)
+	   'y (slot-ref ship 'y)
+	   'speed (* 4 (slot-ref ship 'speed))) objects))
+
 (define-generic step
   "Advance object in simulation.")
 
 (define-method (step (ship <ship>))
-  (slot-set! ship 'x (+ (slot-ref ship 'x) (slot-ref ship 'speed))))
+  (slot-set! ship 'x (+ (slot-ref ship 'x) (slot-ref ship 'speed)))
+  (if (or (> (slot-ref ship 'x) map-width)
+	  (< (slot-ref ship 'x) 0))
+      (remove ship)))
 
 (define-method (step (shot <shot>))
-  (slot-set! shot 'x (+ (slot-ref shot 'x) (slot-ref shot 'speed))))
+  (slot-set! shot 'x (+ (slot-ref shot 'x) (slot-ref shot 'speed)))
+  (if (or (> (slot-ref shot 'x) map-width)
+	  (< (slot-ref shot 'x) 0))
+      (remove shot)))
 
 (define (spawn-ship)
   "Add a new enemy ship into the game."
   (push! (make <ship>) objects))
+
+(define (remove object)
+  "Remove object from the game."
+  (set! objects (delq object objects)))
 
 (define player (make <ship>))
 
@@ -72,6 +91,7 @@
   (set! objects '())
   (dotimes (i initial-ships)
     (spawn-ship))
+  (slot-set! player 'speed 1)
   (slot-set! player 'x 0)
   (slot-set! player 'y (/ map-height 2))
   (slot-set! player 'hp 10)
@@ -97,6 +117,8 @@
       (move 'y -1))
      ((= nc:key-down chr)
       (move 'y 1))
+     ((= (char->integer #\ ) chr)
+      (shoot player))
      ((= (char->integer #\q) chr)
       (set! done #t))))
   (draw-map)
