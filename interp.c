@@ -362,6 +362,22 @@ DEFUN1(mod_real_proc) {
   return make_real(result);
 }
 
+DEFUN1(pow_fixnum_proc) {
+  long result = LONG(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result = pow(result, LONG(FIRST));
+  }
+  return make_fixnum(result);
+}
+
+DEFUN1(pow_real_proc) {
+  double result = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    result = pow(result, DOUBLE(FIRST));
+  }
+  return make_real(result);
+}
+
 DEFUN1(floor_proc) {
   return make_fixnum((long)floor(DOUBLE(FIRST)));
 }
@@ -1311,6 +1327,8 @@ void init_prim_environment(object * env) {
   add_procedure("real-div", div_real_proc);
   add_procedure("fixnum-mod", mod_fixnum_proc);
   add_procedure("real-mod", mod_real_proc);
+  add_procedure("fixnum-pow", pow_fixnum_proc);
+  add_procedure("real-pow", pow_real_proc);
   add_procedure("floor", floor_proc);
   add_procedure("ceiling", ceil_proc);
   add_procedure("round", round_proc);
