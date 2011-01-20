@@ -1,11 +1,20 @@
-; Side-scrolling space shoot-'em-up using ncurses, CLOS, and Pth
+;;; spacer.sch - Side-scrolling space game with ncurses, CLOS, and Pth.
+
+;; Description:
+;;   Start the game with (spacer). Use the arrow keys to move,
+;;   spacebar to shoot, and q to quit.
+
+;; TODO:
+;;  * collisions (ship-to-ship and ship-to-shot)
+;;  * powerups (shields, better gun, health, etc.)
+;;  * optimization (if there's anything that can be done)
 
 (require 'clos)
 (require 'pth)
 (require 'ncurses)
 
+;; Ad-hoc random number generator
 (define random-seed 168230232)
-
 (define (random n)
   "Generate a 16-bit random number using the middle-square method."
   (set! random-seed (logand 65535 (ash (* random-seed random-seed) -7)))
@@ -13,7 +22,7 @@
       (mod random-seed n)
       random-seed))
 
-(define objects '())
+;; Game settings
 (define game-speed 100) ; ms
 (define initial-ships 10)
 (define shot-speed 4)
@@ -22,6 +31,9 @@
 (define map-factor 4)
 (define map-width (* width map-factor))
 (define map-height (* height map-factor))
+
+;; Game state
+(define objects '())
 (define done #f)
 
 (define-class <ship> ()
@@ -114,6 +126,7 @@
   (slot-set! player 'symbol ">"))
 
 (define (simulate-loop)
+  "Drive the game forward. To be run as a thread."
   (if (= 1 (random 10))
       (spawn-ship))
   (erase-map)
@@ -124,6 +137,7 @@
       (simulate-loop)))
 
 (define (control-player)
+  "Get player input. To be run as a thread."
   (let ((chr (pth:getch)))
     (erase player)
     (cond
@@ -155,20 +169,23 @@
 	    (slot-set! player slot new-p)))))
 
 (define (erase-map)
+  "Remove all objects from the map -- cheaper than nc:clear hopefully."
   (for-each erase objects)
   (erase player))
 
 (define (draw-map)
+  "Draw all objects to the display."
   (nc:mvprintw 0 0 (number->string (length objects)))
   (for-each draw objects)
   (draw player)
   (nc:refresh))
 
 (define (sim-step)
-  (dolist (object objects)
-    (step object)))
+  "Run the simulation forward one step."
+  (for-each step objects))
 
-(define (play-game)
+(define (spacer)
+  "Play the Spacer game."
   (with-curses win
     (nc:noecho)
     (nc:cbreak)
