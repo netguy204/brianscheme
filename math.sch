@@ -48,6 +48,11 @@ appropriate operation for the types they end up as"
 	    (promoting-arithmatic fixnum-mul real-mul x y))
 	  args))
 
+(define (mod . args)
+  (reduce (lambda (x y)
+	    (promoting-arithmatic fixnum-mod real-mod x y))
+	  args))
+
 (define (/ . args)
   (if (length=1 args)
       (cond
