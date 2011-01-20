@@ -319,6 +319,26 @@ that decompose it according to the structure of var-forms"
   "the remainder of the list that begins with val. uses eq?"
   (member-of eq? obj lst))
 
+(letrec ((del (lambda (eqf item list)
+		(if (null? list)
+		    list
+		    (if (eqf (first list) item)
+			(del eqf item (rest list))
+			(cons (first list)
+			      (del eqf item (rest list))))))))
+
+  (define (delq item list)
+    "Return list with all items eq? to item removed."
+    (del eq? item list))
+
+  (define (delv item list)
+    "Return list with all items eqv? to item removed."
+    (del eqv? item list))
+
+  (define (delete item list)
+    "Return list with all items eqaul? to item removed."
+    (del equal? item list)))
+
 (define (compliment fn)
   "function that returns (not (fn))"
   (lambda (x) (not (fn x))))
