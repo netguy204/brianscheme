@@ -305,7 +305,9 @@ object *obj_read(FILE * in) {
   r.ungetc = -1;
   object *obj = lisp_read(&r);
   free(r.buffer);
+#ifndef NO_READLINE
   add_history(r.history);
+#endif
   return obj;
 }
 
