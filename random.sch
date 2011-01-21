@@ -44,7 +44,7 @@
 (define-generic copy
   "Copy an object.")
 
-(define-method (copy rng <mersenne>)
+(define-method (copy (rng <mersenne>))
   (let* ((new-rng (make <mersenne> 0))
 	 (mt (slot-ref rng 'mt))
 	 (new-mt (slot-ref new-rng 'mt)))
