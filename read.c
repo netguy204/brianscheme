@@ -379,7 +379,7 @@ object *lisp_read(read_buffer * in) {
     case '(':
       return read_vector(in);
     default:
-      return throw_read("unknown boolean or character literal\n");
+      return throw_read("unknown boolean or character literal '%c' \n", c);
     }
   }
   else if(isdigit(c) || (c == '-' && (isdigit(peek(in))))) {
