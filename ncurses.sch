@@ -27,6 +27,8 @@
        (nodelay (ffi:dlsym nc "nodelay"))
        (halfdelay (ffi:dlsym nc "halfdelay"))
        (curs-set (ffi:dlsym nc "curs_set"))
+       (getmaxx (ffi:dlsym nc "getmaxx"))
+       (getmaxy (ffi:dlsym nc "getmaxy"))
        (endwin (ffi:dlsym nc "endwin")))
 
   (define nc:stdwin
@@ -92,6 +94,14 @@
   (define (nc:curs-set visibility)
     "0 - invisible, 1 - normal, 2 - very visible"
     (ffi:funcall curs-set 'ffi-uint visibility))
+
+  (define (nc:getmaxx win)
+    "Get screen width."
+    (ffi:funcall getmaxx 'ffi-uint win))
+
+  (define (nc:getmaxy win)
+    "Get screen height."
+    (ffi:funcall getmaxy 'ffi-uint win))
 
   (define (nc:endwin)
     "return the terminal to normal mode"
