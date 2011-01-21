@@ -52,6 +52,14 @@
    (= 0 (logxor 1 1))
    (= 2 (logxor 3 1))
 
+   ;; bitshift
+   (= 4 (ash 1 2))
+   (= 8 (ash 1 3))
+   (= 1 (ash 8 -3))
+   (= 1 (ash 4 -2))
+   (= -1 (ash -1 1))
+   (= -4 (ash -1 2))
+
    ;; other functions
    (= 8 (expt 2 3))
    (= 8.0 (expt 2.0 3))))
