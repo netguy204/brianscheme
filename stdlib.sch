@@ -526,7 +526,9 @@ list"
 			   (write (load-eval form base-env))
 			   (newline)
 			   (iter (read-port in))))))
-    (iter (read-port in))
+    (if (eof-object? in)
+	(throw-error "failed to open" name)
+	(iter (read-port in)))
     #t))
 
 (let ((required nil))

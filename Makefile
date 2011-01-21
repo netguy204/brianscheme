@@ -11,6 +11,10 @@ LDFLAGS = -leditline -lffi -ldl -lm -rdynamic
 
 CC = gcc
 
+ifeq ($(NO_READLINE),1)
+	EXTFLAGS=-DNO_READLINE
+endif
+
 ifeq ($(FAST),1)
 	CFLAGS = -O3 -W -Wall -ansi $(EXTFLAGS)
 else
