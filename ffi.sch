@@ -207,6 +207,8 @@ freed later."
     (define (usleep useconds)
       (ffi:funcall lusleep 'ffi-uint useconds))
 
+    (define (getpid)
+      (ffi:funcall lgetpid 'ffi-uint))
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive

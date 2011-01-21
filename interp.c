@@ -403,7 +403,7 @@ DEFUN1(logxor_proc) {
 }
 
 DEFUN1(ash_proc) {
-  long result = LONG(FIRST);
+  unsigned long result = LONG(FIRST);
   while(!is_the_empty_list(NEXT)) {
     long n = LONG(FIRST);
     if (n > 0)
