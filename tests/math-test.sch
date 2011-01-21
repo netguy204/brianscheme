@@ -60,6 +60,15 @@
    (= -2 (ash -1 1))
    (= -4 (ash -1 2))
 
+   ;; clos types
+   (instance-of? <real> 1.0)
+   (instance-of? <number> 1.0)
+   (not (instance-of? <integer> 1.0))
+
+   (instance-of? <integer> 1)
+   (instance-of? <number> 1)
+   (not (instance-of? <real> 1))
+
    ;; other functions
    (= 8 (expt 2 3))
    (= 8.0 (expt 2.0 3))))

@@ -181,6 +181,10 @@
   (write-stream strm "#<procedure>"))
 
 (define-method (print-object (strm <output-stream>)
+			     (prim <syntax-procedure>))
+  (write-stream strm "#<syntax-procedure>"))
+
+(define-method (print-object (strm <output-stream>)
 			     (prim <input-port>))
   (write-stream strm "#<input-port>"))
 
@@ -351,8 +355,13 @@ characters"
     (string-buffer->string sb)))
 
 (define (printf string . args)
+  "print the interpolated string to stdout-stream"
   (write-stream stdout-stream
 		(apply* sprintf string args)))
+
+(define (instance-of? class instance)
+  "true if instance is of type class or one of its subtypes"
+  (and (memq class (class-cpl (class-of instance))) #t))
 
 (define (string-buffer-example)
   "example of using string-buffer"

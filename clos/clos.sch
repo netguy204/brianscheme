@@ -291,11 +291,15 @@
    ((null? x)        <null>)
    ((boolean? x)     <boolean>)
    ((symbol? x)      <symbol>)
+   ((syntax-procedure? x) <syntax-procedure>)
    ((procedure? x)   <procedure>)
+   ((integer? x)     <integer>)
+   ((real? x)        <real>)
    ((number? x)      <number>)
    ((vector? x)      <vector>)
    ((char? x)        <char>)
    ((string? x)      <string>)
+   ((alien? x)       <alien>)
    ((input-port? x)  <input-port>)
    ((output-port? x) <output-port>)))
 
@@ -644,18 +648,21 @@
 
 (define-syntax (define-method name-and-specialized-args . body)
   "syntax for adding a method to a generic function"
-  (let ((args (gensym)))
-    `(add-method ,(first name-and-specialized-args)
-       (make-method (list . ,(map second
-				  (filter pair?
-				    (rest name-and-specialized-args))))
-         (lambda (call-next-method
-		  . ,(map (lambda (v)
-			    (if (pair? v)
-				(first v)
-				v))
-			  (rest name-and-specialized-args)))
-	   . ,body)))))
+  (let ((args (gensym))
+	(method (gensym)))
+    `(let ((,method
+	    (make-method (list . ,(map second
+				       (filter pair?
+					       (rest name-and-specialized-args))))
+			 (lambda (call-next-method
+				  . ,(map (lambda (v)
+					    (if (pair? v)
+						(first v)
+						v))
+					  (rest name-and-specialized-args)))
+			   . ,body))))
+       (add-method ,(first name-and-specialized-args) ,method)
+       ,method)))
 
 
 ; Adding a method calls COMPUTE-APPLY-GENERIC, the result of which calls
@@ -918,10 +925,20 @@
 (define <symbol>      (make-primitive-class nil '<symbol>))
 (define <boolean>     (make-primitive-class nil '<boolean>))
 (define <procedure>   (make-primitive-class <procedure-class> '<procedure>))
+(define <syntax-procedure>      (make <class>
+				  'direct-supers (list <procedure>)
+				  'class-name '<syntax-procedure>))
 (define <number>      (make-primitive-class nil '<number>))
+(define <integer>     (make <class>
+			'direct-supers (list <number>)
+			'class-name '<integer>))
+(define <real>        (make <class>
+			'direct-supers (list <number>)
+			'class-name '<real>))
 (define <vector>      (make-primitive-class nil '<vector>))
 (define <char>        (make-primitive-class nil '<char>))
 (define <string>      (make-primitive-class nil '<string>))
+(define <alien>       (make-primitive-class nil '<alien>))
 (define <input-port>  (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
 

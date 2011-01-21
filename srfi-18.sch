@@ -22,7 +22,7 @@
     thread))
 
 (define (thread? thread)
-  (memq <thread> (class-cpl (class-of thread))))
+  (instance-of? <thread> thread))
 
 (define (thread-name thread)
   (slot-ref thread 'name))
