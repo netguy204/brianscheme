@@ -39,6 +39,11 @@ object *ffi_type_uint_sym;
 object *ffi_type_sint_sym;
 object *ffi_type_ulong_sym;
 
+object *ffi_type_uint8_sym;
+object *ffi_type_uint16_sym;
+object *ffi_type_uint32_sym;
+object *ffi_type_uint64_sym;
+
 typedef void (*FN_PTR) (void);
 
 DEFUN1(dlopen_proc) {
@@ -153,6 +158,18 @@ DEFUN1(ffi_primitive_type) {
   else if(type == ffi_type_ulong_sym) {
     tgt_type = &ffi_type_ulong;
   }
+  else if(type == ffi_type_uint8_sym) {
+    tgt_type = &ffi_type_uint8;
+  }
+  else if(type == ffi_type_uint16_sym) {
+    tgt_type = &ffi_type_uint16;
+  }
+  else if(type == ffi_type_uint32_sym) {
+    tgt_type = &ffi_type_uint32;
+  }
+  else if(type == ffi_type_uint64_sym) {
+    tgt_type = &ffi_type_uint64;
+  }
   else {
     /* unknown type */
     return false;
@@ -178,6 +195,25 @@ DEFUN1(ffi_get_pointer) {
   void **array = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
   return make_alien(array[idx], the_empty_list);
+}
+
+DEFUN1(ffi_make_byte_array) {
+  char *array = MALLOC(LONG(FIRST));
+  return make_alien(array, free_ptr_fn);
+}
+
+DEFUN1(ffi_get_byte) {
+  char *array = ALIEN_PTR(FIRST);
+  long idx = LONG(SECOND);
+  return make_character(array[idx]);
+}
+
+DEFUN1(ffi_set_byte) {
+  char *array = ALIEN_PTR(FIRST);
+  long idx = LONG(SECOND);
+  char value = CHAR(THIRD);
+  array[idx] = value;
+  return THIRD;
 }
 
 DEFUN1(ffi_deref) {
@@ -312,6 +348,9 @@ void init_ffi(object * env) {
   add_procedure("ffi:make-pointer-array", ffi_make_pointer_array);
   add_procedure("ffi:set-array-pointer!", ffi_set_pointer);
   add_procedure("ffi:get-array-pointer", ffi_get_pointer);
+  add_procedure("ffi:make-bytes", ffi_make_byte_array);
+  add_procedure("ffi:byte-ref", ffi_get_byte);
+  add_procedure("ffi:byte-set!", ffi_set_byte);
   add_procedure("ffi:primitive", ffi_primitive_type);
   add_procedure("ffi:prep-cif", ffi_prep_cif_proc);
   add_procedure("ffi:call", ffi_call_proc);
@@ -336,6 +375,11 @@ void init_ffi(object * env) {
   ffi_type_uint_sym = make_symbol("ffi-uint");
   ffi_type_sint_sym = make_symbol("ffi-sint");
   ffi_type_ulong_sym = make_symbol("ffi-ulong");
+
+  ffi_type_uint8_sym = make_symbol("ffi-uint8");
+  ffi_type_uint16_sym = make_symbol("ffi-uint16");
+  ffi_type_uint32_sym = make_symbol("ffi-uint32");
+  ffi_type_uint64_sym = make_symbol("ffi-uint64");
 
   /* setup offset values */
   fixnum_offset = (unsigned int)&(((object *) 0)->data.fixnum.value);

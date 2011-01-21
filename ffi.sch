@@ -181,6 +181,8 @@ freed later."
 	(lusleep (ffi:dlsym handle "usleep"))
 	(lputchar (ffi:dlsym handle "putchar"))
 	(lwait (ffi:dlsym handle "wait"))
+	(lgetpid (ffi:dlsym handle "getpid"))
+	(ltime (ffi:dlsym handle "time"))
 	(ltest-fn (ffi:dlsym handle "test_fn")))
 
     (assert ltest-fn)
