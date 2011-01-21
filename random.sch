@@ -6,6 +6,7 @@
 ; numbers.
 
 (require 'clos)
+(require 'ffi)
 
 (define-class <random-state> ()
   "A random state for a PRNG.")
@@ -76,7 +77,7 @@
   (let ((rng (or state *random-state*)))
     (copy rng)))
 
-(define *random-state* (make-random-state 8))
+(define *random-state* (make-random-state (getpid)))
 
 (define (random n state)
   "Generate a random number between 0 and n."
