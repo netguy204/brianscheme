@@ -68,6 +68,27 @@
       (if (= 1 (mod y 2))
 	  (vector-set! mt i (logxor (vector-ref mt i) 2567483615))))))
 
+;; Middle-square algorithm -- don't use this seriously
+
+(define-class <middle-square> (<random-state>)
+  "The middle-square method."
+  ('state))
+
+(define-method (initialize (rng <middle-square>) args)
+  (slot-set! rng 'state (or (first args) (getpid))))
+
+(define-method (copy (rng <middle-square>))
+  (make <middle-square> (slot-ref rng 'state)))
+
+(define-method (generate (rng <middle-square>))
+  (let ((state (slot-ref rng 'state))
+        (lower 0)
+        (upper 0))
+    (set! lower (logand 65535 (ash (* state state) -8)))
+    (set! upper (logand 65535 (ash (* lower lower) -8)))
+    (slot-set! rng 'state (logor (ash upper 16) lower))
+    (slot-ref rng 'state)))
+
 ;; Standard, non-CLOS interface
 
 (define (make-random-state seed)
