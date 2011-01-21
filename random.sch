@@ -84,3 +84,19 @@
     (if (integer? n)
 	(mod (generate rng) n)
 	(* n (/ (generate rng) (expt 2.0 31))))))
+
+(define *random-normal-pool* '()
+  "Extra numbers generated from the pool.")
+
+(define (random:normal state)
+  "Generate number from normal distribution: Box-Muller transformation."
+  (let ((rng (or state *random-state*)))
+    (if *random-normal-pool* (pop! *random-normal-pool*)
+        (let* ((x1 (- (random 2.0 rng) 1))
+               (x2 (- (random 2.0 rng) 1))
+               (w (+ (* x1 x1) (* x2 x2))))
+          (if (>= w 1.0)
+              (random:normal rng) ; try again
+              (let ((base (sqrt (/ (* -2.0 (log w)) w))))
+                (push! (* x1 base) *random-normal-pool*)
+                (* x2 base)))))))
