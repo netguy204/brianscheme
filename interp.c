@@ -518,7 +518,7 @@ DEFUN1(is_eq_proc) {
   }
 }
 
-DEFUN1(is_number_equal_proc) {
+DEFUN1(is_number_equal_fixnum_proc) {
   long value = LONG(FIRST);
   while(!is_the_empty_list(NEXT)) {
     if(value != LONG(FIRST)) {
@@ -528,7 +528,17 @@ DEFUN1(is_number_equal_proc) {
   return true;
 }
 
-DEFUN1(is_less_than_proc) {
+DEFUN1(is_number_equal_real_proc) {
+  double value = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(value != DOUBLE(FIRST)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+DEFUN1(is_less_than_fixnum_proc) {
   long last = LONG(FIRST);
   while(!is_the_empty_list(NEXT)) {
     if(last < LONG(FIRST)) {
@@ -541,11 +551,37 @@ DEFUN1(is_less_than_proc) {
   return true;
 }
 
-DEFUN1(is_greater_than_proc) {
+DEFUN1(is_less_than_real_proc) {
+  double last = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(last < DOUBLE(FIRST)) {
+      last = DOUBLE(FIRST);
+    }
+    else {
+      return false;
+    }
+  }
+  return true;
+}
+
+DEFUN1(is_greater_than_fixnum_proc) {
   long last = LONG(FIRST);
   while(!is_the_empty_list(NEXT)) {
     if(last > LONG(FIRST)) {
       last = LONG(FIRST);
+    }
+    else {
+      return false;
+    }
+  }
+  return true;
+}
+
+DEFUN1(is_greater_than_real_proc) {
+  double last = DOUBLE(FIRST);
+  while(!is_the_empty_list(NEXT)) {
+    if(last > DOUBLE(FIRST)) {
+      last = DOUBLE(FIRST);
     }
     else {
       return false;
@@ -1401,9 +1437,12 @@ void init_prim_environment(object * env) {
   add_procedure("ceiling", ceil_proc);
   add_procedure("round", round_proc);
   add_procedure("integer->real", fixnum_to_real_proc);
-  add_procedure("<", is_less_than_proc);
-  add_procedure(">", is_greater_than_proc);
-  add_procedure("=", is_number_equal_proc);
+  add_procedure("fixnum-less-than", is_less_than_fixnum_proc);
+  add_procedure("real-less-than", is_less_than_real_proc);
+  add_procedure("fixnum-greater-than", is_greater_than_fixnum_proc);
+  add_procedure("real-greater-than", is_greater_than_real_proc);
+  add_procedure("fixnum-equal", is_number_equal_fixnum_proc);
+  add_procedure("real-equal", is_number_equal_real_proc);
 
   add_procedure("cons", cons_proc);
   add_procedure("car", car_proc);

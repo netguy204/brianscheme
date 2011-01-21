@@ -39,6 +39,9 @@
 (set! - fixnum-sub)
 (set! * fixnum-mul)
 (set! / fixnum-div)
+(set! < fixnum-less-than)
+(set! > fixnum-greater-than)
+(set! = fixnum-equal)
 
 (set! define-syntax
       (macro (name-and-vars . body)
