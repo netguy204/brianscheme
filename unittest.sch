@@ -22,7 +22,7 @@
 (define (report-result result form)
   "print out form annotated with the truth value of result"
   (let ((result-str (if result "pass" "FAIL"))
-	(name-str (if (*test-name*) (concat 
+	(name-str (if (*test-name*) (string-append 
 				     (symbol->string (*test-name*))
 				     ":")
 		      "")))

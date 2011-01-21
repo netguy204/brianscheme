@@ -91,9 +91,11 @@
 	(if lie
 	    (push! 'g result))
 	
-	result)))
+	result)))))
 
-;; complex if/else
+(define-test (crashing-vm-test)
+  (check
+   ;; complex if/else
    (compiles-same
     (lambda ()
       (letrec ((check
