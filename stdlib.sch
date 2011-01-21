@@ -55,18 +55,12 @@
 	     (lambda ,(cdr name)
 	       (begin . ,value-or-body)))))
 
-(define (concat . strings)
-  "Concatenate any number of strings."
-  (if (null? strings)
-      ""
-      (prim-concat (first strings) (apply concat (rest strings)))))
-
 (set! next-gensym 0)
 (define (gensym)
   (begin
     (set! next-gensym (fixnum-add next-gensym 1))
     (string->uninterned-symbol
-     (concat "#" (number->string next-gensym)))))
+     (prim-concat "#" (number->string next-gensym)))))
 
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that early.
@@ -735,7 +729,7 @@ it's found. return not-found otherwised"
 
 (define (string-append . args)
   "join a series of strings"
-  (reduce concat args))
+  (reduce prim-concat args))
 
 (define (string-length str)
   "find the length of a string, not including null"
