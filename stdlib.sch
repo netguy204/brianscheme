@@ -585,7 +585,7 @@ list"
 
 (define (number? obj)
   "is the object a kind of number?"
-  (integer? obj)) ;; we only have 1 kind right now
+  (or (real? obj) (integer? obj)))
 
 (define (display obj . port)
   "write form to port (stdout default) in display format. strings will
