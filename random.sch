@@ -101,3 +101,8 @@
               (let ((base (sqrt (/ (* -2.0 (log w)) w))))
                 (push! (* x1 base) *random-normal-pool*)
                 (* x2 base)))))))
+
+(define (random:exp state)
+  "Generate a number in the exponential distribution."
+  (let ((rng (or state *random-state*)))
+    (- (log (random 1.0 rng)))))
