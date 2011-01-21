@@ -323,6 +323,37 @@
 		   (+ 1 (slot-ref strm 'read-index)))
 	val)))
 
+(define (sprintf string . args)
+  "splice arguments into string at locations specified by the format
+characters"
+  (let ((sb (make-string-buffer)))
+    (let loop ((idx 0)
+	       (ch (string-ref string 0))
+	       (args args))
+      (cond
+       ((= (char->integer ch) 0) #t)
+       ((eq? ch #\%)
+	(let ((next (string-ref string (+ idx 1))))
+	  (cond
+	   ((= (char->integer next) 0) #t)
+	   ((eq? next #\s)
+	    (write-stream sb (first args))
+	    (loop (+ idx 2) (string-ref string (+ idx 2)) (rest args)))
+	   ((eq? next #\a)
+	    (print-object sb (first args))
+	    (loop (+ idx 2) (string-ref string (+ idx 2)) (rest args)))
+	   (else (write-stream sb ch)
+		 (write-stream sb next)
+		 (loop (+ idx 2) (string-ref string (+ idx 2)) args)))))
+       (else
+	(write-stream sb ch)
+	(loop (+ idx 1) (string-ref string (+ idx 1)) args))))
+    (string-buffer->string sb)))
+
+(define (printf string . args)
+  (write-stream stdout-stream
+		(apply* sprintf string args)))
+
 (define (string-buffer-example)
   "example of using string-buffer"
   (set! tt (make-string-buffer "hello crazy world"))

@@ -1030,7 +1030,71 @@ body. always executes at least once"
 	       slots)))))
 
 
+;; create a facility that provides something like dynamic variables in
+;; a lexical-only scheme. It works by making closure with the name of
+;; the dynamic variable and by maintaining a stack in a hashtable. To
+;; use this:
+;;
+;; (defvar *foo* 42)
+;;
+;; (*foo*)  ;; yields 42
+;;
+;; (binding ((*foo* "bar"))
+;;   (*foo*)) ;; yields "bar"
+;;
+;; (define (other) (+ (*foo*) 1))
+;; (other) ;; yields 43
+;; (binding ((*foo* 1))
+;;   (other)) ;; yields 2
+;;
+;; The binding for *foo* is global in the sense that all code executed
+;; in or through the forms executed in the scope of a binding form
+;; will see the values established by that form.
+(let ((dynvars (make-hashtab-eq 30)))
+  (define (create-dynamic-binding symbol init)
+    (hashtab-set!
+     dynvars symbol
+     (let ((value (list init)))
+       (list (lambda () ;; getter
+	       (first value))
+	     (lambda (val) ;; pusher
+	       (push! val value))
+	     (lambda () ;; popper
+	       (pop! value))))))
 
+  (define (dynamic-binding? sym)
+    (hashtab-ref dynvars sym nil))
+
+  (define (get-binding-getter sym)
+    (first (hashtab-ref dynvars sym)))
+
+  (define (get-binding-setter sym)
+    (second (hashtab-ref dynvars sym)))
+
+  (define (get-binding-popper sym)
+    (third (hashtab-ref dynvars sym))))
+
+;; now the methods the usual methods the user will use
+(define-syntax (defvar name init)
+  "create a new dynamic binding"
+  `(begin (create-dynamic-binding ',name ,init)
+	  (set! ,name (get-binding-getter ',name))))
+
+(define-syntax (binding forms . body)
+  "bind the dynamic variables within the scope of body"
+  (let ((result (gensym)))
+    `(begin
+       (begin . ,(map (lambda (form)
+			`((get-binding-setter ',(first form))
+			  ,(second form)))
+		      forms))
+       (let ((,result (begin . ,body)))
+	 (begin . ,(map (lambda (form)
+			  `((get-binding-popper ',(first form))))
+			forms))
+	 ,result))))
+
+(require 'clos)
 (require 'math)
 (provide 'stdlib)
 
