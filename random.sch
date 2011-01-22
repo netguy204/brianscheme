@@ -8,6 +8,9 @@
 (require 'clos)
 (require 'ffi)
 
+(define *mask-31* (- (expt 2 31) 1))
+(define *mask-32* (logor (ash *mask-31* 1) 1))
+
 (define-class <random-state> ()
   "A random state for a PRNG.")
 
@@ -24,7 +27,9 @@
        (let ((prev (vector-ref mt j))
 	     (i (+ j 1)))
 	 (vector-set! mt i
-		      (+ i (* 1812433253 (logxor prev (ash prev -30)))))))
+		      (logand *mask-32*
+                              (+ i (* 1812433253 (logxor prev
+                                                         (ash prev -30))))))))
     (slot-set! rng 'mt mt))
   (slot-set! rng 'index 0))
 
@@ -40,7 +45,7 @@
     (set! y (logxor y (logand 4022730752 (ash y 15))))
     (set! y (logxor y (ash y -18)))
     (slot-set! rng 'index (mod (+ 1 (slot-ref rng 'index)) 624))
-    (logand 2147483647 y)))
+    (logand *mask-32* y)))
 
 (define-generic copy
   "Copy an object.")
@@ -61,8 +66,9 @@
   (dotimes (i 624)
     (let* ((mt (slot-ref rng 'mt))
 	   (j (mod (+ i 1) 624))
-	   (y (+ (ash (logand 2147483648 (vector-ref mt i)) -30)
-		 (logand 2147483647 (vector-ref mt j)))))
+	   (y (+ (ash (logand (logxor *mask-32* *mask-31*)
+                              (vector-ref mt i)) -31)
+		 (logand *mask-31* (vector-ref mt j)))))
       (vector-set! mt i (logxor (vector-ref mt (mod (+ i 397) 624))
 				(ash y -1)))
       (if (= 1 (mod y 2))
@@ -105,7 +111,7 @@
   (let ((rng (or state *random-state*)))
     (if (integer? n)
 	(mod (generate rng) n)
-	(* n (/ (generate rng) (expt 2.0 31))))))
+	(* n (/ (generate rng) (expt 2.0 31) 2.0)))))
 
 (define *random-normal-pool* '()
   "Extra numbers generated from the pool.")
