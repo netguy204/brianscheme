@@ -374,7 +374,7 @@ natives."
 	(bytes (slot-ref mrv 'bytes)))
 
     (dotimes (idx (slot-ref mrv 'length))
-      (push! (ffi:byte-ref bytes idx) result))
+      (push! (char->integer (ffi:byte-ref bytes idx)) result))
 
     (reverse result)))
 
@@ -509,9 +509,14 @@ macro may mutate fnptr to cache its function signature"
       (ffi:funcall lgetpid 'ffi-uint))
 
     (define (time)
-      (let ((mbv (make <ffi:multibyte-raw-value>
-		   'length 16)))
-	(ffi:funcall ltime mbv (ffi:address-of mbv))))
+      (let* ((mrv (make <ffi:multibyte-raw-value>
+		   'length 8))
+	     (result (ffi:funcall ltime mrv (ffi:address-of mrv)))
+	     (unpacked (ffi:to-bytearray result)))
+
+	(ffi:free-mrv mrv)
+	unpacked))
+
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive
