@@ -199,6 +199,7 @@ DEFUN1(ffi_get_pointer) {
 
 DEFUN1(ffi_make_byte_array) {
   char *array = MALLOC(LONG(FIRST));
+  memset(array, 0, LONG(FIRST));
   return make_alien(array, free_ptr_fn);
 }
 
