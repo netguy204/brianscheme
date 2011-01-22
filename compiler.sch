@@ -477,13 +477,10 @@ about its value and optionally with more forms following"
 
 
 (define (compiling-load-eval form env)
-  (if (eq? (first form)
-	   'define-syntax)
-      (eval form env)
-      (begin
-	(env-push! env)
-	(let ((result ((compiler form))))
-	  (env-pop!)
-	  result))))
+  (begin
+    (env-push! env)
+    (let ((result ((compiler form))))
+      (env-pop!)
+      result)))
 
 (provide 'compiler)
