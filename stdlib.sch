@@ -751,15 +751,37 @@ not be quoted or escaped."
        (else #t))))
    (else (eq? a b))))
 
-(define (assq key list)
-  "find the first pair in list thats car is eq? to key"
-  (find (lambda (e) (starts-with? e key eq?))
-	list))
+;; A-list functions.
+(let ((ass (lambda (eqf key list)
+             (find (lambda (e) (starts-with? e key eqf)) list)))
+      (ass-set! (lambda (assf alist key value)
+                  (let ((pair (assf key alist)))
+                    (if pair
+                        (set-cdr! pair value))))))
 
-(define (assoc key list)
-  "find the first pair in list thats car is eq? to key"
-  (find (lambda (e) (starts-with? e key equal?))
-	list))
+  (define (assq key list)
+    "Find the first pair in list thats car is eq? to key."
+    (ass eq? key list))
+
+  (define (assv key list)
+    "Find the first pair in list thats car is eqv? to key."
+    (ass eqv? key list))
+
+  (define (assoc key list)
+    "Find the first pair in list thats car is equal? to key."
+    (ass equal? key list))
+
+  (define (assq-set! alist key value)
+    "In ALIST, if KEY exists by eq? in ALIST assign KEY to VALUE."
+    (ass-set! assq alist key value))
+
+  (define (assv-set! alist key value)
+    "In ALIST, if KEY exists by eqv? in ALIST assign KEY to VALUE."
+    (ass-set! assv alist key value))
+
+  (define (assoc-set! alist key value)
+    "In ALIST, if KEY exists by equal? in ALIST assign KEY to VALUE."
+    (ass-set! assoc alist key value)))
 
 (define eqv? equal?)
 
