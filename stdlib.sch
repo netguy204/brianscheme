@@ -974,6 +974,45 @@ body. always executes at least once"
   "return a list of all symbols defined in the global environment"
   (hashtab-keys *global-environment*))
 
+(define (global? sym)
+  "returns true if symbol is in the global environment"
+  (let* ((sentinal (gensym))
+	 (result (hashtab-ref *global-environment* sym sentinal)))
+    (not (eq? result sentinal))))
+
+(define (global-ref sym)
+  "returns the global value of sym. error if not defined"
+  (let* ((sentinal (gensym))
+	 (result (hashtab-ref *global-environment* sym sentinal)))
+    (if (eq? result sentinal)
+	(throw-error "symbol" sym "is not defined globally")
+	result)))
+
+(define (macro? sym)
+  "is a given symbol defined as a global macro?"
+  (and (global? sym)
+       (syntax-procedure? (global-ref sym))))
+
+(define (macroexpand0 form)
+  "expand expression form by evaluating the macro at its head"
+  (let ((fn (car form)))
+    (if (macro? fn)
+	(apply (global-ref fn) (cdr form))
+	form)))
+
+(define (macroexpand form)
+  "macroexpand the expression in form fully"
+  (cond
+   ((not (pair? form)) form)
+   (else
+    (let ((expansion (macroexpand0 form)))
+      (if (equal? expansion form)
+	  ;; head is fully expanded, now expand the rest
+	  (cons (first expansion) (map macroexpand (rest expansion)))
+	  ;; head may be able to expand further
+	  (macroexpand expansion))))))
+
+
 (define-syntax (time . body)
   "display the time required to execute body"
   (let ((start (gensym))

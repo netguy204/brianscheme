@@ -224,24 +224,6 @@ DEFUN1(is_syntax_proc_proc) {
   return AS_BOOL(is_syntax_proc(FIRST));
 }
 
-DEFUN1(is_defined_globally_proc) {
-  object * val = get_hashtab(the_global_environment, FIRST, NULL);
-  if(val) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-DEFUN1(global_value_proc) {
-  object * val = get_hashtab(the_global_environment, FIRST, NULL);
-  if(val == NULL) {
-    throw_interp("global value %s is not defined", STRING(FIRST));
-    return NULL;
-  }
-  return val;
-}
-
 DEFUN1(is_output_port_proc) {
   return AS_BOOL(is_output_port(FIRST));
 }
@@ -1341,8 +1323,6 @@ void init_prim_environment() {
   add_procedure("alien?", is_alien_proc);
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
   add_procedure("meta?", is_meta_proc);
-  add_procedure("global?", is_defined_globally_proc);
-  add_procedure("global-ref", global_value_proc);
 
   add_procedure("fixnum-add", add_fixnum_proc);
   add_procedure("real-add", add_real_proc);
