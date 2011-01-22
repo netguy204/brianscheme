@@ -386,8 +386,8 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
       maybe_move(CDR(scan_iter));
       break;
     case COMPOUND_PROC:
-      maybe_move(COMPOUND_ENV(scan_iter));
     case SYNTAX_PROC:
+      maybe_move(COMPOUND_ENV(scan_iter));
       maybe_move(COMPOUND_PARAMS(scan_iter));
       maybe_move(COMPOUND_BODY(scan_iter));
       break;

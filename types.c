@@ -261,10 +261,16 @@ char is_primitive_proc(object * obj) {
   return obj->type == PRIMITIVE_PROC;
 }
 
-object *make_compound_proc(object * parameters, object * body, object * env) {
+object *make_compound_proc(object * parameters, object * body,
+			   object * env, char is_syntax) {
   object *obj = alloc_object(0);
 
-  obj->type = COMPOUND_PROC;
+  if(is_syntax) {
+    obj->type = SYNTAX_PROC;
+  } else {
+    obj->type = COMPOUND_PROC;
+  }
+
   obj->data.compound_proc.parameters = parameters;
   obj->data.compound_proc.body = body;
   obj->data.compound_proc.env = env;
@@ -273,16 +279,6 @@ object *make_compound_proc(object * parameters, object * body, object * env) {
 
 char is_compound_proc(object * obj) {
   return obj->type == COMPOUND_PROC;
-}
-
-object *make_syntax_proc(object * parameters, object * body) {
-  object *obj = alloc_object(0);
-
-  obj->type = SYNTAX_PROC;
-  obj->data.compound_proc.parameters = parameters;
-  obj->data.compound_proc.body = body;
-  obj->data.compound_proc.env = the_empty_environment;
-  return obj;
 }
 
 char is_syntax_proc(object * obj) {

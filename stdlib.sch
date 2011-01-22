@@ -477,7 +477,7 @@ that decompose it according to the structure of var-forms"
 (define (debug-repl)
   "repl that allows last-gasp debugging of a dying interpreter"
   ;(display "debug-repl>")
-  (let ((result (eval (read-port stdin) base-env)))
+  (let ((result (eval (read-port stdin))))
     (write-port result stdout)
     (newline)
     (unless (eq? result 'quit)
@@ -588,7 +588,7 @@ list"
   (letrec ((in (open-input-port name))
 	   (iter (lambda (form)
 		   (unless (eof-object? form)
-			   (write (load-eval form base-env))
+			   (write (load-eval form))
 			   (newline)
 			   (iter (read-port in))))))
     (if (eof-object? in)
@@ -972,13 +972,7 @@ body. always executes at least once"
 
 (define (all-symbols)
   "return a list of all symbols defined in the global environment"
-  (append-all
-   (map (lambda (x)
-	  (cond
-	   ((pair? x) nil)
-	   ((hashtab? x) (hashtab-keys x))
-	   (else (throw-error "giving up"))))
-	base-env)))
+  (hashtab-keys *global-environment*))
 
 (define-syntax (time . body)
   "display the time required to execute body"

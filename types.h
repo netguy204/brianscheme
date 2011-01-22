@@ -236,11 +236,11 @@ long get_cons_count();
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);
-object *make_compound_proc(object *parameters, object *body,
-			   object *env);
-char is_compound_proc(object *obj);
 
-object *make_syntax_proc(object *parameters, object *body);
+object *make_compound_proc(object *parameters, object *body,
+			   object *env, char is_syntax);
+
+char is_compound_proc(object *obj);
 char is_syntax_proc(object *obj);
 
 object *make_compiled_proc(object *bytecode, object *env,

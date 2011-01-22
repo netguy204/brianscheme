@@ -30,13 +30,13 @@
 static const int DEBUG_LEVEL = 1;
 static char debug_enabled = 0;
 
-void eval_exit_hook(object * environment) {
+void eval_exit_hook() {
   object *exit_hook = lookup_variable_value(exit_hook_symbol,
-					    environment);
+					    the_empty_environment);
   if(exit_hook != the_empty_list) {
     object *exp = cons(exit_hook, the_empty_list);
     push_root(&exp);
-    interp(exp, environment);
+    interp(exp, the_empty_environment);
     pop_root(&exp);
   }
 }
@@ -47,7 +47,7 @@ void throw_interp(char *msg, ...) {
   vfprintf(stderr, msg, args);
   va_end(args);
 
-  eval_exit_hook(the_global_environment);
+  eval_exit_hook();
   exit(1);
 }
 
@@ -95,59 +95,46 @@ object *lookup_variable_value(object * var, object * env) {
 
   while(!is_the_empty_list(env)) {
     frame = first_frame(env);
+    vars = frame_variables(frame);
+    vals = frame_values(frame);
 
-    if(is_hashtab(frame)) {
-      object *res = get_hashtab(frame, var, NULL);
-      if(res != NULL) {
-	return res;
-      }
+    /* handles (lambda foo ...) */
+    if(var == vars) {
+      return vals;
     }
-    else {
-      vars = frame_variables(frame);
-      vals = frame_values(frame);
 
-      /* handles (lambda foo ...) */
-      if(var == vars) {
-	return vals;
+    while(is_pair(vars)) {
+      if(var == car(vars)) {
+	return car(vals);
+      }
+      /* handles (lambda ( foo . rest ) ..) */
+      if(var == cdr(vars)) {
+	return cdr(vals);
       }
 
-      while(is_pair(vars)) {
-	if(var == car(vars)) {
-	  return car(vals);
-	}
-	/* handles (lambda ( foo . rest ) ..) */
-	if(var == cdr(vars)) {
-	  return cdr(vals);
-	}
+      vars = cdr(vars);
 
-	vars = cdr(vars);
-
-	/* since these may not be the same length
-	 * we need to check again */
-	if(!is_the_empty_list(vals)) {
-	  vals = cdr(vals);
-	}
+      /* since these may not be the same length
+       * we need to check again */
+      if(!is_the_empty_list(vals)) {
+	vals = cdr(vals);
       }
     }
     env = enclosing_environment(env);
   }
 
-  throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
-  return NULL;
+  /* check the global environment */
+  object * res = get_hashtab(the_global_environment, var, NULL);
+  if(res == NULL) {
+    throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
+    return NULL;
+  }
+
+  return res;
 }
 
-void define_global_variable(object * var, object * new_val, object * env) {
-  while(!is_the_empty_list(enclosing_environment(env))) {
-    env = enclosing_environment(env);
-  }
-
-  object *frame = first_frame(env);
-  if(is_hashtab(frame)) {
-    set_hashtab(frame, var, new_val);
-  }
-  else {
-    add_binding_to_frame(var, new_val, frame);
-  }
+void define_global_variable(object * var, object * new_val) {
+  set_hashtab(the_global_environment, var, new_val);
 }
 
 /**
@@ -162,52 +149,31 @@ void define_variable(object * var, object * new_val, object * env) {
   object *senv = env;
   while(!is_the_empty_list(senv)) {
     frame = first_frame(senv);
-    if(is_hashtab(frame)) {
-      object *obj = get_hashtab(frame, var, NULL);
-      if(obj != NULL) {
-	set_hashtab(frame, var, new_val);
+    vars = frame_variables(frame);
+    vals = frame_values(frame);
+    while(is_pair(vars)) {
+      if(var == car(vars)) {
+	set_car(vals, new_val);
 	return;
       }
-    }
-    else {
-      vars = frame_variables(frame);
-      vals = frame_values(frame);
-      while(is_pair(vars)) {
-	if(var == car(vars)) {
-	  set_car(vals, new_val);
-	  return;
-	}
-	if(var == cdr(vars)) {
-	  set_cdr(vals, new_val);
-	  return;
-	}
-	vars = cdr(vars);
+      if(var == cdr(vars)) {
+	set_cdr(vals, new_val);
+	return;
+      }
+      vars = cdr(vars);
 
-	/* since these may not be the same length
-	 * we need to check again */
-	if(!is_the_empty_list(vals)) {
-	  vals = cdr(vals);
-	}
+      /* since these may not be the same length
+       * we need to check again */
+      if(!is_the_empty_list(vals)) {
+	vals = cdr(vals);
       }
     }
     senv = enclosing_environment(senv);
   }
 
   /* we define at the global level */
-  define_global_variable(var, new_val, env);
+  define_global_variable(var, new_val);
 }
-
-/**
- * create a complete empty and unrooted environment
- */
-object *setup_environment(void) {
-  object *table = make_hashtab(100);
-  push_root(&table);
-  object *env = cons(table, the_empty_environment);
-  pop_root(&table);
-  return env;
-}
-
 
 /* define a few primitives */
 
@@ -256,6 +222,24 @@ DEFUN1(is_compound_proc_proc) {
 
 DEFUN1(is_syntax_proc_proc) {
   return AS_BOOL(is_syntax_proc(FIRST));
+}
+
+DEFUN1(is_defined_globally_proc) {
+  object * val = get_hashtab(the_global_environment, FIRST, NULL);
+  if(val) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+DEFUN1(global_value_proc) {
+  object * val = get_hashtab(the_global_environment, FIRST, NULL);
+  if(val == NULL) {
+    throw_interp("global value %s is not defined", STRING(FIRST));
+    return NULL;
+  }
+  return val;
 }
 
 DEFUN1(is_output_port_proc) {
@@ -606,16 +590,7 @@ DEFUN1(close_input_port_proc) {
 
 DEFUN1(eval_proc) {
   object *exp = FIRST;
-  object *env;
-
-  if(cdr(arguments) == the_empty_list) {
-    env = environment;
-  }
-  else {
-    env = SECOND;
-  }
-
-  return interp(exp, env);
+  return interp(exp, the_empty_environment);
 }
 
 DEFUN1(apply_proc) {
@@ -636,7 +611,7 @@ DEFUN1(apply_proc) {
   if(is_primitive_proc(fn)) {
     return fn->data.primitive_proc.fn(evald_args, environment);
   }
-  else if(is_compound_proc(fn)) {
+  else if(is_compound_proc(fn) || is_syntax_proc(fn)) {
     env = extend_environment(fn->data.compound_proc.parameters,
 			     evald_args, fn->data.compound_proc.env);
     push_root(&env);
@@ -936,7 +911,7 @@ void owrite(FILE * out, object * obj) {
   }
 
   if(obj == the_global_environment) {
-    fprintf(out, "#<global-environment>");
+    fprintf(out, "#<global-environment-hashtab>");
     return;
   }
 
@@ -1212,26 +1187,18 @@ interp_restart:
       }
       goto interp_restart;
     }
-    else if(head == lambda_symbol) {
+    else if(head == lambda_symbol
+	    || head == macro_symbol) {
       object *args = cdr(exp);
       object *body = cons(begin_symbol, cdr(args));
       push_root(&body);
 
       object *proc = make_compound_proc(first(args),
 					body,
-					env);
+					env,
+					head == macro_symbol);
       pop_root(&body);
       INTERP_RETURN(proc);
-    }
-    else if(head == macro_symbol) {
-      object *args = cdr(exp);
-      object *body = cons(begin_symbol, cdr(args));
-      push_root(&body);
-
-      object *result = make_syntax_proc(first(args),
-					body);
-      pop_root(&body);
-      INTERP_RETURN(result);
     }
     else {
       /* procedure application */
@@ -1346,16 +1313,16 @@ interp_restart:
 }
 
 
-void init_prim_environment(object * env) {
+void init_prim_environment() {
   /* used throughout this method to protect the thing in definition
    * from gc */
   object *curr = the_empty_list;
   push_root(&curr);
 
-#define add_procedure(scheme_name, c_name)    \
-  define_variable(make_symbol(scheme_name),   \
-                  curr=make_primitive_proc(c_name),	\
-                  env);
+#define add_procedure(scheme_name, c_name)			\
+  define_global_variable(make_symbol(scheme_name),		\
+			 curr=make_primitive_proc(c_name))
+
 
   add_procedure("null?", is_null_proc);
   add_procedure("boolean?", is_boolean_proc);
@@ -1374,6 +1341,8 @@ void init_prim_environment(object * env) {
   add_procedure("alien?", is_alien_proc);
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
   add_procedure("meta?", is_meta_proc);
+  add_procedure("global?", is_defined_globally_proc);
+  add_procedure("global-ref", global_value_proc);
 
   add_procedure("fixnum-add", add_fixnum_proc);
   add_procedure("real-add", add_real_proc);
@@ -1471,12 +1440,12 @@ void init_prim_environment(object * env) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  define_variable(stdin_symbol, curr = make_input_port(stdin), env);
-  define_variable(stdout_symbol, curr = make_output_port(stdout), env);
-  define_variable(stderr_symbol, curr = make_output_port(stderr), env);
-  define_variable(make_symbol("callstack"), the_call_stack, env);
-  define_variable(make_symbol("base-env"), env, env);
-  define_variable(exit_hook_symbol, the_empty_list, env);
+  define_global_variable(stdin_symbol, curr = make_input_port(stdin));
+  define_global_variable(stdout_symbol, curr = make_output_port(stdout));
+  define_global_variable(stderr_symbol, curr = make_output_port(stderr));
+  define_global_variable(make_symbol("callstack"), the_call_stack);
+  define_global_variable(make_symbol("*global-environment*"), the_global_environment);
+  define_global_variable(exit_hook_symbol, the_empty_list);
 
   pop_root(&curr);
 }
@@ -1527,14 +1496,14 @@ void init() {
   push_root(&eof_object);
 
   the_empty_environment = the_empty_list;
-  the_global_environment = setup_environment();
+  the_global_environment = make_hashtab(100);
   push_root(&the_global_environment);
 
   the_call_stack = cons(the_empty_list, the_empty_list);
   push_root(&the_call_stack);
 
   vm_init();
-  init_prim_environment(the_global_environment);
+  init_prim_environment();
 }
 
 /**
