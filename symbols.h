@@ -13,6 +13,7 @@ extern object *symbol_table;
 extern object *quote_symbol;
 extern object *quasiquote_symbol;
 extern object *unquote_symbol;
+extern object *unquotesplicing_symbol;
 extern object *set_symbol;
 extern object *if_symbol;
 extern object *begin_symbol;

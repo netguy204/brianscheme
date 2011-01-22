@@ -43,6 +43,77 @@
 (set! > fixnum-greater-than)
 (set! = fixnum-equal)
 
+;; based on the macro bootstrap process in ericbb's javascript scheme
+;; found at: http://norstrulde.org/
+;; A more full featured cond will be defined later
+(set! cond0
+  (macro clauses
+    (if (null? clauses)
+	nil
+	(list 'if (car (car clauses))
+	      (cons 'begin (cdr (car clauses)))
+	      (cons 'cond0 (cdr clauses))))))
+
+(set! startswith
+  (lambda (x sym)
+    (eq? (car x) sym)))
+
+;; more basic or/and that won't return the last expression they
+;; evaluate
+(set! or0
+  (macro x
+    (if (null? x)
+	nil
+	(list 'if (car x)
+	      #t
+	      (cons 'or0 (cdr x))))))
+
+(set! and0
+  (macro x
+    (if (null? x)
+	#t
+	(list 'if (car x)
+	      (cons 'and0 (cdr x))
+	      #f))))
+
+(set! not
+  (lambda (x)
+    (if x #f #t)))
+
+(set! atom?
+  (lambda (x)
+    (not (pair? x))))
+
+(set! append0
+  (lambda (x y)
+    (cond
+     ((null? x) y)
+     ((null? y) x)
+     (#t (cons (car x)
+	       (append0 (cdr x) y))))))
+
+(set! qq
+  (lambda (x)
+    (cond0
+     ((atom? x)
+      (list 'quote x))
+     ((startswith x 'quote)
+      (list 'list ''quote (qq (car (cdr x)))))
+     ((startswith x 'unquote)
+      (car (cdr x)))
+     ((startswith x 'quasiquote)
+      (qq (qq (car (cdr x)))))
+     ((and0 (pair? (car x))
+	    (startswith (car x) 'unquotesplicing))
+      (list 'append0 (car (cdr (car x))) (qq (cdr x))))
+     (#t
+      (list 'cons (qq (car x)) (qq (cdr x)))))))
+
+(set! quasiquote (macro (x) (qq x)))
+;; macro bootstrap complete. we can use quasiquoting syntax from here
+;; on out!
+
+
 (set! define-syntax
       (macro (name-and-vars . body)
 	`(set! ,(car name-and-vars)
@@ -344,11 +415,6 @@ that decompose it according to the structure of var-forms"
   (lambda (x) (not (fn x))))
 
 ;; now defining some standard conditional constructs
-(define-syntax (not pred)
-  `(if ,pred
-       #f
-       #t))
-
 (define-syntax (when pred . conseq)
   "evaluates consequence if predicate evaluates true"
   `(if ,pred

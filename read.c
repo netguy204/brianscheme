@@ -447,10 +447,19 @@ object *lisp_read(read_buffer * in) {
     return quoted;
   }
   else if(c == ',') {
+    char next_char = read_getc(in);
+    object *qsym = unquote_symbol;
+
+    if(next_char == '@') {
+      qsym = unquotesplicing_symbol;
+    } else {
+      read_ungetc(next_char, in);
+    }
+
     object *unquoted = lisp_read(in);
     push_root(&unquoted);
     unquoted = cons(unquoted, the_empty_list);
-    unquoted = cons(unquote_symbol, unquoted);
+    unquoted = cons(qsym, unquoted);
     pop_root(&unquoted);
     return unquoted;
   }

@@ -490,18 +490,6 @@ DEFUN1(list_proc) {
   return arguments;
 }
 
-DEFUN1(macroexpand0_proc) {
-  object *macro = FIRST;
-  object *macrofn = interp(car(macro), environment);
-  object *macroargs = cdr(macro);
-
-  push_root(&macrofn);
-  object *result = expand_macro(macrofn, macroargs, environment, 0);
-  pop_root(&macrofn);
-
-  return result;
-}
-
 DEFUN1(is_eq_proc) {
   if(FIRST->type != SECOND->type) {
     return false;
@@ -1033,6 +1021,10 @@ void owrite(FILE * out, object * obj) {
       fprintf(out, ",");
       owrite(out, cadr(obj));
     }
+    else if(head == unquotesplicing_symbol) {
+      fprintf(out, ",@");
+      owrite(out, cadr(obj));
+    }
     else if(head == quasiquote_symbol) {
       fprintf(out, "`");
       owrite(out, cadr(obj));
@@ -1129,29 +1121,6 @@ object *expand_macro(object * macro, object * args, object * env, int level) {
   return expanded;
 }
 
-object *interp_unquote(object * exp, object * env, int level) {
-  if(!is_pair(exp))
-    return exp;
-
-  object *head = car(exp);
-  if(head == unquote_symbol) {
-    return interp1(second(exp), env, level);
-  }
-  else {
-    object *h1 = interp_unquote(car(exp), env, level);
-    push_root(&h1);
-
-    object *h2 = interp_unquote(cdr(exp), env, level);
-    push_root(&h2);
-
-    object *result = cons(h1, h2);
-
-    pop_root(&h2);
-    pop_root(&h1);
-    return result;
-  }
-}
-
 #ifdef INTERP_CALLSTACK
 void push_callstack(object * target) {
   set_car(the_call_stack, cons(target, car(the_call_stack)));
@@ -1202,9 +1171,6 @@ interp_restart:
     object *head = car(exp);
     if(head == quote_symbol) {
       INTERP_RETURN(second(exp));
-    }
-    else if(head == quasiquote_symbol) {
-      INTERP_RETURN(interp_unquote(second(exp), env, level));
     }
     else if(head == begin_symbol) {
       exp = cdr(exp);
@@ -1478,7 +1444,6 @@ void init_prim_environment(object * env) {
   add_procedure("write-char", write_char_proc);
   add_procedure("unread-char", unread_char_proc);
 
-  add_procedure("macroexpand0", macroexpand0_proc);
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
 
@@ -1549,6 +1514,7 @@ void init() {
   push_root(&symbol_table);
 
   unquote_symbol = make_symbol("unquote");
+  unquotesplicing_symbol = make_symbol("unquotesplicing");
   quote_symbol = make_symbol("quote");
   quasiquote_symbol = make_symbol("quasiquote");
   set_symbol = make_symbol("set!");
