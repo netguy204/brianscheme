@@ -1,9 +1,8 @@
 ; Random number generation
 
-; NOTE: This Mersenne twister seems to be working ok, but hasn't been
-; fully tested yet. I think there's an issue with it limiting itself
-; to 31-bits right now, due to the way BrianScheme currently handles
-; numbers.
+; NOTE: This Mersenne twister works properly on 64-bit machines. It
+; seems to work well enough (wrong output, but good on entropy) on
+; 32-bit machines for now.
 
 (require 'clos)
 (require 'ffi)
