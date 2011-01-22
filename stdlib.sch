@@ -1101,3 +1101,4 @@ body. always executes at least once"
 (require 'math)
 (provide 'stdlib)
 
+(require 'clos-repl)
