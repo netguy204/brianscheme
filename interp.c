@@ -486,10 +486,6 @@ DEFUN1(set_cdr_proc) {
   return SECOND;
 }
 
-DEFUN1(list_proc) {
-  return arguments;
-}
-
 DEFUN1(is_eq_proc) {
   if(FIRST->type != SECOND->type) {
     return false;
@@ -1415,7 +1411,6 @@ void init_prim_environment(object * env) {
   add_procedure("cdr", cdr_proc);
   add_procedure("set-car!", set_car_proc);
   add_procedure("set-cdr!", set_cdr_proc);
-  add_procedure("list", list_proc);
   add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);

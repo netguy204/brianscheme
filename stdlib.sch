@@ -46,6 +46,8 @@
 ;; based on the macro bootstrap process in ericbb's javascript scheme
 ;; found at: http://norstrulde.org/
 ;; A more full featured cond will be defined later
+(set! list (lambda x x))
+
 (set! cond0
   (macro clauses
     (if (null? clauses)
@@ -58,16 +60,7 @@
   (lambda (x sym)
     (eq? (car x) sym)))
 
-;; more basic or/and that won't return the last expression they
-;; evaluate
-(set! or0
-  (macro x
-    (if (null? x)
-	nil
-	(list 'if (car x)
-	      #t
-	      (cons 'or0 (cdr x))))))
-
+;; more basic and that won't return the last expression they evaluate
 (set! and0
   (macro x
     (if (null? x)
