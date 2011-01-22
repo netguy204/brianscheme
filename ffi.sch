@@ -79,6 +79,12 @@ freed later."
 (define-method (ffi:to-alien (obj <ffi:alien>))
   obj)
 
+(define-method (ffi:from-alien (obj <ffi:alien>))
+  obj)
+
+;;(define-method (ffi:alien-ffi-type (obj <alien>))
+;;  'ffi-pointer)
+
 ;;
 ;; strings
 ;;
@@ -182,6 +188,9 @@ freed later."
 (define-method (ffi:alien-ffi-type (obj <ffi:alien-pointer>))
   'ffi-pointer)
 
+(define-method (ffi:from-alien (obj <ffi:alien-pointer>))
+  obj)
+
 (let ((native-address-of ffi:address-of)
       (native-deref ffi:deref))
 
@@ -231,6 +240,18 @@ freed later."
 
 
 ;;
+;; void needs a type
+;;
+(define-class <ffi:void> (<ffi:alien>)
+  "void class")
+
+(define-method (ffi:alien-ffi-type (obj <ffi:void>))
+  'ffi-void)
+
+(define-method (initialize (obj <ffi:void>) args)
+  (slot-set! obj 'value (ffi:int-to-alien 0)))
+
+;;
 ;; pointer arrays
 ;;
 (define-class <ffi:alien-pointer-array> (<ffi:alien>)
@@ -274,6 +295,129 @@ freed later."
   (ffi:deref (list-ref
 	      (slot-ref array 'ptr-list) idx)))
 
+
+;;
+;; multi-byte raw value/pointer
+;;
+
+;; the value form of multibyte won't fit in an alien so it's not an
+;; alien. you have to find its address to get an alien
+(define-class <ffi:multibyte-raw-value> ()
+  "a value is some number of bytes large"
+  ('bytes
+   'length
+   'type))
+
+(define-method (initialize (mrv <ffi:multibyte-raw-value>) args)
+  (let ((nbytes (getl args 'length nil))
+	(type (getl args 'type 'ffi-pointer))
+	(bytes (getl args 'bytes nil)))
+
+    (slot-set! mrv 'bytes (if bytes bytes
+			      (ffi:make-bytes nbytes)))
+    (slot-set! mrv 'length nbytes)
+    (slot-set! mrv 'type type)))
+
+(define-method (ffi:alien-ffi-type (mrv <ffi:multibyte-raw-value>))
+  (slot-ref mrv 'type))
+
+(define-class <ffi:multibyte-raw-pointer> (<ffi:alien>)
+  "a pointer to a value that is some number of byte large"
+  ('length
+   'target-type))
+
+(define-method (initialize (mrp <ffi:multibyte-raw-pointer>) args)
+  (let ((nbytes (getl args 'length nil))
+	(target-type (getl args 'target-type 'ffi-pointer))
+	(value (getl args 'value nil)))
+
+    (slot-set! mrp 'value (if value value
+			      (ffi:make-bytes nbytes)))
+    (slot-set! mrp 'length nbytes)
+    (slot-set! mrp 'target-type target-type)))
+
+(define-method (ffi:alien-ffi-type (mrv <ffi:multibyte-raw-pointer>))
+  'ffi-pointer)
+
+(define-method (ffi:address-of (mrv <ffi:multibyte-raw-value>))
+  (make <ffi:multibyte-raw-pointer>
+    'value (slot-ref mrv 'bytes)
+    'length (slot-ref mrv 'length)
+    'target-type (ffi:alien-ffi-type mrv)))
+
+(define-method (ffi:deref (mrp <ffi:multibyte-raw-pointer>))
+  (make <ffi:multibyte-raw-value>
+    'length (slot-ref mrp 'length)
+    'type (slot-ref mrp 'target-type)
+    'bytes (ffi:alien-value mrp)))
+
+(define-method (ffi:from-alien (mrv <ffi:multibyte-raw-value>))
+  mrv)
+
+;; by default, don't free mrv's since they may actually be the return
+;; value the user wants
+(define-method (ffi:free (mrv <ffi:multibyte-raw-value>))
+  nil)
+
+;; this lets you do it for real
+(define (ffi:free-mrv mrv)
+  "Actually free an mrv. by default, ffi:free won't work on
+mrv's. They aren't really aliens after all--more like unpacked
+natives."
+  (ffi:free (slot-ref mrv 'bytes)))
+
+(define-generic ffi:to-bytearray
+  "convert a multibyte value into an array of characters")
+
+(define-method (ffi:to-bytearray (mrv <ffi:multibyte-raw-value>))
+  (let ((result nil)
+	(bytes (slot-ref mrv 'bytes)))
+
+    (dotimes (idx (slot-ref mrv 'length))
+      (push! (ffi:byte-ref bytes idx) result))
+
+    (reverse result)))
+
+(define-method (ffi:to-bytearray (mrp <ffi:multibyte-raw-pointer>))
+  (ffi:to-bytearray (ffi:deref mrp)))
+
+(define-class <ffi:uint64> (<ffi:multibyte-raw-value>)
+  "portable representation of a uint64")
+
+(define-method (initialize (obj <ffi:uint64>))
+  ;; don't like having to do this. having slot initializers in the
+  ;; class definition would be a better solution
+  (slot-set! obj 'length 8)
+  (slot-set! obj 'bytes (ffi:make-bytes 8))
+  (slot-set! obj 'type 'ffi-uint64))
+
+(define-method (ffi:from-alien (obj <ffi:uint64>))
+  ;; todo
+  obj)
+
+;;
+;; convenience overrides
+;;
+(let ((native-atos ffi:alien-to-string)
+      (native-atoi ffi:alien-to-int))
+  (define-generic ffi:alien-to-string
+    "convert an alien value into a string")
+
+  (define-method (ffi:alien-to-string (obj <alien>))
+    (native-atos obj))
+
+  (define-method (ffi:alien-to-string (obj <ffi:alien-pointer>))
+    (native-atos (ffi:alien-value obj)))
+
+  (define-generic ffi:alien-to-int
+    "convert an alien value into a fixnum")
+
+  (define-method (ffi:alien-to-int (obj <alien>))
+    (native-atoi obj))
+
+  (define-method (ffi:alien-to-int (obj <ffi:alien>))
+    (native-atoi (ffi:alien-value obj))))
+
 (define (ffi:empty-alien type)
   "pre-allocate space for the return type if its a basic
 primitive. for non-primitives the user is expected to provide a
@@ -281,14 +425,14 @@ pre-allocated instance of some kind of <ffi:alien> that's appropriate
 for holding this"
   (cond
    ((instance-of? <ffi:alien> type) type)
+   ((instance-of? <ffi:multibyte-raw-value> type) type)
    (else
     (case type
       (ffi-uint (ffi:to-alien 0))
-      (ffi-cstring (ffi:to-alien ""))
       (ffi-pointer (ffi:address-of
 		    (make <ffi:alien>
 		      'value (ffi:int-to-alien 0))))
-      (ffi-void nil)
+      (ffi-void (make <ffi:void>))
       (else (throw-error "don't know how to make empty" type))))))
 
 (define-syntax (ffi:funcall fnptr result-type . args)
@@ -301,7 +445,7 @@ macro may mutate fnptr to cache its function signature"
 	  (fnspec (if (instance-of? <ffi:cif> ,fnptr)
 		      ,fnptr
 		      (ffi:make-function-spec
-		       ,result-type
+		       (ffi:alien-ffi-type result)
 		       (ffi:value-array-types values)))))
 
      ;; cache the cif
@@ -349,12 +493,8 @@ macro may mutate fnptr to cache its function signature"
       (ffi:funcall ltest-fn 'ffi-void closure))
 
     (define (getenv var)
-      (let ((result
-	     (ffi:funcall lgetenv 'ffi-pointer
-			  (ffi:string-to-alien var))))
-	(if (= (ffi:alien-to-int result) 0)
-	    #f
-	    (ffi:alien-to-string result))))
+      (ffi:alien-to-string
+       (ffi:funcall lgetenv 'ffi-pointer var)))
 
     (define (fork)
       (ffi:funcall lfork 'ffi-uint))
@@ -367,6 +507,11 @@ macro may mutate fnptr to cache its function signature"
 
     (define (getpid)
       (ffi:funcall lgetpid 'ffi-uint))
+
+    (define (time)
+      (let ((mbv (make <ffi:multibyte-raw-value>
+		   'length 16)))
+	(ffi:funcall ltime mbv (ffi:address-of mbv))))
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive
@@ -390,12 +535,12 @@ macro may mutate fnptr to cache its function signature"
 ;invoke closure-target when called. Note that create-closure does not
 ;currently protect the provided function (which can be any arbitrary
 ;invokeable thing) from gc so it should be protected by other
-;means... here closure-target protected by being a global.
+;means... here closure-target is protected by being a global.
 (define (closure-test)
   (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-uint)))
-	 (closure (ffi:create-closure (ffi:cif-cif cif)
+	 (closure (ffi:create-closure (slot-ref cif 'cif)
 				      closure-target
-				      (ffi:alien-to-int 0))))
+				      (ffi:int-to-alien 0))))
     (test-fn closure)))
 
 (define (ffi:fork-test)

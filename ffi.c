@@ -290,6 +290,17 @@ void test_fn(void (*rfn) (int)) {
   rfn(42);
 }
 
+
+/* example function that returns a value that's too big to fit into a
+   fixnum on 32 bit machines. this is good for testing */
+long long bignumber() {
+  return 1099511627776;
+}
+
+long long bignumber2() {
+  return 42;
+}
+
 DEFUN1(ffi_address_of) {
   void **ptr = &(ALIEN_PTR(FIRST));
   return make_alien(ptr, the_empty_list);

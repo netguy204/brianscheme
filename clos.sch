@@ -115,6 +115,10 @@
   (print-object strm (slot-ref cls 'class-name)))
 
 (define-method (print-object (strm <output-stream>)
+			     (ali <alien>))
+  (write-stream strm "#<alien>"))
+
+(define-method (print-object (strm <output-stream>)
 			     (num <number>))
   (write-stream strm (number->string num)))
 
