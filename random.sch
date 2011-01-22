@@ -1,8 +1,7 @@
 ; Random number generation
 
-; NOTE: This Mersenne twister works properly on 64-bit machines. It
-; seems to work well enough (wrong output, but good on entropy) on
-; 32-bit machines for now.
+; NOTE: This Mersenne twister has been tested and works properly on
+; 32-bit and 64-bit machines.
 
 (require 'clos)
 (require 'ffi)
@@ -41,8 +40,8 @@
       (regenerate rng))
   (let ((y (vector-ref (slot-ref rng 'mt) (slot-ref rng 'index))))
     (set! y (logxor y (ash y -11)))
-    (set! y (logxor y (logand 2636928640 (ash y 7))))
-    (set! y (logxor y (logand 4022730752 (ash y 15))))
+    (set! y (logxor y (logand (ash 1318464320 1) (ash y 7))))
+    (set! y (logxor y (logand (ash 2011365376 1) (ash y 15))))
     (set! y (logxor y (ash y -18)))
     (slot-set! rng 'index (mod (+ 1 (slot-ref rng 'index)) 624))
     (logand *mask-32* y)))
@@ -71,8 +70,9 @@
 		 (logand *mask-31* (vector-ref mt j)))))
       (vector-set! mt i (logxor (vector-ref mt (mod (+ i 397) 624))
 				(ash y -1)))
-      (if (= 1 (mod y 2))
-	  (vector-set! mt i (logxor (vector-ref mt i) 2567483615))))))
+      (if (= 1 (abs (mod y 2)))
+	  (vector-set! mt i (logxor (vector-ref mt i)
+                                    (logor 1 (ash 1283741807 1))))))))
 
 ;; Middle-square algorithm -- don't use this seriously
 
