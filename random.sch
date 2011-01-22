@@ -8,6 +8,7 @@
 (require 'clos)
 (require 'ffi)
 
+(define *mask-16* (- (expt 2 16) 1))
 (define *mask-31* (- (expt 2 31) 1))
 (define *mask-32* (logor (ash *mask-31* 1) 1))
 
@@ -108,10 +109,12 @@
 
 (define (random n state)
   "Generate a random number between 0 and n."
-  (let ((rng (or state *random-state*)))
+  (let* ((rng (or state *random-state*))
+         (num (generate rng)))
     (if (integer? n)
-	(mod (generate rng) n)
-	(* n (/ (generate rng) (expt 2.0 31) 2.0)))))
+	(abs (mod (generate rng) n))
+	(* n 0.5 (+ (/ (logand num *mask-16*) 1.0 *mask-16*)
+                    (/ (ash num -16) 1.0 *mask-16*))))))
 
 (define *random-normal-pool* '()
   "Extra numbers generated from the pool.")
