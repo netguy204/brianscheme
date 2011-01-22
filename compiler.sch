@@ -474,14 +474,16 @@ about its value and optionally with more forms following"
 ; now we can compile functions to bytecode and print the results like
 ; this:
 ; (comp-show '(if (= x y) (f (g x)) (h x y (h 1 2))))
-;(define (load-eval form env)
-;  (if (eq? (first form)
-;	   'define-syntax)
-;      (eval form env)
-;      (begin
-;	(env-push! env)
-;	(let ((result ((compiler form))))
-;	  (env-pop!)
-;	  result))))
+
+
+(define (compiling-load-eval form env)
+  (if (eq? (first form)
+	   'define-syntax)
+      (eval form env)
+      (begin
+	(env-push! env)
+	(let ((result ((compiler form))))
+	  (env-pop!)
+	  result))))
 
 (provide 'compiler)

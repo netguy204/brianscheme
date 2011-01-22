@@ -262,7 +262,10 @@ that decompose it according to the structure of var-forms"
 
   (define (get-documentation sym)
     "retrieve documentation for a symbol"
-    (cdr (assoc sym docs))))
+    (let ((result (assoc sym docs)))
+      (if result
+	  (cdr result)
+	  ""))))
 
 (define-syntax (doc name)
   "retrieve documentation for a name"
@@ -333,7 +336,7 @@ that decompose it according to the structure of var-forms"
     (del eqv? item list))
 
   (define (delete item list)
-    "Return list with all items eqaul? to item removed."
+    "Return list with all items equal? to item removed."
     (del equal? item list)))
 
 (define (compliment fn)
