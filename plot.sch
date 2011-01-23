@@ -25,10 +25,12 @@
       (ffi:funcall fflush 'ffi-uint *gnuplot-handle*)
       #t)
 
-    (define (plot:send-vector vec)
-      "Send a vector to gunplot."
-      (dovector (x vec)
-	(plot:raw (number->string x) "\n"))
+    (define (plot:send-vectors . vecs)
+      "Send vectors as columns to gunplot."
+      (dotimes (i (vector-length (car vecs)))
+        (for-each (lambda (vec)
+                    (plot:raw (number->string (vector-ref vec i)) " ")) vecs)
+        (plot:raw "\n"))
       (plot:command "e"))
 
     (define (plot:send-list lst)
@@ -40,7 +42,7 @@
       "Plot a vector."
       (plot:command "set style data lines")
       (plot:command "plot '-'")
-      (plot:send-vector vec))
+      (plot:send-vectors vec))
 
     (define (plot:list lst)
       "Plot a list."
@@ -54,16 +56,19 @@
              (bins (make-vector num-bins 0))
              (min (* 1.0 (apply min lst)))
              (max (* 1.0 (apply max lst)))
-             (range (- max min)))
+             (range (- max min))
+             (xs (make-vector num-bins 0)))
+        ;; Generate x-data
+        (dotimes (i num-bins)
+          (vector-set! xs i (+ min (/ (* i range) num-bins))))
+        ;; Generate y-data
         (dolist (x lst)
           (let ((i (floor (* (/ (- x min) range) (- num-bins 1)))))
-            (vector-set! bins i (+ 1 (vector-ref bins i)))
-            ))
-        (plot:command "set style data histograms")
-        (plot:command "set boxwidth 3 relative")
-        (plot:command "set style fill solid 1.0 border -1")
-        (plot:command "plot '-'")
-        (plot:send-vector bins)
+            (vector-set! bins i (+ 1 (vector-ref bins i)))))
+        (plot:command "set boxwidth 1 relative")
+        (plot:command "set style fill solid 1.0 border -1 color red")
+        (plot:command "plot '-' with boxes lc rgb \"blue\"")
+        (plot:send-vectors xs bins)
         bins))))
 
 (plot:init)
