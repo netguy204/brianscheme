@@ -112,8 +112,7 @@
          (num (generate rng)))
     (if (integer? n)
 	(abs (mod (generate rng) n))
-	(* n 0.5 (+ (/ (logand num *mask-16*) 1.0 *mask-16*)
-                    (/ (ash num -16) 1.0 *mask-16*))))))
+	(* n (/ (ash num -1) 1.0 *mask-31*)))))
 
 (define *random-normal-pool* '()
   "Extra numbers generated from the pool.")
