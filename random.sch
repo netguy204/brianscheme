@@ -100,26 +100,28 @@
 (define (make-random-state seed)
   (make <mersenne> seed))
 
-(define (copy-random-state state)
-  (let ((rng (or state *random-state*)))
+(define (copy-random-state . state)
+  (let ((rng (car-else state *random-state*)))
     (copy rng)))
 
 (define *random-state* (make-random-state (getpid)))
 
-(define (random n state)
+(define (random n . state)
   "Generate a random number between 0 and n."
-  (let* ((rng (or state *random-state*))
+  (let* ((rng (car-else state *random-state*))
          (num (generate rng)))
     (if (integer? n)
 	(abs (mod (generate rng) n))
 	(* n (/ (ash num -1) 1.0 *mask-31*)))))
 
-(define *random-normal-pool* '()
-  "Extra numbers generated from the pool.")
 
-(define (random:normal state)
+;; Extra numbers generated from the pool.
+(define *random-normal-pool* '())
+
+
+(define (random:normal . state)
   "Generate number from normal distribution: Box-Muller transformation."
-  (let ((rng (or state *random-state*)))
+  (let ((rng (car-else state *random-state*)))
     (if *random-normal-pool* (pop! *random-normal-pool*)
         (let* ((x1 (- (random 2.0 rng) 1))
                (x2 (- (random 2.0 rng) 1))
@@ -130,11 +132,11 @@
                 (push! (* x1 base) *random-normal-pool*)
                 (* x2 base)))))))
 
-(define (random:uniform state)
+(define (random:uniform . state)
   "Generate a number in the uniform distribution."
-  (let ((rng (or state *random-state*)))
+  (let ((rng (car-else state *random-state*)))
     (random 1.0 rng)))
 
-(define (random:exp state)
+(define (random:exp . state)
   "Generate a number in the exponential distribution."
-  (- (log (random:uniform state))))
+  (- (log (random:uniform (car-else state *random-state*)))))

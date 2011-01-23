@@ -175,9 +175,10 @@ vm_begin:
 
   case SYMBOL:
     if(opcode == args_op) {
-      VM_ASSERT(n_args == LONG(ARG1(instr)),
-		"wrong number of args. expected %ld, got %ld\n",
-		LONG(ARG1(instr)), n_args);
+      if(n_args != LONG(ARG1(instr))) {
+	VM_ASSERT(0, "wrong number of args. expected %ld, got %ld\n",
+		  LONG(ARG1(instr)), n_args);
+      }
 
       int ii;
       int num_args = LONG(ARG1(instr));

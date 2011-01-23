@@ -83,7 +83,7 @@
 
   (define (pth:spawn func)
     "Create a thread."
-    (make <pth:thread> func))
+    (make <pth:thread> (lambda (alien-arg-array) (func))))
 
   (define (pth:yield)
     "Yield to the Pth scheduler."
