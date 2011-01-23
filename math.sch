@@ -93,15 +93,21 @@ appropriate operation for the types they end up as"
       (- 0 a)
       a))
 
-(define (min a b)
+(define (min0 a b)
   (if (< a b)
       a
       b))
 
-(define (max a b)
+(define (min . nums)
+  (reduce min0 nums))
+
+(define (max0 a b)
   (if (> a b)
       a
       b))
+
+(define (max . nums)
+  (reduce max0 nums))
 
 (define (gcd a b)
   (if (= b 0)
