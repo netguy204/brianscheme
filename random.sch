@@ -138,3 +138,12 @@
 (define (random:exp state)
   "Generate a number in the exponential distribution."
   (- (log (random:uniform state))))
+
+(define (random:poisson m state)
+  "Generate a number from the Poisson distribution with mean M."
+  (letrec ((L (exp (- m)))
+           (iter (lambda (k p) ;; Knuth's algorithm
+                   (if (> p L)
+                       (iter (+ k 1) (* p (random:uniform state)))
+                       (- k 1)))))
+    (iter 1 1)))
