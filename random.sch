@@ -130,7 +130,11 @@
                 (push! (* x1 base) *random-normal-pool*)
                 (* x2 base)))))))
 
+(define (random:uniform state)
+  "Generate a number in the uniform distribution."
+  (let ((rng (or state *random-state*)))
+    (random 1.0 rng)))
+
 (define (random:exp state)
   "Generate a number in the exponential distribution."
-  (let ((rng (or state *random-state*)))
-    (- (log (random 1.0 rng)))))
+  (- (log (random:uniform state))))
