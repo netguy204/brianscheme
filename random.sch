@@ -112,8 +112,7 @@
          (num (generate rng)))
     (if (integer? n)
 	(abs (mod (generate rng) n))
-	(* n 0.5 (+ (/ (logand num *mask-16*) 1.0 *mask-16*)
-                    (/ (ash num -16) 1.0 *mask-16*))))))
+	(* n (/ (ash num -1) 1.0 *mask-31*)))))
 
 (define *random-normal-pool* '()
   "Extra numbers generated from the pool.")
@@ -131,7 +130,11 @@
                 (push! (* x1 base) *random-normal-pool*)
                 (* x2 base)))))))
 
+(define (random:uniform state)
+  "Generate a number in the uniform distribution."
+  (let ((rng (or state *random-state*)))
+    (random 1.0 rng)))
+
 (define (random:exp state)
   "Generate a number in the exponential distribution."
-  (let ((rng (or state *random-state*)))
-    (- (log (random 1.0 rng)))))
+  (- (log (random:uniform state))))

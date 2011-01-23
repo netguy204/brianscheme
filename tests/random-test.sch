@@ -30,12 +30,26 @@
               (set! done #t)
               (nc:clear)))))))
 
-(define (write-sample file size)
+(define (write-byte-sample file size)
   "Write a sample of the RNG to an output file for ent."
   (let ((func (lambda (port)
                 (dotimes (i size)
                   (write-char (integer->char (random 256)) port)))))
     (call-with-output-file file func)))
+
+(define (write-text-sample file fn size)
+  "Write a sample of the RNG to an output file for ent."
+  (let ((func (lambda (port)
+                (dotimes (i size)
+                  (write-port (fn) port)
+                  (write-char (integer->char 10) port)))))
+    (call-with-output-file file func)))
+
+(require 'plot)
+
+(define (plot-pdf fn)
+  "Plot the PDF of the given RNG function using the plot library."
+  (plot:hist (map fn (duplicate *random-state* 10000)) 50))
 
 (require 'unittest)
 
