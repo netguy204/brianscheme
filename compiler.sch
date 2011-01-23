@@ -293,13 +293,7 @@ about its value and optionally with more forms following"
 		     'args args)))
 
 (define (optimize code) code)
-'foo1
-(define write-dbg write-dbg1)
-(define (foo a . others)
-  (cons 'foo others))
-'foo2
-(foo 1 2 3 4)
-'foo3
+
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)

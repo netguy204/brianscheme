@@ -1027,8 +1027,10 @@ body. always executes at least once"
    (else
     (let ((expansion (macroexpand0 form)))
       (if (equal? expansion form)
-	  ;; head is fully expanded, now expand the rest
-	  (cons (first expansion) (map macroexpand (rest expansion)))
+	  (if (pair? (cdr expansion))
+	      ;; head is fully expanded. now expand the rest
+	      (cons (first expansion) (map macroexpand (rest expansion)))
+	      expansion)
 	  ;; head may be able to expand further
 	  (macroexpand expansion))))))
 
