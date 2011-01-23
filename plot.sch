@@ -40,6 +40,24 @@
     (define (plot:list lst)
       "Plot a list."
       (plot:command "plot '-'")
-      (plot:send-list lst))))
+      (plot:send-list lst))
+
+    (define (plot:hist lst . num-bins)
+      "Plot histogram of data."
+      (let* ((num-bins (if num-bins (car num-bins) 10))
+             (bins (make-vector num-bins 0))
+             (min (* 1.0 (apply min lst)))
+             (max (* 1.0 (apply max lst)))
+             (range (- max min)))
+        (dolist (x lst)
+          (let ((i (floor (* (/ (- x min) range) (- num-bins 1)))))
+            (vector-set! bins i (+ 1 (vector-ref bins i)))
+            ))
+        (plot:command "set style data histograms")
+        (plot:command "set boxwidth 3 relative")
+        (plot:command "set style fill solid 1.0 border -1")
+        (plot:command "plot '-'")
+        (plot:send-vector bins)
+        bins))))
 
 (plot:init)
