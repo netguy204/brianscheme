@@ -291,7 +291,9 @@
    ((null? x)        <null>)
    ((boolean? x)     <boolean>)
    ((symbol? x)      <symbol>)
+   ((compiled-syntax-procedure? x) <compiled-syntax-procedure>)
    ((syntax-procedure? x) <syntax-procedure>)
+   ((compiled-procedure? x) <compiled-procedure>)
    ((procedure? x)   <procedure>)
    ((integer? x)     <integer>)
    ((real? x)        <real>)
@@ -360,6 +362,7 @@
       (slot-set! new 'nfields            nfields)
       (slot-set! new 'field-initializers (reverse
 					  field-initializers))
+
       (slot-set! new 'getters-n-setters  getters-n-setters)
       new))
 
@@ -399,7 +402,7 @@
 
 (let ((gns-cache (make-hashtab-eq 30)))
   (define (lookup-slot-info class slot-name)
-    (let ((cached (hashtab-ref gns-cache class)))
+    (let ((cached (hashtab-ref gns-cache class #f)))
       (let* ((getters-n-setters
 	      (cond
 	       (cached cached)
@@ -407,6 +410,7 @@
 		getters-n-setters-for-class)  ;* the slot-ref tower.
 	       (else (slot-ref class 'getters-n-setters))))
 	     (entry (hashtab-ref getters-n-setters slot-name nil)))
+
 	(unless cached
 	  (hashtab-set! gns-cache class getters-n-setters))
 
@@ -481,9 +485,9 @@
 			  (make-em s (position-of s the-slots-of-a-class))))
     ht))
 
-
 (define <class>
-  (%allocate-instance #f (length the-slots-of-a-class)))
+  (begin
+    (%allocate-instance #f (length the-slots-of-a-class))))
 
 (%set-instance-class-to-self <class>)
 
@@ -926,9 +930,22 @@
 (define <symbol>      (make-primitive-class nil '<symbol>))
 (define <boolean>     (make-primitive-class nil '<boolean>))
 (define <procedure>   (make-primitive-class <procedure-class> '<procedure>))
-(define <syntax-procedure>      (make <class>
-				  'direct-supers (list <procedure>)
-				  'class-name '<syntax-procedure>))
+
+(define <syntax-procedure>
+  (make <class>
+    'direct-supers (list <procedure>)
+    'class-name '<syntax-procedure>))
+
+(define <compiled-procedure>
+  (make <class>
+    'direct-supers (list <procedure>)
+    'class-name '<compiled-procedure>))
+
+(define <compiled-syntax-procedure>
+  (make <class>
+    'direct-supers (list <compiled-procedure>)
+    'class-name '<compiled-syntax-procedure>))
+
 (define <number>      (make-primitive-class nil '<number>))
 (define <integer>     (make <class>
 			'direct-supers (list <number>)

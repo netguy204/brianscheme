@@ -66,5 +66,6 @@ object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level);
 object *debug_write(char * msg, object *obj, int level);
 void print_obj(object *obj);
+void primitive_repl();
 
 #endif

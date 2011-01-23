@@ -39,6 +39,30 @@
   "do nothing."
   #t)
 
+
+(define (comp-global? sym)
+  "is the symbol defined in the compiled global environment?"
+  (let* ((sentinal (gensym))
+	 (result (hashtab-ref *vm-global-environment* sym sentinal)))
+    (not (eq? result sentinal))))
+
+(define (comp-global-ref sym)
+  "return the global from the compiled env. error if not defined."
+  (let* ((sentinal (gensym))
+	 (result (hashtab-ref *vm-global-environment* sym sentinal)))
+    (if (eq? result sentinal)
+	(throw-error "symbol" sym "is not defined in compiled env")
+	result)))
+
+(define (comp-macro? sym)
+  "is a given symbol a macro in the compiled environment?"
+  (and (comp-global? sym)
+       (compiled-syntax-procedure? (comp-global-ref sym))))
+
+(define (comp-macroexpand0 form)
+  "expand form using a macro found in the compiled environment"
+  (apply (comp-global-ref (car form)) (cdr form)))
+
 (define (comp x env val? more?)
   "compile an expression in the given environment optionally caring
 about its value and optionally with more forms following"
@@ -48,6 +72,8 @@ about its value and optionally with more forms following"
    ((symbol? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
    (else (case (first x)
+	   (if-compiling (arg-count x 2 2)
+			 (comp (second x) env val? more?))
 	   (quote (arg-count x 1 1)
 		  (comp-const (second x) val? more?))
 	   (begin (comp-begin (rest x) env val? more?))
@@ -68,8 +94,8 @@ about its value and optionally with more forms following"
 
 	   ;; generate an invocation
 	   (else
-	    (if (macro? (first x))
-		(comp (macroexpand x) env val? more?)
+	    (if (comp-macro? (first x))
+		(comp (comp-macroexpand0 x) env val? more?)
 		(comp-funcall (first x) (rest x)
 			      env val? more?)))))))
 
@@ -458,15 +484,5 @@ about its value and optionally with more forms following"
 	(throw-error "failed to open" name)
 	(iter (read-port in)))
     #t))
-
-(define (compile-compiler)
-  "compile ourselves"
-
-  ;; override the primitive eval so we don't escape back into the
-  ;; interpreter
-  ((compiler '(set! eval (lambda (form) ((compiler form))))))
-
-  (compile-file "stdlib.sch")
-  (compile-file "compiler.sch"))
 
 (provide 'compiler)

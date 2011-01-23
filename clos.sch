@@ -189,6 +189,14 @@
   (write-stream strm "#<syntax-procedure>"))
 
 (define-method (print-object (strm <output-stream>)
+			     (prim <compiled-syntax-procedure>))
+  (write-stream strm "#<compiled-syntax-procedure>"))
+
+(define-method (print-object (strm <output-stream>)
+			     (prim <compiled-procedure>))
+  (write-stream strm "#<compiled-procedure>"))
+
+(define-method (print-object (strm <output-stream>)
 			     (prim <input-port>))
   (write-stream strm "#<input-port>"))
 

@@ -230,7 +230,12 @@ DEFUN1(is_compound_proc_proc) {
 }
 
 DEFUN1(is_syntax_proc_proc) {
-  return AS_BOOL(is_syntax_proc(FIRST));
+  return AS_BOOL(is_syntax_proc(FIRST)
+		 || is_compiled_syntax_proc(FIRST));
+}
+
+DEFUN1(is_compiled_syntax_proc_proc) {
+  return AS_BOOL(is_compiled_syntax_proc(FIRST));
 }
 
 DEFUN1(is_output_port_proc) {
@@ -611,7 +616,8 @@ DEFUN1(apply_proc) {
     pop_root(&env);
     return result;
   }
-  else if(is_compiled_proc(fn)) {
+  else if(is_compiled_proc(fn)
+	  || is_compiled_syntax_proc(fn)) {
     /* need to reverse the arguments */
     object *stack = make_vector(the_empty_list, 30);
     long stack_top = 0;
@@ -997,6 +1003,9 @@ void owrite(FILE * out, object * obj) {
   case COMPILED_PROC:
     fprintf(out, "#<compiled-procedure>");
     break;
+  case COMPILED_SYNTAX_PROC:
+    fprintf(out, "#<compiled-syntax-procedure>");
+    break;
   case SYNTAX_PROC:
     fprintf(out, "#<syntax-procedure>");
     break;
@@ -1301,6 +1310,7 @@ void init_prim_environment(object * env) {
   add_procedure("procedure?", is_procedure_proc);
   add_procedure("compound-procedure?", is_compound_proc_proc);
   add_procedure("syntax-procedure?", is_syntax_proc_proc);
+  add_procedure("compiled-syntax-procedure?", is_compiled_syntax_proc_proc);
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
   add_procedure("eof-object?", is_eof_proc);
@@ -1468,13 +1478,13 @@ void init() {
   the_call_stack = cons(the_empty_list, the_empty_list);
   push_root(&the_call_stack);
 
-  vm_init();
-
   init_prim_environment(the_global_environment);
   init_ffi(the_global_environment);
 
   init_prim_environment(vm_global_environment);
   init_ffi(vm_global_environment);
+
+  vm_init();
 
   define_global_variable(make_symbol("*vm-global-environment*"),
 			 vm_global_environment,
@@ -1486,4 +1496,13 @@ void init() {
 void print_obj(object * obj) {
   owrite(stdout, obj);
   printf("\n");
+}
+
+void primitive_repl() {
+  object *input;
+  while((input = obj_read(stdin)) != NULL) {
+    push_root(&input);
+    print_obj(interp(input, the_empty_environment));
+    pop_root(&input);
+  }
 }

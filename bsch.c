@@ -59,11 +59,7 @@ int main(int argc, char ** argv) {
     load_library(argv[ii]);
   }
 
-  object *input;
-  while((input = obj_read(stdin)) != NULL) {
-    push_root(&input);
-    print_obj(interp(input, the_empty_environment));
-    pop_root(&input);
-  }
+  primitive_repl();
+
   return 0;
 }

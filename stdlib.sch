@@ -80,12 +80,14 @@
     (not (pair? x))))
 
 (set! append0
-  (lambda (x y)
-    (cond
-     ((null? x) y)
-     ((null? y) x)
-     (#t (cons (car x)
-	       (append0 (cdr x) y))))))
+  (lambda (l1 l2)
+    (cond0
+     ((null? l1) l2)
+     ((null? l2) l1)
+     (#t (cons (car l1)
+	       (append0 (cdr l1) l2))))))
+
+(append0 '(1 2) '(3 4))
 
 (set! qq
   (lambda (x)
@@ -128,6 +130,29 @@
       `(set! ,(car name)
 	     (lambda ,(cdr name)
 	       . ,value-or-body))))
+
+(define (cadr x) (car (cdr x)))
+(define (cadr x) (car (cdr x)))
+(define (cddr x) (cdr (cdr x)))
+(define (caddr x) (car (cddr x)))
+(define (cdddr x) (cdr (cddr x)))
+(define (cadddr x) (car (cdddr x)))
+(define (cddddr x) (cdr (cdddr x)))
+(define (caddddr x) (car (cddddr x)))
+
+(define first car)
+(define rest cdr)
+(define second cadr)
+(define third caddr)
+(define fourth cadddr)
+(define fifth caddddr)
+
+(define (length=1 lst)
+  (if (null? (car lst))
+      #f
+      (if (null? (cdr lst))
+	  #t
+	  #f)))
 
 (set! next-gensym 0)
 (define (gensym)
@@ -270,31 +295,12 @@ that decompose it according to the structure of var-forms"
 (define-syntax (letrec bindings . body)
   `(letrec0 ,(destructure-all-bindings bindings) . ,body))
 
-(define (cadr x) (car (cdr x)))
-(define (cadr x) (car (cdr x)))
-(define (cddr x) (cdr (cdr x)))
-(define (caddr x) (car (cddr x)))
-(define (cdddr x) (cdr (cddr x)))
-(define (cadddr x) (car (cdddr x)))
-(define (cddddr x) (cdr (cdddr x)))
-(define (caddddr x) (car (cddddr x)))
-
-(define first car)
-(define rest cdr)
-(define second cadr)
-(define third caddr)
-(define fourth cadddr)
-(define fifth caddddr)
-
-(define (length=1 lst)
-  (if (null? (car lst))
-      #f
-      (if (null? (cdr lst))
-	  #t
-	  #f)))
-
 (define-syntax (inc! dst)
   `(set! ,dst (+ 1 ,dst)))
+
+;; install a blank definition
+(define (add-documentation name string)
+  #t)
 
 ;; redefine define to include a docstring
 (define define0 define)
@@ -305,8 +311,7 @@ that decompose it according to the structure of var-forms"
 	  (begin
 	    (add-documentation (car name) (car value-or-body))
 	    `(define0 ,name . ,(cdr value-or-body)))
-	  `(define0 ,name . ,value-or-body))
-      `(define0 ,name . ,value-or-body)))
+	  `(define0 ,name . ,value-or-body))))
 
 ;; redefined define-syntax to include a docstring and argument
 ;; destructuring
@@ -320,6 +325,8 @@ that decompose it according to the structure of var-forms"
 	 . ,maybe-doc-and-body))))
 
 (let ((docs nil))
+
+  ;; first working definition
   (define (add-documentation name string)
     (push! (cons name string) docs))
 
@@ -1176,6 +1183,65 @@ body. always executes at least once"
                                      (cdr rest))))))
       (lambda args
         (reduce2 (apply (car rev-funcs) args) (cdr rev-funcs))))))
+
+;; if-compiling is a special form in the compiler only. we define
+;; syntax here so that if we're interpreting the else clause will
+;; execute and if we're compiling the if clauses will execute (due to
+;; the behavior of the special form).
+(define-syntax (if-compiling conseq else)
+  "execute conseq only if we're compiling. otherwise execute else"
+  else)
+
+'foo
+(if-compiling
+ ;; IF SIDE OF BRANCH: we're compiling this file for the first time,
+ ;; we need to load and compile the compiler again but we'll need the
+ ;; interpreter to do that
+ (begin
+   (write-port "branch 1" stdout)
+   (write-char #\newline stdout)
+
+   ;; we still need the interpreter to run the compiler until we get
+   ;; the compiler compiled. we override compile file to make use of
+   ;; the interpreted version of the compiler.
+
+   (define (compile-file name)
+     "read and compile all forms in file"
+     (letrec ((in (open-input-port name))
+	      (iter (lambda (form)
+		      (unless (eof-object? form)
+			      ;;(write-port `((compiler ',form)) stdout)
+			      (write (eval `((compiler ',form))))
+			      (newline)
+			      (iter (read-port in))))))
+       (if (eof-object? in)
+	   (throw-error "failed to open" name)
+	   (iter (read-port in)))
+       #t))
+
+   (compile-file "compiler.sch")
+
+   (write-port "branch 1: finished loading compiler" stdout)
+   (write-char #\newline stdout)
+
+   ;; now the compiler is compiled so we can switch the
+   ;; interpreter-hooked eval off for good
+   (set! eval (lambda (form) ((compiler form))))
+   (set! *vm-global-environment* *global-environment*)
+   (define exit-hook comp-repl))
+
+ ;; ELSE SIDE OF BRANCH: we're bootstrapping the world in the
+ ;; interpreter. need to load up the compiler and start recompiling
+ ;; the world
+ (begin
+   (write-port "branch 2" stdout)
+   (write-char #\newline stdout)
+
+   (require 'compiler)
+   (compile-file "stdlib.sch")))
+
+;; once we reach this point we're fully bootstrapped and
+;; compile-only. now we can load up the rest of the niceties
 
 (require 'clos)
 (require 'math)

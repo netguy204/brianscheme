@@ -27,8 +27,8 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM, FLOATNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      VECTOR, COMPILED_PROC, HASH_TABLE, ALIEN,
-	      META_PROC} object_type;
+	      COMPILED_SYNTAX_PROC, VECTOR, COMPILED_PROC,
+	      HASH_TABLE, ALIEN, META_PROC} object_type;
 
 typedef struct object {
   object_type type;
@@ -241,6 +241,7 @@ object *make_compound_proc(object *parameters, object *body,
 
 char is_compound_proc(object *obj);
 char is_syntax_proc(object *obj);
+char is_compiled_syntax_proc(object *obj);
 
 object *make_compiled_proc(object *bytecode, object *env);
 

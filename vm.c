@@ -140,9 +140,15 @@ object *vm_execute(object * fn, object * stack, long n_args) {
   push_root(&env);
   push_root(&top);
 
-  VM_ASSERT(is_compiled_proc(fn), "object is not compiled-procedure");
-
 vm_fn_begin:
+  VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc,
+	    "object is not compiled-procedure");
+
+  /* unwrap meta */
+  if(is_meta(fn)) {
+    fn = METAPROC(fn);
+  }
+
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -223,6 +229,7 @@ vm_begin:
       }
     }
     else if(opcode == tjump_op) {
+      VPOP(top, stack, stack_top);
       if(!is_falselike(top)) {
 	pc = LONG(ARG1(instr));
       }
@@ -246,12 +253,39 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      fn = top;
-      env = CENV(fn);
-      pc = 0;
-      n_args = LONG(ARG1(instr));
+      if(is_compiled_proc(top) ||
+	 is_compiled_syntax_proc(top)) {
+	fn = top;
+	env = CENV(fn);
+	pc = 0;
+	n_args = LONG(ARG1(instr));
 
-      goto vm_fn_begin;
+	goto vm_fn_begin;
+      } else if(is_primitive_proc(top)) {
+	/* build the list the target expects for the call */
+	int args_for_call = LONG(ARG1(instr));
+	int ii;
+
+	object *pfn = top;
+	push_root(&pfn);
+	object *arglist = the_empty_list;
+	push_root(&arglist);
+
+	for(ii = 0; ii < args_for_call; ++ii) {
+	  VPOP(top, stack, stack_top);
+	  arglist = cons(top, arglist);
+	}
+	top = pfn->data.primitive_proc.fn(arglist, the_empty_environment);
+	VPUSH(top, stack, stack_top);
+	pop_root(&arglist);
+	pop_root(&pfn);
+
+	RETURN_OPCODE_INSTRUCTIONS;
+      } else {
+	owrite(stderr, top);
+	fprintf(stderr, "\n");
+	VM_ASSERT(0, "don't know how to invoke");
+      }
     }
     else if(opcode == lvar_op) {
       int env_num = LONG(ARG1(instr));
@@ -323,6 +357,11 @@ vm_begin:
   VM_RETURN(error_sym);
 }
 
+DEFUN1(vm_tag_macro_proc) {
+  FIRST->type = COMPILED_SYNTAX_PROC;
+  return FIRST;
+}
+
 void vm_init(void) {
   args_op = make_symbol("args");
   argsdot_op = make_symbol("args.");
@@ -341,4 +380,12 @@ void vm_init(void) {
   pop_op = make_symbol("pop");
 
   error_sym = make_symbol("error");
+
+  object *curr = make_primitive_proc(vm_tag_macro_proc);
+
+  push_root(&curr);
+  define_global_variable(make_symbol("set-macro!"),
+			 curr,
+			 vm_global_environment);
+  pop_root(&curr);
 }
