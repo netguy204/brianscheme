@@ -1214,6 +1214,17 @@ body. always executes at least once"
 			forms))
 	 ,result))))
 
+(define (compose . funcs)
+  "Compose a series of functions into a new single function."
+  (let ((rev-funcs (reverse funcs)))
+    (letrec ((reduce2 (lambda (last rest)
+                        (if (null? rest)
+                            last
+                            (reduce2 (apply (car rest) (list last))
+                                     (cdr rest))))))
+      (lambda args
+        (reduce2 (apply (car rev-funcs) args) (cdr rev-funcs))))))
+
 (require 'clos)
 (require 'math)
 (provide 'stdlib)
