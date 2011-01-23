@@ -45,6 +45,12 @@
                   (write-char (integer->char 10) port)))))
     (call-with-output-file file func)))
 
+(require 'plot)
+
+(define (plot-pdf fn)
+  "Plot the PDF of the given RNG function using the plot library."
+  (plot:hist (map fn (duplicate *random-state* 10000)) 50))
+
 (require 'unittest)
 
 ;; Test the first few numbers of the Mersenne twister.
