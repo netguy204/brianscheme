@@ -45,7 +45,6 @@ int main(int argc, char ** argv) {
   char *libname = "stdlib.sch";
 
   init();
-  init_ffi(the_global_environment);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't load the standard lib */

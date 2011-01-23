@@ -330,7 +330,8 @@ DEFUN1(alien_to_primitive) {
 void init_ffi(object * env) {
 #define add_procedure(scheme_name, c_name)			\
   define_global_variable(make_symbol(scheme_name),		\
-			 curr=make_primitive_proc(c_name))
+			 curr=make_primitive_proc(c_name),	\
+			 env);
 
 
   object *curr = the_empty_list;

@@ -225,6 +225,7 @@ long get_cons_count();
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
 #define CENV(obj) (obj->data.compiled_proc.env)
+
 #define HTAB(obj) (obj->data.hash_table.hash_table)
 #define ALIEN_RELEASER(obj) (obj->data.alien.releaser)
 #define ALIEN_PTR(obj) (obj->data.alien.data.ptr)
@@ -236,7 +237,7 @@ object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);
 
 object *make_compound_proc(object *parameters, object *body,
-			   object *env, char is_syntax);
+			   object *env);
 
 char is_compound_proc(object *obj);
 char is_syntax_proc(object *obj);

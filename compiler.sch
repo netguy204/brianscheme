@@ -64,6 +64,8 @@ about its value and optionally with more forms following"
 					       (rest (rest x)) env)))
 			   (seq (gen 'fn f)
 				(unless more? (gen 'return))))))
+	   (macro (throw-error "macro is not builtin. use set-macro!"))
+
 	   ;; generate an invocation
 	   (else
 	    (if (macro? (first x))
@@ -444,9 +446,27 @@ about its value and optionally with more forms following"
   (let ((result ((compiler form))))
     result))
 
+(define (compile-file name)
+  "read and compile all forms in file"
+  (letrec ((in (open-input-port name))
+	   (iter (lambda (form)
+		   (unless (eof-object? form)
+			   (write ((compiler form)))
+			   (newline)
+			   (iter (read-port in))))))
+    (if (eof-object? in)
+	(throw-error "failed to open" name)
+	(iter (read-port in)))
+    #t))
+
 (define (compile-compiler)
   "compile ourselves"
-  (define load-eval compiling-load-eval)
-  (load "compiler.sch"))
+
+  ;; override the primitive eval so we don't escape back into the
+  ;; interpreter
+  ((compiler '(set! eval (lambda (form) ((compiler form))))))
+
+  (compile-file "stdlib.sch")
+  (compile-file "compiler.sch"))
 
 (provide 'compiler)

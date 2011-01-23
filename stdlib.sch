@@ -49,12 +49,13 @@
 (set! list (lambda x x))
 
 (set! cond0
-  (macro clauses
+  (lambda clauses
     (if (null? clauses)
 	nil
 	(list 'if (car (car clauses))
 	      (cons 'begin (cdr (car clauses)))
 	      (cons 'cond0 (cdr clauses))))))
+(set-macro! cond0)
 
 (set! startswith
   (lambda (x sym)
@@ -62,12 +63,13 @@
 
 ;; more basic and that won't return the last expression they evaluate
 (set! and0
-  (macro x
+  (lambda x
     (if (null? x)
 	#t
 	(list 'if (car x)
 	      (cons 'and0 (cdr x))
 	      #f))))
+(set-macro! and0)
 
 (set! not
   (lambda (x)
@@ -102,16 +104,21 @@
      (#t
       (list 'cons (qq (car x)) (qq (cdr x)))))))
 
-(set! quasiquote (macro (x) (qq x)))
+(set! quasiquote (lambda (x) (qq x)))
+(set-macro! quasiquote)
+
 ;; macro bootstrap complete. we can use quasiquoting syntax from here
 ;; on out!
 
 
 (set! define-syntax
-      (macro (name-and-vars . body)
-	`(set! ,(car name-and-vars)
-	       (macro ,(cdr name-and-vars)
-		 . ,body))))
+  (lambda (name-and-vars . body)
+    `(begin
+       (set! ,(car name-and-vars)
+	     (lambda ,(cdr name-and-vars)
+	       . ,body))
+       (set-macro! ,(car name-and-vars)))))
+(set-macro! define-syntax)
 
 (define-syntax (define name . value-or-body)
   (if (symbol? name)
@@ -577,16 +584,12 @@ list"
   "read from a port"
   (read-port port))
 
-;; the definition of eval that load will used. this is convenient so
-;; that we can override the behavior of load later if we wish
-(define load-eval eval)
-
 (define (load name)
   "read and evaluate all forms in a file called name"
   (letrec ((in (open-input-port name))
 	   (iter (lambda (form)
 		   (unless (eof-object? form)
-			   (write (load-eval form))
+			   (write (eval form))
 			   (newline)
 			   (iter (read-port in))))))
     (if (eof-object? in)

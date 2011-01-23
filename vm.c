@@ -151,7 +151,9 @@ vm_fn_begin:
   long num_codes = VSIZE(code_array);
 
 vm_begin:
-  VM_ASSERT(pc < num_codes, "pc flew off the end of memory");
+  if(pc >= num_codes) {
+    VM_ASSERT(false, "pc flew off the end of memory");
+  }
 
   instr = codes[pc++];
   opcode = OPCODE(instr);
@@ -244,57 +246,12 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      if(is_compiled_proc(top)) {
-	fn = top;
-	env = CENV(fn);
-	pc = 0;
-	n_args = LONG(ARG1(instr));
+      fn = top;
+      env = CENV(fn);
+      pc = 0;
+      n_args = LONG(ARG1(instr));
 
-	goto vm_fn_begin;
-
-      }
-      else if(is_primitive_proc(top)
-	      || is_compound_proc(top)) {
-
-	/* push the stack arguments onto a new list
-	   to hand off to the primitive */
-	int args_for_call = LONG(ARG1(instr));
-	int ii;
-
-	object *pfn = top;
-	push_root(&fn);
-	object *arglist = the_empty_list;
-	push_root(&arglist);
-
-	for(ii = 0; ii < args_for_call; ++ii) {
-	  VPOP(top, stack, stack_top);
-	  arglist = cons(top, arglist);
-	}
-
-	if(is_primitive_proc(pfn)) {
-	  top = pfn->data.primitive_proc.fn(arglist, the_empty_environment);
-	}
-	else {
-	  object *call_env =
-	    extend_environment(pfn->data.compound_proc.parameters,
-			       arglist,
-			       pfn->data.compound_proc.env);
-	  push_root(&call_env);
-	  top = interp(pfn->data.compound_proc.body, call_env);
-	  pop_root(&call_env);
-	}
-
-	VPUSH(top, stack, stack_top);
-
-	pop_root(&arglist);
-	pop_root(&fn);
-
-	/* generate return */
-	RETURN_OPCODE_INSTRUCTIONS;
-      }
-      else {
-	VM_ASSERT(0, "unrecognized invocation");
-      }
+      goto vm_fn_begin;
     }
     else if(opcode == lvar_op) {
       int env_num = LONG(ARG1(instr));
@@ -320,7 +277,7 @@ vm_begin:
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
     }
     else if(opcode == gvar_op) {
-      object *var = lookup_global_value(ARG1(instr));
+      object *var = lookup_global_value(ARG1(instr), vm_global_environment);
       push_root(&var);
       VPUSH(var, stack, stack_top);
       pop_root(&var);
@@ -328,7 +285,7 @@ vm_begin:
     else if(opcode == gset_op) {
       object *var = ARG1(instr);
       object *val = VARRAY(stack)[stack_top - 1];
-      define_global_variable(var, val);
+      define_global_variable(var, val, vm_global_environment);
     }
     else if(opcode == pop_op) {
       VPOP(top, stack, stack_top);

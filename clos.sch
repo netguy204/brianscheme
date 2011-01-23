@@ -169,6 +169,10 @@
   (write-stream strm ")"))
 
 (define-method (print-object (strm <output-stream>)
+			     (htb <hashtab>))
+  (write-stream strm "#<hashtab>"))
+
+(define-method (print-object (strm <output-stream>)
 			     (char <char>))
   (cond
    ((eq? char #\space) (write-stream strm "#\space"))

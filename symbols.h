@@ -27,6 +27,7 @@ extern object *exit_hook_symbol;
 
 extern object *the_empty_environment;
 extern object *the_global_environment;
+extern object *vm_global_environment;
 
 extern object *the_call_stack;
 

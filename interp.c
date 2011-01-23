@@ -88,8 +88,8 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
   return result;
 }
 
-object *lookup_global_value(object * var) {
-  object * res = get_hashtab(the_global_environment, var, NULL);
+object *lookup_global_value(object * var, object * env) {
+  object * res = get_hashtab(env, var, NULL);
   if(res == NULL) {
     throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
     return NULL;
@@ -134,11 +134,11 @@ object *lookup_variable_value(object * var, object * env) {
   }
 
   /* check the global environment */
-  return lookup_global_value(var);
+  return lookup_global_value(var, the_global_environment);
 }
 
-void define_global_variable(object * var, object * new_val) {
-  set_hashtab(the_global_environment, var, new_val);
+void define_global_variable(object * var, object * new_val, object * env) {
+  set_hashtab(env, var, new_val);
 }
 
 /**
@@ -176,7 +176,7 @@ void define_variable(object * var, object * new_val, object * env) {
   }
 
   /* we define at the global level */
-  define_global_variable(var, new_val);
+  define_global_variable(var, new_val, the_global_environment);
 }
 
 /* define a few primitives */
@@ -211,6 +211,11 @@ DEFUN1(is_string_proc) {
 
 DEFUN1(is_pair_proc) {
   return AS_BOOL(is_pair(FIRST));
+}
+
+DEFUN1(tag_macro_proc) {
+  FIRST->type = SYNTAX_PROC;
+  return FIRST;
 }
 
 DEFUN1(is_procedure_proc) {
@@ -830,10 +835,6 @@ DEFUN1(concat_proc) {
   return make_string(buffer);
 }
 
-DEFUN1(current_environment_proc) {
-  return environment;
-}
-
 DEFUN1(compound_args_proc) {
   return FIRST->data.compound_proc.parameters;
 }
@@ -1073,19 +1074,6 @@ object *expand_macro(object * macro, object * args, object * env, int level) {
   return expanded;
 }
 
-#ifdef INTERP_CALLSTACK
-void push_callstack(object * target) {
-  set_car(the_call_stack, cons(target, car(the_call_stack)));
-}
-
-void pop_callstack() {
-  set_car(the_call_stack, cdr(car(the_call_stack)));
-}
-#else
-#define push_callstack(o)
-#define pop_callstack(o)
-#endif
-
 /* convenient tool for unbinding the arguments that must be bound
  * during interp1. We rebind to temp to force the evalation of result
  * if it's an exp
@@ -1097,7 +1085,6 @@ void pop_callstack() {
     if(env_protected) {				\
       pop_root(&env);				\
     }						\
-    pop_callstack();				\
     return temp;				\
   } while(0)
 
@@ -1108,7 +1095,6 @@ object *interp1(object * exp, object * env, int level) {
    * two items to something new
    */
   char env_protected = 0;
-  push_callstack(exp);
 
 interp_restart:
   D1("interpreting", exp, level);
@@ -1168,16 +1154,14 @@ interp_restart:
       }
       goto interp_restart;
     }
-    else if(head == lambda_symbol
-	    || head == macro_symbol) {
+    else if(head == lambda_symbol) {
       object *args = cdr(exp);
       object *body = cons(begin_symbol, cdr(args));
       push_root(&body);
 
       object *proc = make_compound_proc(first(args),
 					body,
-					env,
-					head == macro_symbol);
+					env);
       pop_root(&body);
       INTERP_RETURN(proc);
     }
@@ -1294,7 +1278,7 @@ interp_restart:
 }
 
 
-void init_prim_environment() {
+void init_prim_environment(object * env) {
   /* used throughout this method to protect the thing in definition
    * from gc */
   object *curr = the_empty_list;
@@ -1302,7 +1286,8 @@ void init_prim_environment() {
 
 #define add_procedure(scheme_name, c_name)			\
   define_global_variable(make_symbol(scheme_name),		\
-			 curr=make_primitive_proc(c_name))
+			 curr=make_primitive_proc(c_name),	\
+			 env);
 
 
   add_procedure("null?", is_null_proc);
@@ -1323,6 +1308,7 @@ void init_prim_environment() {
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
   add_procedure("meta?", is_meta_proc);
 
+  add_procedure("set-macro!", tag_macro_proc);
   add_procedure("fixnum-add", add_fixnum_proc);
   add_procedure("real-add", add_real_proc);
   add_procedure("fixnum-sub", sub_fixnum_proc);
@@ -1410,7 +1396,6 @@ void init_prim_environment() {
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);
-  add_procedure("current-environment", current_environment_proc);
   add_procedure("compound-body", compound_body_proc);
   add_procedure("compound-args", compound_args_proc);
   add_procedure("compound-environment", compound_env_proc);
@@ -1419,12 +1404,11 @@ void init_prim_environment() {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  define_global_variable(stdin_symbol, curr = make_input_port(stdin));
-  define_global_variable(stdout_symbol, curr = make_output_port(stdout));
-  define_global_variable(stderr_symbol, curr = make_output_port(stderr));
-  define_global_variable(make_symbol("callstack"), the_call_stack);
-  define_global_variable(make_symbol("*global-environment*"), the_global_environment);
-  define_global_variable(exit_hook_symbol, the_empty_list);
+  define_global_variable(stdin_symbol, curr = make_input_port(stdin), env);
+  define_global_variable(stdout_symbol, curr = make_output_port(stdout), env);
+  define_global_variable(stderr_symbol, curr = make_output_port(stderr), env);
+  define_global_variable(make_symbol("*global-environment*"), env, env);
+  define_global_variable(exit_hook_symbol, the_empty_list, env);
 
   pop_root(&curr);
 }
@@ -1478,11 +1462,23 @@ void init() {
   the_global_environment = make_hashtab(100);
   push_root(&the_global_environment);
 
+  vm_global_environment = make_hashtab(100);
+  push_root(&vm_global_environment);
+
   the_call_stack = cons(the_empty_list, the_empty_list);
   push_root(&the_call_stack);
 
   vm_init();
-  init_prim_environment();
+
+  init_prim_environment(the_global_environment);
+  init_ffi(the_global_environment);
+
+  init_prim_environment(vm_global_environment);
+  init_ffi(vm_global_environment);
+
+  define_global_variable(make_symbol("*vm-global-environment*"),
+			 vm_global_environment,
+			 the_global_environment);
 }
 
 /**
