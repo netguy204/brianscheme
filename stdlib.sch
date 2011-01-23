@@ -1192,7 +1192,6 @@ body. always executes at least once"
   "execute conseq only if we're compiling. otherwise execute else"
   else)
 
-'foo
 (if-compiling
  ;; IF SIDE OF BRANCH: we're compiling this file for the first time,
  ;; we need to load and compile the compiler again but we'll need the
