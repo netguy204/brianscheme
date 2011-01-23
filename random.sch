@@ -140,3 +140,13 @@
 (define (random:exp . state)
   "Generate a number in the exponential distribution."
   (- (log (random:uniform (car-else state *random-state*)))))
+
+(define (random:poisson m . state)
+  "Generate a number from the Poisson distribution with mean M."
+  (letrec ((rng (car-else state *random-state*))
+	   (L (exp (- m)))
+           (iter (lambda (k p) ;; Knuth's algorithm
+                   (if (> p L)
+                       (iter (+ k 1) (* p (random:uniform rng)))
+                       (- k 1)))))
+    (iter 1 1)))

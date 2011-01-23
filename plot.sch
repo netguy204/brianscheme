@@ -66,7 +66,7 @@
           (let ((i (floor (* (/ (- x min) range) (- num-bins 1)))))
             (vector-set! bins i (+ 1 (vector-ref bins i)))))
         (plot:command "set boxwidth 1 relative")
-        (plot:command "set style fill solid 1.0 border -1 color red")
+        (plot:command "set style fill solid 1.0 border -1")
         (plot:command "plot '-' with boxes lc rgb \"blue\"")
         (plot:send-vectors xs bins)
         bins))))

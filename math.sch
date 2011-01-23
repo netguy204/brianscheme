@@ -109,6 +109,11 @@ appropriate operation for the types they end up as"
 (define (max . nums)
   (reduce max0 nums))
 
+(define *e* 2.7182818284590452354)
+
+(define (exp x)
+  (expt *e* x))
+
 (define (gcd a b)
   (if (= b 0)
       (abs a)
