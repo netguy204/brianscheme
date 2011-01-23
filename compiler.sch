@@ -31,11 +31,11 @@
 ;; information. I should really write a real trace macro at some
 ;; point.
 
-(define-syntax (write-dbg . args)
+(define (write-dbg . args)
   "display the given forms"
-  `(display . ,args))
+  (printf "debug: %a\n" args))
 
-(define-syntax (write-dbg . args)
+(define (write-dbg . args)
   "do nothing."
   #t)
 
@@ -44,10 +44,6 @@
 about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
   (cond
-   ;; expand anything with a macro at the head
-   ((and (pair? x)
-	 (sym-is-syntax? (car x))) (comp (comp-macroexpand0 x) env
-					 val? more?))
    ((member? x '(#t #f)) (comp-const x val? more?))
    ((symbol? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
@@ -69,8 +65,11 @@ about its value and optionally with more forms following"
 			   (seq (gen 'fn f)
 				(unless more? (gen 'return))))))
 	   ;; generate an invocation
-	   (else (comp-funcall (first x) (rest x)
-			       env val? more?))))))
+	   (else
+	    (if (macro? (first x))
+		(comp (macroexpand x) env val? more?)
+		(comp-funcall (first x) (rest x)
+			      env val? more?)))))))
 
 (define (arg-count form min max)
   (let ((n-args (length (rest form))))
@@ -94,14 +93,15 @@ about its value and optionally with more forms following"
 	   (comp-list (rest exps) env))))
 
 (define (bytecode-literal? x)
-  (or (integer? x) (boolean? x)
-      (eq? x 'nil)))
+  (or (integer? x) (boolean? x)))
 
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
-  (when val? (seq (if (bytecode-literal? x)
-		      (gen x)
-		      (gen 'const x))
+  (when val? (seq (cond
+		   ((bytecode-literal? x)
+		    (gen x))
+		   ((eq? x 'nil) (gen '()))
+		   (else (gen 'const x)))
 		  (unless more? (gen 'return)))))
 
 (define (comp-var x env val? more?)
@@ -197,9 +197,6 @@ about its value and optionally with more forms following"
   (if (index-eq sym (all-symbols))
       (syntax-procedure? (eval sym))
       #f))
-
-(define (comp-macroexpand0 exp)
-  (eval `(macroexpand0 '(,(car exp) . ,(cdr exp)))))
 
 (define-struct fn
   "a structure representing a compiled function"
@@ -378,7 +375,7 @@ about its value and optionally with more forms following"
 			      (second r1)))
 	 (nargs (num-args (fn-args fn)))
 	 (result
-	  (make-compiled-proc r2 nil (env-top))))
+	  (make-compiled-proc r2 (fn-env fn))))
 
     result))
 
@@ -424,39 +421,6 @@ about its value and optionally with more forms following"
 (define (comp-show fn)
   (show-fn (compiler fn) 0))
 
-(define (compile-together . fns)
-  `(let ,(map (lambda (fn) (list fn 'nil)) fns)
-     (begin . ,(map (lambda (fn)
-		      (let ((efn (eval fn)))
-			(cond
-			 ((compound-procedure? efn)
-			  `(set! ,fn ,(compound->lambda efn)))
-			 ((null? efn)
-			  '#t)
-			 (else
-			  `(set! ,fn ,efn)))))
-		    fns))
-     ,(first fns)))
-
-(let ((interp-env nil))
-  (define (env-push! env)
-    (push! env interp-env))
-
-  (define (env-pop!)
-    (pop! interp-env))
-
-  (define (env-top)
-    (car interp-env)))
-
-(define-syntax (replace-with-compiled fn)
-  "replace a given function with a compiled version"
-  `(begin
-     (env-push! (compound-environment ,fn))
-     (let ((result
-	    (set! ,fn ((compiler (compound->lambda ,fn))))))
-       (env-pop!)
-       result)))
-
 (define (dump-compiled-fn fn . indent)
   (let ((indent (if (null? indent)
 		    0
@@ -477,10 +441,12 @@ about its value and optionally with more forms following"
 
 
 (define (compiling-load-eval form env)
-  (begin
-    (env-push! env)
-    (let ((result ((compiler form))))
-      (env-pop!)
-      result)))
+  (let ((result ((compiler form))))
+    result))
+
+(define (compile-compiler)
+  "compile ourselves"
+  (define load-eval compiling-load-eval)
+  (load "compiler.sch"))
 
 (provide 'compiler)

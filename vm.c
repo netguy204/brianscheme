@@ -84,7 +84,6 @@ object *error_sym;
 #define VM_RETURN(obj)				\
   do {						\
     pop_root(&top);				\
-    pop_root(&ienv);				\
     pop_root(&env);				\
     pop_root(&fn);				\
     return obj;					\
@@ -126,7 +125,6 @@ object *error_sym;
 object *vm_execute(object * fn, object * stack, long n_args) {
   object *code_array;
   object *env;
-  object *ienv;
   object *instr;
   object *opcode;
   object *top;
@@ -135,19 +133,16 @@ object *vm_execute(object * fn, object * stack, long n_args) {
   long stack_top = n_args;
 
   env = CENV(fn);
-  ienv = the_empty_list;
   instr = the_empty_list;
   top = the_empty_list;
 
   push_root(&fn);
   push_root(&env);
-  push_root(&ienv);
   push_root(&top);
 
   VM_ASSERT(is_compiled_proc(fn), "object is not compiled-procedure");
 
 vm_fn_begin:
-  ienv = CIENV(fn);
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -166,6 +161,7 @@ vm_begin:
   switch (opcode->type) {
   case BOOLEAN:
   case FIXNUM:
+  case THE_EMPTY_LIST:
     VPUSH(opcode, stack, stack_top);
     break;
 
@@ -235,7 +231,7 @@ vm_begin:
     else if(opcode == fn_op) {
       object *fn_arg = ARG1(instr);
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
-					  env, ienv);
+					  env);
       push_root(&new_fn);
       VPUSH(new_fn, stack, stack_top);
       pop_root(&new_fn);
@@ -276,7 +272,7 @@ vm_begin:
 	}
 
 	if(is_primitive_proc(pfn)) {
-	  top = pfn->data.primitive_proc.fn(arglist, ienv);
+	  top = pfn->data.primitive_proc.fn(arglist, the_empty_environment);
 	}
 	else {
 	  object *call_env =
@@ -324,7 +320,7 @@ vm_begin:
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
     }
     else if(opcode == gvar_op) {
-      object *var = lookup_variable_value(ARG1(instr), ienv);
+      object *var = lookup_global_value(ARG1(instr));
       push_root(&var);
       VPUSH(var, stack, stack_top);
       pop_root(&var);
@@ -332,7 +328,7 @@ vm_begin:
     else if(opcode == gset_op) {
       object *var = ARG1(instr);
       object *val = VARRAY(stack)[stack_top - 1];
-      define_variable(var, val, ienv);
+      define_global_variable(var, val);
     }
     else if(opcode == pop_op) {
       VPOP(top, stack, stack_top);
