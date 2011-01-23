@@ -36,7 +36,7 @@
   "A shot from a spaceship."
   ('x 'y 'speed))
 
-(define-method (initialize (ship <ship>))
+(define-method (initialize (ship <ship>) args)
   (slot-set! ship 'x map-width)
   (slot-set! ship 'y (random map-height))
   (slot-set! ship 'hp 1)
