@@ -1047,105 +1047,54 @@ body. always executes at least once"
        (newline)
        ,result)))
 
+(define (struct-constructor-name name)
+  (string->symbol (string-append "make-" (symbol->string name))))
+
+(define (struct-predicate-name name)
+  (string->symbol (string-append (symbol->string name) "?")))
+
+(define (struct-slot-getter-name name slot)
+  (string->symbol (string-append (symbol->string name)
+				 "-" (symbol->string slot)
+				 "-ref")))
+
+(define (struct-slot-setter-name name slot)
+  (string->symbol (string-append (symbol->string name)
+				 "-" (symbol->string slot)
+				 "-set!")))
+
+
 (define-syntax (define-struct name . docs-and-slots)
   "create a structure of a given name with a set of slots"
-  (let* ((builder-sym (string->symbol
-		       (string-append "make-"
-				      (symbol->string name))))
-	 (tester-sym (string->symbol
-		      (string-append (symbol->string name) "?")))
+  (let ((slots (if (string? (car docs-and-slots))
+		   (second docs-and-slots)
+		   (first docs-and-slots))))
+    `(begin
+       (define (,(struct-constructor-name name) . args)
+	 (let ((struct (make-vector ,(+ (length slots) 1))))
+	   (vector-set! struct 0 ',name)
+	   ,@(let ((idx 0))
+	       (map (lambda (slot)
+		      (inc! idx)
+		      `(vector-set! struct ,idx
+				    (getl args ',slot nil)))
+		    slots))
+	   struct))
 
-	 (slots (if (string? (car docs-and-slots))
-		    (car (cdr docs-and-slots))
-		    (car docs-and-slots)))
-	 (num-slots (length slots))
-	 (slot-numbers nil)
-	 (slot-defaults nil))
+       (define (,(struct-predicate-name name) struct)
+	 (and (vector? struct) (eq? ',name (vector-ref struct 0))))
 
-    ;; add a documentation entry if we got a docstring
-    (when (string? (car docs-and-slots))
-	  (add-documentation name (car docs-and-slots)))
+       . ,(let ((idx 0))
+	    (map (lambda (slot)
+		   (inc! idx)
+		   `(begin
+		      (define (,(struct-slot-getter-name name slot) struct)
+			(vector-ref struct ,idx))
 
-    ;; collect data to build the slot accessors
-    (let ((idx 1))
-      (dolist (slot slots)
-	;; vector idx to find the slot
-        (push! (cons (car slot) idx)
-	       slot-numbers)
+		      (define (,(struct-slot-setter-name name slot) struct val)
+			(vector-set! struct ,idx val))))
+		 slots)))))
 
-	;; default value if none given in constructor
-	(push! (cons (car slot)
-		     (if (null? (cdr slot))
-			 nil
-			 (second slot)))
-	       slot-defaults)
-	(inc! idx)))
-
-    (letrec ((get-slot-namer (lambda (slot-name)
-			       (string->symbol
-				(string-append (symbol->string name)
-					"-"
-					(symbol->string slot-name)))))
-	     (set-slot-namer (lambda (slot-name)
-			       (string->symbol
-				(string-append "set-"
-					(symbol->string name)
-					"-"
-					(symbol->string slot-name)
-					"!")))))
-
-      ;; define the getters, setters, and constructor
-      `(begin
-	 ;; constructor
-	 (define (,builder-sym . args)
-	   ,(string-append "create a structure of type "
-		    (symbol->string name))
-	   (let ((struct (make-vector ,(+ 1 num-slots) nil)))
-	     (vector-set! struct 0 ',name)
-
-	     (dolist (slot ',slots)
-	       (let ((val (member (car slot) args)))
-		 (if val
-		     (vector-set! struct
-				  (cdr (assoc (car slot)
-					      ',slot-numbers))
-				  (second val))
-		     (vector-set! struct
-				  (cdr (assoc (car slot)
-					      ',slot-numbers))
-				  (cdr (assoc (car slot)
-					      ',slot-defaults))))))
-
-	     struct))
-
-	 (define (,tester-sym struct)
-	   ,(string-append "test to see if structure is of type "
-			   (symbol->string name))
-	   (and (vector? struct) (eq? (vector-ref struct 0) ',name)))
-
-	 ;; getters
-	 ,(map (lambda (slot)
-		 `(define (,(get-slot-namer (car slot)) struct)
-		    ,(string-append "retrieve slot "
-			     (symbol->string (car slot))
-			     " of "
-			     (symbol->string name))
-		    (vector-ref struct ,(cdr (assoc (car slot)
-						    slot-numbers)))))
-	       slots)
-
-	 ;; setters
-	 ,(map (lambda (slot)
-		 `(define (,(set-slot-namer (car slot)) struct value)
-		    ,(string-append "set slot "
-			     (symbol->string (car slot))
-			     " of "
-			     (symbol->string name))
-		    (vector-set! struct
-				 ,(cdr (assoc (car slot)
-					      slot-numbers))
-				 value)))
-	       slots)))))
 
 
 ;; create a facility that provides something like dynamic variables in

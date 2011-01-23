@@ -160,11 +160,11 @@ intact though."
 	;; update the ball
 	(when (or (> bx boundx)
 		  (< bx 0))
-	  (set! bxv (neg bxv)))
+	  (set! bxv (- bxv)))
 
 	(when (or (> by boundy)
 		  (< by 0))
-	  (set! byv (neg byv)))
+	  (set! byv (- byv)))
 
 	(set! bx (+ bx bxv))
 	(set! by (+ by byv))
@@ -173,7 +173,7 @@ intact though."
         (nc:clear)
 	(nc:mvprintw
 	 my mx
-	 (concat "hello world "
+	 (string-append "hello world "
 		 (number->string mx)
 		 " "
 		 (number->string my)))

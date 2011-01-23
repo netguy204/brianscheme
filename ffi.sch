@@ -20,16 +20,16 @@
 (define-struct ffi:cif
   "internal representation of cif. holds onto stuff that needs to be
 freed later."
-  ((cif)
-   (argspec)
-   (retspec)
-   (fn-ptr)))
+  (cif
+   argspec
+   retspec
+   fn-ptr))
 
 (define (ffi:free-cif cif)
   (assert (ffi:cif? cif))
-  (ffi:free (ffi:cif-cif cif))
-  (ffi:free (ffi:cif-argspec cif))
-  (ffi:free (ffi:cif-retspec cif)))
+  (ffi:free (ffi:cif-cif-ref cif))
+  (ffi:free (ffi:cif-argspec-ref cif))
+  (ffi:free (ffi:cif-retspec-ref cif)))
 
 (define (ffi:make-function-spec return args)
   "create callspec for a function of the given signature"
@@ -51,8 +51,8 @@ freed later."
 
 (define-struct ffi:alien-type
   "a wrapped alien type"
-  ((type)
-   (value)))
+  (type
+   value))
 
 (define (ffi:alien-string str)
   "create an alien string"
@@ -83,7 +83,7 @@ freed later."
   (cond
    ((string? obj) (ffi:string-to-alien obj))
    ((integer? obj) (ffi:int-to-alien obj))
-   ((ffi:alien-type? obj) (ffi:alien-type-value obj))
+   ((ffi:alien-type? obj) (ffi:alien-type-value-ref obj))
    ((alien? obj) obj)
    (else (throw-error "can't convert" obj "to alien"))))
 
@@ -101,7 +101,7 @@ freed later."
    ((string? obj) 'ffi-pointer)
    ((alien? obj) 'ffi-pointer)
    ((integer? obj) 'ffi-uint)
-   ((ffi:alien-type? obj) (ffi:alien-type-type obj))
+   ((ffi:alien-type? obj) (ffi:alien-type-type-ref obj))
    (else (throw-error "don't know ffi type for" obj))))
 
 (define (ffi:empty-alien type)
@@ -114,15 +114,15 @@ freed later."
 
 (define-struct ffi:values
   "an array of alien values as void**"
-  ((array)
-   (list)
-   (ptr-list)))
+  (array
+   list
+   ptr-list))
 
 (define (ffi:free-values values)
   (assert (ffi:values? values))
-  (ffi:free (ffi:values-array values))
-  (for-each ffi:free (ffi:values-list values))
-  (for-each ffi:free (ffi:values-ptr-list values)))
+  (ffi:free (ffi:values-array-ref values))
+  (for-each ffi:free (ffi:values-list-ref values))
+  (for-each ffi:free (ffi:values-ptr-list-ref values)))
 
 (define (ffi:make-value-array args)
   "convert a list of scheme and alien arguments into a void**"
@@ -150,10 +150,10 @@ freed later."
 
      ;; cache the cif
      (unless (ffi:cif? ,fnptr)
-       (set-ffi:cif-fn-ptr! fnspec ,fnptr)
+       (ffi:cif-fn-ptr-set! fnspec ,fnptr)
        (set! ,fnptr fnspec))
 
-     (ffi:call (ffi:cif-cif fnspec) (ffi:cif-fn-ptr fnspec) result-ptr (ffi:values-array values))
+     (ffi:call (ffi:cif-cif-ref fnspec) (ffi:cif-fn-ptr-ref fnspec) result-ptr (ffi:values-array-ref values))
 
     ;; cleanup
     (let ((call-result (ffi:from-alien result ,result-type)))
@@ -235,7 +235,7 @@ freed later."
 ;means... here closure-target protected by being a global.
 (define (closure-test)
   (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-uint)))
-	 (closure (ffi:create-closure (ffi:cif-cif cif)
+	 (closure (ffi:create-closure (ffi:cif-cif-ref cif)
 				      closure-target
 				      (ffi:alien-to-int 0))))
     (test-fn closure)))

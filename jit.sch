@@ -97,8 +97,8 @@
 
   (define-struct jit:params
     "parameters to a jit'd function"
-    ((array)
-     (length)))
+    (array
+     length))
 
   (define (jit:make-parameter-signature types)
     "create a signature for the arguments of a function"
@@ -116,8 +116,8 @@
 		   'ffi-pointer ;; returns jit_type_t
 		   (ffi:alien-uint 0) ;; jit_abi_cdecl
 		   return
-		   (jit:params-array parm-sig)
-		   (jit:params-length parm-sig)
+		   (jit:params-array-ref parm-sig)
+		   (jit:params-length-ref parm-sig)
 		   (ffi:alien-uint 1)))) ;; incref
 
   (define (jit:function-create ctx signature)
@@ -266,7 +266,7 @@
   ; FIXME: This leaks memory
   (define (jit:build-arg-array args)
     "use the ffi to-alien mechanism to construct a void** array"
-    (ffi:values-array (ffi:make-value-array args)))
+    (ffi:values-array-ref (ffi:make-value-array args)))
 
   (define (jit:function-apply function args return-area)
     "call a jit'd function with args and put the result into return-area"

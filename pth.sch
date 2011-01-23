@@ -56,9 +56,9 @@
     (define-method (initialize (thread <pth:thread>) args)
       (let* ((func (first args))
 	     (cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
-	     (closure (ffi:create-closure (ffi:cif-cif cif)
+	     (closure (ffi:create-closure (ffi:cif-cif-ref cif)
 					  func
-					  (ffi:alien-to-int 0)))
+					  (ffi:int-to-alien 0)))
 	     (thr (ffi:funcall spawn 'ffi-pointer
 			       (ffi:int-to-alien 0)
 			       closure

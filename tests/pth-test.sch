@@ -14,7 +14,7 @@
 (define (hello)
   (inc! counter)
   (nc:mvprintw 1 0 "       ")
-  (nc:mvprintw 0 0 (concat "hello " (number->string counter)))
+  (nc:mvprintw 0 0 (string-append "hello " (number->string counter)))
   (nc:refresh)
   (pth:usleep (* 1400 1000))
   (hello))

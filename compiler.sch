@@ -31,7 +31,7 @@
 ;; information. I should really write a real trace macro at some
 ;; point.
 
-(define (write-dbg . args)
+(define (write-dbg1 . args)
   "display the given forms"
   (printf "debug: %a\n" args))
 
@@ -200,10 +200,10 @@ about its value and optionally with more forms following"
 
 (define-struct fn
   "a structure representing a compiled function"
-  ((code)
-   (env)
-   (name)
-   (args)))
+  (code
+   env
+   name
+   args))
 
 (define (make-prim symbol n-args opcode always? side-effects?)
   (list 'prim symbol n-args opcode always? side-effects?))
@@ -293,7 +293,13 @@ about its value and optionally with more forms following"
 		     'args args)))
 
 (define (optimize code) code)
-
+'foo1
+(define write-dbg write-dbg1)
+(define (foo a . others)
+  (cons 'foo others))
+'foo2
+(foo 1 2 3 4)
+'foo3
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
@@ -369,13 +375,13 @@ about its value and optionally with more forms following"
       (first instr)))
 
 (define (assemble fn)
-  (let* ((r1 (asm-first-pass (fn-code fn)))
-	 (r2 (asm-second-pass (fn-code fn)
+  (let* ((r1 (asm-first-pass (fn-code-ref fn)))
+	 (r2 (asm-second-pass (fn-code-ref fn)
 			      (first r1)
 			      (second r1)))
-	 (nargs (num-args (fn-args fn)))
+	 (nargs (num-args (fn-args-ref fn)))
 	 (result
-	  (make-compiled-proc r2 (fn-env fn))))
+	  (make-compiled-proc r2 (fn-env-ref fn))))
 
     result))
 
