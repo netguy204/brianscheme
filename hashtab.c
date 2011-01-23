@@ -212,10 +212,10 @@ int htb_hash(void *key, size_t hashtab_size) {
   uint32_t hash;
 
   if(sizeof(key) == 4) {
-    hash = ((long)key) >> 2;
+    hash = ((long)key) >> 5;
   }
   else {
-    hash = ((long)key) >> 3;
+    hash = ((long)key) >> 6;
   }
 
   return (hash % hashtab_size);

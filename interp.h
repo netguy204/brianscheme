@@ -48,6 +48,8 @@ void add_binding_to_frame(object *var, object *val,
 			  object *frame);
 object *extend_environment(object *vars, object *vals,
 			   object *base_env);
+object *lookup_global_value(object *var);
+void define_global_variable(object *var, object *val);
 object *lookup_variable_value(object *var, object *env);
 void set_variable_value(object *var, object *new_val,
 			object *env);

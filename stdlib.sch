@@ -111,7 +111,7 @@
       (macro (name-and-vars . body)
 	`(set! ,(car name-and-vars)
 	       (macro ,(cdr name-and-vars)
-		 (begin . ,body)))))
+		 . ,body))))
 
 (define-syntax (define name . value-or-body)
   (if (symbol? name)
@@ -120,14 +120,13 @@
 	  `(set! ,name . ,value-or-body))
       `(set! ,(car name)
 	     (lambda ,(cdr name)
-	       (begin . ,value-or-body)))))
+	       . ,value-or-body))))
 
 (set! next-gensym 0)
 (define (gensym)
-  (begin
-    (set! next-gensym (fixnum-add next-gensym 1))
-    (string->uninterned-symbol
-     (prim-concat "#" (number->string next-gensym)))))
+  (set! next-gensym (fixnum-add next-gensym 1))
+  (string->uninterned-symbol
+   (prim-concat "#" (number->string next-gensym))))
 
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that early.
@@ -158,7 +157,7 @@
 
 (define-syntax (let0 bindings . body)
   `((lambda ,(map car bindings)
-      (begin . ,body))
+      . ,body)
     . ,(map second bindings)))
 
 ;; now we can use let0 to define let*0 and letrec0
@@ -171,10 +170,9 @@
 (define-syntax (letrec0 bindings . body)
   `(let0 ,(map (lambda (b) (list (first b) 'nil))
 	      bindings)
-     (begin
-       . ,(map (lambda (b) (list 'set! (first b) (second b)))
-	       bindings))
-     (begin . ,body)))
+     ,@(map (lambda (b) (list 'set! (first b) (second b)))
+	       bindings)
+     . ,body))
 
 ;; now we define everything we need so that we can enable the real
 ;; destructuring versions of let and the named-let form

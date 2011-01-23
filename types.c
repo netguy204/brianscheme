@@ -285,13 +285,12 @@ char is_syntax_proc(object * obj) {
   return obj->type == SYNTAX_PROC;
 }
 
-object *make_compiled_proc(object * bytecode, object * env, object * ienv) {
+object *make_compiled_proc(object * bytecode, object * env) {
   object *obj = alloc_object(0);
 
   obj->type = COMPILED_PROC;
   BYTECODE(obj) = bytecode;
   CENV(obj) = env;
-  CIENV(obj) = ienv;
 
   return obj;
 }

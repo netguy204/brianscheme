@@ -399,7 +399,6 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
     case COMPILED_PROC:
       maybe_move(BYTECODE(scan_iter));
       maybe_move(CENV(scan_iter));
-      maybe_move(CIENV(scan_iter));
       break;
     case META_PROC:
       maybe_move(METAPROC(scan_iter));

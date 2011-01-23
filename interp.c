@@ -88,6 +88,16 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
   return result;
 }
 
+object *lookup_global_value(object * var) {
+  object * res = get_hashtab(the_global_environment, var, NULL);
+  if(res == NULL) {
+    throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
+    return NULL;
+  }
+
+  return res;
+}
+
 object *lookup_variable_value(object * var, object * env) {
   object *frame;
   object *vars;
@@ -124,13 +134,7 @@ object *lookup_variable_value(object * var, object * env) {
   }
 
   /* check the global environment */
-  object * res = get_hashtab(the_global_environment, var, NULL);
-  if(res == NULL) {
-    throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
-    return NULL;
-  }
-
-  return res;
+  return lookup_global_value(var);
 }
 
 void define_global_variable(object * var, object * new_val) {
@@ -722,12 +726,7 @@ DEFUN1(string_to_uninterned_symbol_proc) {
 }
 
 DEFUN1(make_compiled_proc_proc) {
-  object *env = THIRD;
-  if(is_the_empty_list(env)) {
-    env = environment;
-  }
-
-  return make_compiled_proc(FIRST, SECOND, env);
+  return make_compiled_proc(FIRST, SECOND);
 }
 
 DEFUN1(compiled_bytecode_proc) {
