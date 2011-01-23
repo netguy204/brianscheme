@@ -141,7 +141,7 @@ object *vm_execute(object * fn, object * stack, long n_args) {
   push_root(&top);
 
 vm_fn_begin:
-  VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc,
+  VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc(fn),
 	    "object is not compiled-procedure");
 
   /* unwrap meta */

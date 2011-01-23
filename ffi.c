@@ -256,7 +256,7 @@ void interp_trampoline(ffi_cif * cif, void *ret,
 
   exp = cons(alien, exp);
   exp = cons(target, exp);
-  interp(exp, the_global_environment);
+  interp(exp, the_empty_environment);
 
   pop_root(&alien);
   pop_root(&exp);
