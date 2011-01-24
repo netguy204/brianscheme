@@ -189,11 +189,6 @@ vm_fn_begin:
   VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc(fn),
 	    "object is not compiled-procedure");
 
-  /* unwrap meta */
-  if(is_meta(fn)) {
-    fn = METAPROC(fn);
-  }
-
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -222,8 +217,14 @@ vm_begin:
 
       int ii;
       int num_args = LONG(ARG1(instr));
-      object *vector = make_vector(the_empty_list,
-				   num_args);
+      object *vector;
+
+      if(num_args > 0) {
+	vector = make_vector(the_empty_list, num_args);
+      } else {
+	vector = the_empty_vector;
+      }
+
       push_root(&vector);
       env = cons(vector, env);
       pop_root(&vector);
