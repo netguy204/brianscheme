@@ -1184,6 +1184,20 @@ returns true"
       (lambda args
         (reduce2 (apply (car rev-funcs) args) (cdr rev-funcs))))))
 
+(define-syntax (assert-types . types)
+  "Check that types match expected types. Used when wrapping unsafe
+%-functions with safe ones."
+  (letrec ((add-check (lambda (lst)
+                        (if (null? lst)
+                            '()
+                            (cons
+                             `(unless ,(reverse (car lst))
+                                (throw-error "expecting type"
+                                             ,(caar lst)
+                                             (quote ,(cadar lst))))
+                             (add-check (rest lst)))))))
+    (cons 'begin (add-check types))))
+
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
 ;; execute and if we're compiling the if clauses will execute (due to
