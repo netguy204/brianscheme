@@ -1237,7 +1237,8 @@ returns true"
    (write-char #\newline stdout)
 
    (require 'compiler)
-   (compile-file "stdlib.sch")))
+   (compile-file "stdlib.sch") ;; this call should never return
+   (throw-error "control should never reach here")))
 
 ;; once we reach this point we're fully bootstrapped and
 ;; compile-only. now we can load up the rest of the niceties
