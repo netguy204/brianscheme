@@ -24,10 +24,10 @@
 #include "read.h"
 #include "gc.h"
 
-#define OPCODE(x) first(x)
-#define ARGS(x) cdr(x)
-#define ARG1(x) second(x)
-#define ARG2(x) third(x)
+#define OPCODE(x) CAR(x)
+#define ARGS(x) CDR(x)
+#define ARG1(x) CAR(ARGS(x))
+#define ARG2(x) CAR(CDR(ARGS(x)))
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -56,6 +56,7 @@ opcode_table(generate_decls)
 #define generate_enum(opcode) _ ## opcode ## _,
 enum {
   opcode_table(generate_enum)
+  INVALID_BYTECODE,
 } opcodes;
 
 /* generate the stringified form */
@@ -66,12 +67,13 @@ const char * opcode_names[] = {
 
 object *error_sym;
 
+object *bytecodes[INVALID_BYTECODE];
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
 #define generate_sym_to_code(opcode)		\
   if(FIRST == opcode ## _op) {			\
-    return make_character( _ ## opcode ## _ );	\
+    return bytecodes[ _ ## opcode ## _ ];	\
   }
 
 
@@ -418,10 +420,15 @@ DEFUN1(vm_tag_macro_proc) {
 }
 
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
+#define generate_bytecodes(opcode)				  \
+  bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
+  push_root(&bytecodes[_ ## opcode ## _]);
 
 void vm_init(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
+
+  opcode_table(generate_bytecodes)
 
   error_sym = make_symbol("error");
 
