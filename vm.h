@@ -21,7 +21,7 @@
 
 void vm_init(void);
 
-object *vm_execute(object *fn, object *stack, long n_args);
+object *vm_execute(object *fn, object *stack, long stack_top, long n_args);
 
 void vector_push(object *stack, object *obj, long top);
 

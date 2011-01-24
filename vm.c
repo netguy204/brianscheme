@@ -92,8 +92,10 @@ object *vector_pop(object *stack, long top) {
 #define RETURN_OPCODE_INSTRUCTIONS			\
   /* if there's only one value on the stack,		\
    * we're done */                                      \
-  if(stack_top == 1) {					\
-    VM_RETURN(VARRAY(stack)[0]);			\
+  if(stack_top == initial_top + 1) {			\
+    object *val;					\
+    VPOP(val, stack, stack_top);			\
+    VM_RETURN(val);					\
   } else {						\
     object *val;					\
     VPOP(val, stack, stack_top);			\
@@ -119,15 +121,15 @@ object *vector_pop(object *stack, long top) {
 #define VM_DEBUG(msg, obj)
 #endif
 
-object *vm_execute(object * fn, object * stack, long n_args) {
+object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *code_array;
   object *env;
   object *instr;
   object *opcode;
   object *top;
 
+  long initial_top = stack_top - n_args;
   long pc = 0;
-  long stack_top = n_args;
 
   env = CENV(fn);
   instr = the_empty_list;

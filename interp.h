@@ -66,9 +66,9 @@ void init();
 void owrite(FILE *out, object *obj);
 char is_falselike(object *obj);
 object *expand_macro(object *macro, object *args,
-		     object *env, int level);
+		     object *env, int level, object * stack, long stack_top);
 object *interp(object *exp, object *env);
-object *interp1(object *exp, object *env, int level);
+object *interp1(object *exp, object *env, int level, object * stack, long stack_top);
 object *debug_write(char * msg, object *obj, int level);
 void print_obj(object *obj);
 void primitive_repl();
