@@ -23,6 +23,7 @@
 ; Interestingly, this implementation supports a meta-object-protocol
 ; just like real clos. It's dog slow, but it works!
 
+(require 'math)
 (require "clos/clos.sch")
 
 (define <standard-class> (make <class>

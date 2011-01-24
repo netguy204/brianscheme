@@ -71,17 +71,17 @@ about its value and optionally with more forms following"
    ((symbol? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
    (else (case (first x)
-	   (if-compiling (arg-count x 2 2)
+	   (if-compiling (%arg-count x 2 2)
 			 (comp (second x) env val? more?))
-	   (quote (arg-count x 1 1)
+	   (quote (%arg-count x 1 1)
 		  (comp-const (second x) val? more?))
 	   (begin (comp-begin (rest x) env val? more?))
-	   (set! (arg-count x 2 2)
+	   (set! (%arg-count x 2 2)
 		 (seq (comp (third x) env #t #t)
 		      (gen-set (second x) env)
 		      (when (not val?) (gen 'pop))
 		      (unless more? (gen 'return))))
-	   (if (arg-count x 2 3)
+	   (if (%arg-count x 2 3)
 	       (comp-if (second x) (third x) (fourth x)
 			env val? more?))
 	   (lambda (when val?
@@ -98,9 +98,9 @@ about its value and optionally with more forms following"
 		(comp-funcall (first x) (rest x)
 			      env val? more?)))))))
 
-(define (arg-count form min max)
+(define (%arg-count form min max)
   (let ((n-args (length (rest form))))
-    (unless (<= min n-args max)
+    (unless (%<= min n-args max)
 	    (throw-error "wrong number of args"
 			 form
 			 "expected between"
@@ -172,7 +172,7 @@ about its value and optionally with more forms following"
   (write-dbg 'comp-funcall f 'args args
 	     'val? val? 'more? more?)
 
-  (let ((prim (primitive? f env (length args))))
+  (let ((prim (%primitive? f env (length args))))
     (cond
      (prim
       (if (and (not val?) (not (prim-side-effects? prim)))
@@ -258,12 +258,12 @@ about its value and optionally with more forms following"
 
 ;; f is primitive if it's in the table and not shadowed in the
 ;; environment and has the right number of arguments.
-(define (primitive? f env n-args)
+(define (%primitive? f env n-args)
   (write-dbg 'primitive? f 'env env 'n-args n-args)
   (and (not (in-env? f env))
        (find (lambda (p)
 	       (and (eq? f (prim-symbol p))
-		    (= n-args (prim-n-args p))))
+		    (%fixnum-add n-args (prim-n-args p))))
 	     *primitive-fns*)))
 
 (define (assert-symbols lst)
@@ -276,19 +276,19 @@ about its value and optionally with more forms following"
 
 (define (comp-lambda args body env)
   (write-dbg 'comp-lambda args 'body body)
-  (new-fun (seq (gen-args args 0)
+  (new-fun (seq (%gen-args args 0)
 		(comp-begin body
 			    (cons (make-true-list args) env)
 			    #t #f))
 	   env "unknown" args))
 
-(define (gen-args args n-so-far)
+(define (%gen-args args n-so-far)
   (cond
    ((null? args) (gen 'args n-so-far))
    ((symbol? args) (gen 'argsdot n-so-far))
    ((and (pair? args)
 	 (symbol? (first args)))
-    (gen-args (rest args) (+ n-so-far 1)))
+    (%gen-args (rest args) (%fixnum-add n-so-far 1)))
    (else (throw-error "illegal argument list" args))))
 
 ;; this doesn't do error checking like the method before
@@ -296,8 +296,8 @@ about its value and optionally with more forms following"
   (letrec ((iter (lambda (lst count)
 		   (cond
 		    ((null? lst) count)
-		    ((symbol? lst) (+ count 1))
-		    (else (iter (rest lst) (+ count 1)))))))
+		    ((symbol? lst) (%fixnum-add count 1))
+		    (else (iter (rest lst) (%fixnum-add count 1)))))))
     (iter args 0)))
 
 (define (make-true-list dotted-list)
@@ -325,7 +325,7 @@ about its value and optionally with more forms following"
 		      (string (car opt))
 		      "L")))
       (write-dbg 'gen-label prefix)
-      (set! label-num (+ label-num 1))
+      (set! label-num (%fixnum-add label-num 1))
       (string->symbol
        (string-append prefix (number->string label-num))))))
 
@@ -355,7 +355,7 @@ about its value and optionally with more forms following"
     (if p
 	(gen 'lset (first p) (second p) ";" var)
 	(if (assoc var *primitive-fns*)
-	    (throw-error "can't alter the constant" +)
+	    (throw-error "can't alter the constant" var)
 	    (gen 'gset var)))))
 
 (define (in-env? symbol env)
@@ -406,7 +406,7 @@ about its value and optionally with more forms following"
     (dolist (instr code)
 	    (if (label? instr)
 		(push! (cons instr length) labels)
-		(inc! length)))
+		(%inc! length)))
     (list length labels)))
 
 (define (asm-second-pass code length labels)
@@ -424,13 +424,13 @@ about its value and optionally with more forms following"
 			  (set-car! instr bytecode)))
 
 		    (vector-set! code-vector addr instr)
-		    (inc! addr)))
+		    (%inc! addr)))
     code-vector))
 
 (define (make-space spaces)
   (reduce string-append (duplicate " " spaces) ""))
 
-(define (show-fn fn indent)
+(define (%show-fn fn indent)
   (map display (list (make-space indent)
 		     "environment: " (compiled-environment fn)))
   (newline)
@@ -440,7 +440,7 @@ about its value and optionally with more forms following"
 
   (dovector (instr (compiled-bytecode fn))
 	    (if (is instr 'fn)
-		(show-fn (second instr) (+ indent 4))
+		(%show-fn (second instr) (%fixnum-add indent 4))
 		(begin
 		  (let* ((opcode-sym (bytecode->symbol (opcode instr)))
 			 (sym (if opcode-sym opcode-sym (opcode instr)))
@@ -450,13 +450,13 @@ about its value and optionally with more forms following"
 		  (newline)))))
 
 (define (comp-show fn)
-  (show-fn (compiler fn) 0))
+  (%show-fn (compiler fn) 0))
 
 (define (dump-compiled-fn fn . indent)
   (let ((indent (if (null? indent)
 		    0
 		    (car indent))))
-    (show-fn fn indent)))
+    (%show-fn fn indent)))
 
 (define (comp-repl)
   (display "comp-repl> ")
@@ -489,3 +489,4 @@ about its value and optionally with more forms following"
     #t))
 
 (provide 'compiler)
+

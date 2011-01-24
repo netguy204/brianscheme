@@ -35,13 +35,6 @@
 ;; Some very basic defines to get us started
 
 (set! nil '())
-(set! + fixnum-add)
-(set! - fixnum-sub)
-(set! * fixnum-mul)
-(set! / fixnum-div)
-(set! < fixnum-less-than)
-(set! > fixnum-greater-than)
-(set! = fixnum-equal)
 
 ;; based on the macro bootstrap process in ericbb's javascript scheme
 ;; found at: http://norstrulde.org/
@@ -129,9 +122,11 @@
 	     (lambda ,(cdr name)
 	       . ,value-or-body))))
 
+(define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
 (define (cadr x) (car (cdr x)))
 (define (cddr x) (cdr (cdr x)))
+(define (cadar x) (car (cdr (car x))))
 (define (caddr x) (car (cddr x)))
 (define (cdddr x) (cdr (cddr x)))
 (define (cadddr x) (car (cdddr x)))
@@ -154,7 +149,7 @@
 
 (set! next-gensym 0)
 (define (gensym)
-  (set! next-gensym (fixnum-add next-gensym 1))
+  (set! next-gensym (%fixnum-add next-gensym 1))
   (string->uninterned-symbol
    (prim-concat "#" (number->string next-gensym))))
 
@@ -293,6 +288,9 @@ that decompose it according to the structure of var-forms"
 (define-syntax (letrec bindings . body)
   `(letrec0 ,(destructure-all-bindings bindings) . ,body))
 
+(define-syntax (%inc! dst)
+  `(set! ,dst (%fixnum-add 1 ,dst)))
+
 (define-syntax (inc! dst)
   `(set! ,dst (+ 1 ,dst)))
 
@@ -359,15 +357,15 @@ that decompose it according to the structure of var-forms"
     (cond
      ((null? remaining) nil)
      ((fn (car remaining)) n)
-     (else (loop (+ n 1) (cdr remaining))))))
+     (else (loop (%fixnum-add n 1) (cdr remaining))))))
 
 (define (list-tail lst n)
   "the remainder of the list after calling cdr n times"
   (let loop ((i 0)
 	     (rest lst))
-    (if (= i n)
+    (if (%fixnum-equal i n)
 	rest
-	(loop (+ i 1) (cdr rest)))))
+	(loop (%fixnum-add i 1) (cdr rest)))))
 
 (define (list-ref lst n)
   "the car of the nth element of the list"
@@ -538,7 +536,7 @@ body. always executes at least once"
   (let loop ((n 0))
     (when (< n times)
       (fn n)
-      (loop (+ n 1))))
+      (loop (%fixnum-add n 1))))
   #t)
 
 (define-syntax (dotimes (idx max) . body)
@@ -618,17 +616,17 @@ list"
 	    (second remaining)) (loop (cdr remaining)))
      (else #f))))
 
-(define (<=2 a b)
-  (or (< a b) (= a b)))
+(define (%<=2 a b)
+  (or (%fixnum-less-than a b) (%fixnum-equal a b)))
 
-(define (<= . values)
-  (every-pair? <=2 values))
+(define (%<= . values)
+  (every-pair? %<=2 values))
 
-(define (>=2 a b)
-  (or (> a b) (= a b)))
+(define (%>=2 a b)
+  (or (%fixnum-greater-than a b) (%fixnum-equal a b)))
 
-(define (>= . values)
-  (every-pair? >=2 values))
+(define (%>= . values)
+  (every-pair? %>=2 values))
 
 ;; Now go on and define a few useful higher level functions. This list
 ;; of things is largely driven by personal need at this point. Perhaps
@@ -657,7 +655,7 @@ list"
   (letrec ((iter (lambda (a count)
 		   (if (null? a)
 		       count
-		       (iter (cdr a) (+ 1 count))))))
+		       (iter (cdr a) (%fixnum-add 1 count))))))
     (iter items 0)))
 
 (define (for-each f l)
@@ -733,9 +731,9 @@ list"
   "display a string without quotation marks"
   (let loop ((idx 0))
     (let ((char (string-ref str idx)))
-      (unless (= (char->integer char) 0)
+      (unless (%fixnum-equal (char->integer char) 0)
 	      (write-char char port)
-	      (loop (+ idx 1))))))
+	      (loop (%fixnum-add idx 1))))))
 
 (define (number? obj)
   "is the object a kind of number?"
@@ -816,14 +814,14 @@ not be quoted or escaped."
     (and (equal? (car a) (car b))
 	 (equal? (cdr a) (cdr b))))
    ((and (vector? a) (vector? b)
-	 (= (vector-length a)
-	    (vector-length b)))
+	 (%fixnum-equal (vector-length a)
+                        (vector-length b)))
     (let loop ((idx 0))
       (cond
        ((< idx (vector-length a))
-	(if (= (vector-ref a idx)
-	       (vector-ref b idx))
-	    (loop (+ idx 1))
+	(if (equal? (vector-ref a idx)
+                    (vector-ref b idx))
+	    (loop (%fixnum-add idx 1))
 	    #f))
        (else #t))))
    (else (eq? a b))))
@@ -1083,11 +1081,11 @@ returns true"
 		   (first docs-and-slots))))
     `(begin
        (define (,(struct-constructor-name name) . args)
-	 (let ((struct (make-vector ,(+ (length slots) 1))))
+	 (let ((struct (make-vector ,(%fixnum-add (length slots) 1))))
 	   (vector-set! struct 0 ',name)
 	   ,@(let ((idx 0))
 	       (map (lambda (slot)
-		      (inc! idx)
+		      (%inc! idx)
 		      `(vector-set! struct ,idx
 				    (getl args ',slot nil)))
 		    slots))
@@ -1098,7 +1096,7 @@ returns true"
 
        . ,(let ((idx 0))
 	    (map (lambda (slot)
-		   (inc! idx)
+		   (%inc! idx)
 		   `(begin
 		      (define (,(struct-slot-getter-name name slot) struct)
 			(vector-ref struct ,idx))
@@ -1184,6 +1182,20 @@ returns true"
       (lambda args
         (reduce2 (apply (car rev-funcs) args) (cdr rev-funcs))))))
 
+(define-syntax (assert-types . types)
+  "Check that types match expected types. Used when wrapping unsafe
+%-functions with safe ones."
+  (letrec ((add-check (lambda (lst)
+                        (if (null? lst)
+                            '()
+                            (cons
+                             `(unless ,(reverse (car lst))
+                                (throw-error "expecting type"
+                                             ,(caar lst)
+                                             (quote ,(cadar lst))))
+                             (add-check (rest lst)))))))
+    (cons 'begin (add-check types))))
+
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
 ;; execute and if we're compiling the if clauses will execute (due to
@@ -1243,8 +1255,8 @@ returns true"
 ;; once we reach this point we're fully bootstrapped and
 ;; compile-only. now we can load up the rest of the niceties
 
-(require 'clos)
 (require 'math)
+(require 'clos)
 (provide 'stdlib)
 
 (require 'clos-repl)
