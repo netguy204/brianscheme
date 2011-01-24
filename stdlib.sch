@@ -411,10 +411,6 @@ that decompose it according to the structure of var-forms"
     "Return list with all items equal? to item removed."
     (del equal? item list)))
 
-(define (compliment fn)
-  "function that returns (not (fn))"
-  (lambda (x) (not (fn x))))
-
 ;; now defining some standard conditional constructs
 (define-syntax (when pred . conseq)
   "evaluates consequence if predicate evaluates true"
@@ -1145,17 +1141,6 @@ returns true"
 			forms))
 	 ,result))))
 
-(define (compose . funcs)
-  "Compose a series of functions into a new single function."
-  (let ((rev-funcs (reverse funcs)))
-    (letrec ((reduce2 (lambda (last rest)
-                        (if (null? rest)
-                            last
-                            (reduce2 (apply (car rest) (list last))
-                                     (cdr rest))))))
-      (lambda args
-        (reduce2 (apply (car rev-funcs) args) (cdr rev-funcs))))))
-
 (define-syntax (assert-types . types)
   "Check that types match expected types. Used when wrapping unsafe
 %-functions with safe ones."
@@ -1231,6 +1216,7 @@ returns true"
 
 (require 'math)
 (require 'string)
+(require 'point-free)
 (require 'clos)
 (provide 'stdlib)
 
