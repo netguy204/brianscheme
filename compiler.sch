@@ -68,7 +68,6 @@
 about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
   (cond
-   ((member? x '(#t #f)) (comp-const x val? more?))
    ((symbol? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
    (else (case (first x)
@@ -120,16 +119,9 @@ about its value and optionally with more forms following"
       (seq (comp (first exps) env #t #t)
 	   (comp-list (rest exps) env))))
 
-(define (bytecode-literal? x)
-  (or (integer? x) (boolean? x)))
-
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
-  (when val? (seq (cond
-		   ((bytecode-literal? x)
-		    (gen x))
-		   ((eq? x 'nil) (gen '()))
-		   (else (gen 'const x)))
+  (when val? (seq (gen 'const x)
 		  (unless more? (gen 'return)))))
 
 (define (comp-var x env val? more?)

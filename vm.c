@@ -210,12 +210,6 @@ vm_begin:
   VM_DEBUG("dispatching", instr);
 
   switch (opcode->type) {
-  case BOOLEAN:
-  case FIXNUM:
-  case THE_EMPTY_LIST:
-    VPUSH(opcode, stack, stack_top);
-    break;
-
   case CHARACTER:
     switch(CHAR(opcode)) {
     case _args_: {

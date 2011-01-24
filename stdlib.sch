@@ -87,8 +87,6 @@
      (#t (cons (car l1)
 	       (append0 (cdr l1) l2))))))
 
-(append0 '(1 2) '(3 4))
-
 (set! qq
   (lambda (x)
     (cond0
