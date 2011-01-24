@@ -29,6 +29,9 @@ endif
 bsch: $(OBJECTS) bsch.o $(HEADERS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bsch.o
 
+test: bsch
+	echo '(load "run-tests.sch")' | ./bsch
+
 check-syntax:
 	$(CC) -o $(CHK_SOURCES).nul -S $(CHK_SOURCES)
 
