@@ -401,10 +401,16 @@ DEFUN1(cons_proc) {
 }
 
 DEFUN1(car_proc) {
-  return car(FIRST);
+  object *first = FIRST;
+  if (!is_pair(first) && !is_the_empty_list(first))
+    throw_interp("car expects list\n");
+  return car(first);
 }
 
 DEFUN1(cdr_proc) {
+  object *first = FIRST;
+  if (!is_pair(first) && !is_the_empty_list(first))
+    throw_interp("cdr expects list\n");
   return cdr(FIRST);
 }
 
