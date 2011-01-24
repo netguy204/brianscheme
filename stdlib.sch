@@ -465,6 +465,89 @@ that decompose it according to the structure of var-forms"
 			(else `((eq? ,key-val ',(first c)) . ,(cdr c)))))
 		     clauses)))))
 
+(define-syntax (dowhile pred . body)
+  "execute body whle pred evaluates true. checks pred after evaluating
+body. always executes at least once"
+  (let ((loop (gensym)))
+    `(letrec
+	 ((,loop
+	   (lambda ()
+	     (begin . ,body)
+	     (when ,pred (,loop)))))
+
+       (,loop))))
+
+(define-syntax (while pred . body)
+  "execute body whle pred evaluates true."
+  (let ((loop (gensym))
+	(cont? (gensym))
+	(last (gensym)))
+    `(let ,loop ((,cont? ,pred)
+		 (,last nil))
+	  (if ,cont?
+	      (let ((,last (begin . ,body)))
+		(,loop ,pred ,last))
+	      ,last))))
+
+
+(define-syntax (do bindings test-and-return . body)
+  "establish and update bindings and execute body until test is true"
+  (let ((loop (gensym)))
+    `(let ,loop ,(map (lambda (binding)
+		       (list (first binding)
+			     (second binding)))
+		     bindings)
+	  (if ,(first test-and-return)
+	      ,(if (rest test-and-return)
+		   `(begin . ,(rest test-and-return)))
+	      (begin
+		,(if body
+		     `(begin . ,body))
+		(,loop . ,(map (lambda (binding)
+				 (if (cddr binding)
+				     (third binding)
+				     (first binding)))
+			       bindings)))))))
+
+
+(define-syntax (dolist args . body)
+  "evaluate body with (first args) taking successive values of (second args)"
+  `(for-each (lambda (,(first args)) . ,body)
+	     ,(second args)))
+
+(define-syntax (dolist-idx args . body)
+  "args is ((val idx) list), body evaluated with val and idx taking on successive values"
+  `(let ((,(second (first args)) 0))
+     (for-each
+      (lambda (,(first (first args)))
+	(begin . ,body)
+	(inc! ,(second (first args))))
+      ,(second args))))
+
+(define-syntax (dovector args . body)
+  "evaluate body for every element in a vector"
+  (let ((n (gensym))
+	(idx (gensym)))
+
+    `(let ((,n (vector-length ,(second args))))
+       (dotimes (,idx ,n)
+		(let ((,(first args) (vector-ref ,(second args) ,idx)))
+		  . ,body)))))
+
+
+(define (do-times fn times)
+  "call fn times with oone argument that goese from 0 to times-1"
+  (let loop ((n 0))
+    (when (< n times)
+      (fn n)
+      (loop (+ n 1))))
+  #t)
+
+(define-syntax (dotimes (idx max) . body)
+  "execute body max times with idx going from 0 to max-1"
+  `(do-times (lambda (,idx) . ,body) ,max))
+
+
 ;; The exit-hook variable is looked up (in the current environment)
 ;; and invoked if set whenever the (exit) primitive function is
 ;; executed. The interpreter also invokes this hook when it's about to
@@ -703,18 +786,6 @@ not be quoted or escaped."
        (or (null? (cdr obj))
 	   (pair? (cdr obj)))))
 
-(define (do-times fn times)
-  "call fn times with oone argument that goese from 0 to times-1"
-  (let loop ((n 0))
-    (when (< n times)
-      (fn n)
-      (loop (+ n 1))))
-  #t)
-
-(define-syntax (dotimes (idx max) . body)
-  "execute body max times with idx going from 0 to max-1"
-  `(do-times (lambda (,idx) . ,body) ,max))
-
 (define (find pred lst)
   "return the first element of lst for which pred is true. #f if none"
   (let loop ((remainder lst))
@@ -894,81 +965,12 @@ returns true"
 
       (quicksort lst))))
 
-(define-syntax (dowhile pred . body)
-  "execute body whle pred evaluates true. checks pred after evaluating
-body. always executes at least once"
-  (let ((loop (gensym)))
-    `(letrec
-	 ((,loop
-	   (lambda ()
-	     (begin . ,body)
-	     (when ,pred (,loop)))))
-
-       (,loop))))
-
-(define-syntax (while pred . body)
-  "execute body whle pred evaluates true."
-  (let ((loop (gensym))
-	(cont? (gensym))
-	(last (gensym)))
-    `(let ,loop ((,cont? ,pred)
-		 (,last nil))
-	  (if ,cont?
-	      (let ((,last (begin . ,body)))
-		(,loop ,pred ,last))
-	      ,last))))
-
-
-(define-syntax (do bindings test-and-return . body)
-  "establish and update bindings and execute body until test is true"
-  (let ((loop (gensym)))
-    `(let ,loop ,(map (lambda (binding)
-		       (list (first binding)
-			     (second binding)))
-		     bindings)
-	  (if ,(first test-and-return)
-	      ,(if (rest test-and-return)
-		   `(begin . ,(rest test-and-return)))
-	      (begin
-		,(if body
-		     `(begin . ,body))
-		(,loop . ,(map (lambda (binding)
-				 (if (cddr binding)
-				     (third binding)
-				     (first binding)))
-			       bindings)))))))
-
-
-(define-syntax (dolist args . body)
-  "evaluate body with (first args) taking successive values of (second args)"
-  `(for-each (lambda (,(first args)) . ,body)
-	     ,(second args)))
-
-(define-syntax (dolist-idx args . body)
-  "args is ((val idx) list), body evaluated with val and idx taking on successive values"
-  `(let ((,(second (first args)) 0))
-     (for-each
-      (lambda (,(first (first args)))
-	(begin . ,body)
-	(inc! ,(second (first args))))
-      ,(second args))))
-
 (define (vector . args)
   "analogous to 'list' but for vectors"
   (let ((v (make-vector (length args) nil)))
     (dolist-idx ((val idx) args)
       (vector-set! v idx val))
     v))
-
-(define-syntax (dovector args . body)
-  "evaluate body for every element in a vector"
-  (let ((n (gensym))
-	(idx (gensym)))
-
-    `(let ((,n (vector-length ,(second args))))
-       (dotimes (,idx ,n)
-		(let ((,(first args) (vector-ref ,(second args) ,idx)))
-		  . ,body)))))
 
 (define-syntax (assert cond)
   "verify that condition is true, throw error otherwise"
