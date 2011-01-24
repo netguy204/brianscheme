@@ -24,10 +24,10 @@
 #include "read.h"
 #include "gc.h"
 
-#define OPCODE(x) first(x)
-#define ARGS(x) cdr(x)
-#define ARG1(x) second(x)
-#define ARG2(x) third(x)
+#define OPCODE(x) CAR(x)
+#define ARGS(x) CDR(x)
+#define ARG1(x) CAR(ARGS(x))
+#define ARG2(x) CAR(CDR(ARGS(x)))
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -56,6 +56,7 @@ opcode_table(generate_decls)
 #define generate_enum(opcode) _ ## opcode ## _,
 enum {
   opcode_table(generate_enum)
+  INVALID_BYTECODE,
 } opcodes;
 
 /* generate the stringified form */
@@ -66,12 +67,13 @@ const char * opcode_names[] = {
 
 object *error_sym;
 
+object *bytecodes[INVALID_BYTECODE];
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
 #define generate_sym_to_code(opcode)		\
   if(FIRST == opcode ## _op) {			\
-    return make_character( _ ## opcode ## _ );	\
+    return bytecodes[ _ ## opcode ## _ ];	\
   }
 
 
@@ -187,11 +189,6 @@ vm_fn_begin:
   VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc(fn),
 	    "object is not compiled-procedure");
 
-  /* unwrap meta */
-  if(is_meta(fn)) {
-    fn = METAPROC(fn);
-  }
-
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
   VM_DEBUG("stack", stack);
@@ -220,8 +217,14 @@ vm_begin:
 
       int ii;
       int num_args = LONG(ARG1(instr));
-      object *vector = make_vector(the_empty_list,
-				   num_args);
+      object *vector;
+
+      if(num_args > 0) {
+	vector = make_vector(the_empty_list, num_args);
+      } else {
+	vector = the_empty_vector;
+      }
+
       push_root(&vector);
       env = cons(vector, env);
       pop_root(&vector);
@@ -418,10 +421,15 @@ DEFUN1(vm_tag_macro_proc) {
 }
 
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
+#define generate_bytecodes(opcode)				  \
+  bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
+  push_root(&bytecodes[_ ## opcode ## _]);
 
 void vm_init(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
+
+  opcode_table(generate_bytecodes)
 
   error_sym = make_symbol("error");
 
