@@ -528,7 +528,7 @@ DEFUN1(apply_proc) {
       /* no need to unwind the stack since it's just going to be
 	 gc'd */
     } else {
-      result = vm_execute(fn, stack, stack_top);
+      result = vm_execute(fn, stack, stack_top, num_args);
     }
     pop_root(&stack);
     return result;
@@ -976,19 +976,28 @@ char is_falselike(object * obj) {
 object *interp(object * exp, object * env) {
   push_root(&exp);
   push_root(&env);
-  object *result = interp1(exp, env, 0);
+
+  object *prim_call_stack = make_vector(the_empty_list, 10);
+  long prim_stack_top = 0;
+
+  push_root(&prim_call_stack);
+
+  object *result = interp1(exp, env, 0, prim_call_stack, prim_stack_top);
+
+  pop_root(&prim_call_stack);
+
   pop_root(&env);
   pop_root(&exp);
   return result;
 }
 
-object *expand_macro(object * macro, object * args, object * env, int level) {
+object *expand_macro(object * macro, object * args, object * env, int level, object * stack, long stack_top) {
   object *new_env = extend_environment(macro->data.compound_proc.parameters,
 				       args,
 				       env);
   push_root(&new_env);
   object *expanded = interp1(macro->data.compound_proc.body,
-			     new_env, level);
+			     new_env, level, stack, stack_top);
   pop_root(&new_env);
 
   return expanded;
@@ -1002,7 +1011,6 @@ object *expand_macro(object * macro, object * args, object * env, int level) {
   do {						\
     object *temp = result;			\
     D1("result", temp, level);			\
-    pop_root(&prim_call_stack);			\
     if(env_protected) {				\
       pop_root(&env);				\
     }						\
@@ -1010,17 +1018,12 @@ object *expand_macro(object * macro, object * args, object * env, int level) {
   } while(0)
 
 
-object *interp1(object * exp, object * env, int level) {
+object *interp1(object * exp, object * env, int level, object *prim_call_stack, long prim_stack_top) {
   /* we break the usual convention of assuming our own arguments are
    * protected here because the tail recursive call can rebind these
    * two items to something new
    */
   char env_protected = 0;
-
-  object *prim_call_stack = make_vector(the_empty_list, 10);
-  long prim_stack_top = 0;
-
-  push_root(&prim_call_stack);
 
 interp_restart:
   D1("interpreting", exp, level);
@@ -1044,7 +1047,7 @@ interp_restart:
       }
 
       while(!is_the_empty_list(cdr(exp))) {
-	interp1(car(exp), env, level + 1);
+	interp1(car(exp), env, level + 1, prim_call_stack, prim_stack_top);
 	exp = cdr(exp);
       }
 
@@ -1053,7 +1056,7 @@ interp_restart:
     }
     else if(head == set_symbol) {
       object *args = cdr(exp);
-      object *val = interp1(second(args), env, level + 1);
+      object *val = interp1(second(args), env, level + 1, prim_call_stack, prim_stack_top);
       push_root(&val);
 
       define_variable(first(args), val, env);
@@ -1064,7 +1067,7 @@ interp_restart:
     }
     else if(head == if_symbol) {
       object *args = cdr(exp);
-      object *predicate = interp1(first(args), env, level + 1);
+      object *predicate = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
 
       if(is_falselike(predicate)) {
 	/* else is optional, if none return #f */
@@ -1093,7 +1096,7 @@ interp_restart:
     }
     else {
       /* procedure application */
-      object *fn = interp1(head, env, level + 1);
+      object *fn = interp1(head, env, level + 1, prim_call_stack, prim_stack_top);
       push_root(&fn);
 
       object *args = cdr(exp);
@@ -1105,7 +1108,7 @@ interp_restart:
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
-	object *expansion = expand_macro(fn, args, env, level);
+	object *expansion = expand_macro(fn, args, env, level, prim_call_stack, prim_stack_top);
 	if(is_pair(expansion)) {
 	  /* replace the macro call with the result */
 	  set_car(exp, car(expansion));
@@ -1117,17 +1120,17 @@ interp_restart:
 	pop_root(&fn);
 
 	push_root(&exp);
-	object *result = interp1(exp, env, level + 1);
+	object *result = interp1(exp, env, level + 1, prim_call_stack, prim_stack_top);
 	pop_root(&exp);
 	INTERP_RETURN(result);
       }
 
       /* evaluate the arguments and dispatch the call */
-      if(is_primitive_proc(fn) || is_compiled_proc(fn)) {
+      if(is_primitive_proc(fn) || is_compiled_proc(fn) || is_compiled_syntax_proc(fn)) {
 	long arg_count = 0;
 	object *result;
 	while(!is_the_empty_list(args)) {
-	  result = interp1(first(args), env, level + 1);
+	  result = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
 	  VPUSH(result, prim_call_stack, prim_stack_top);
 	  ++arg_count;
 	  args = cdr(args);
@@ -1143,7 +1146,7 @@ interp_restart:
 	    VPOP(temp, prim_call_stack, prim_stack_top);
 	  }
 	} else {
-	  result = vm_execute(fn, prim_call_stack, prim_stack_top);
+	  result = vm_execute(fn, prim_call_stack, prim_stack_top, arg_count);
 	}
 
 	pop_root(&fn);
@@ -1158,7 +1161,7 @@ interp_restart:
 	push_root(&result);
 
 	while(!is_the_empty_list(args)) {
-	  result = interp1(first(args), env, level + 1);
+	  result = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
 
 	  if(evald_args == the_empty_list) {
 	    evald_args = cons(result, the_empty_list);
@@ -1390,13 +1393,12 @@ void init() {
   vm_global_environment = make_hashtab(100);
   push_root(&vm_global_environment);
 
-  the_call_stack = cons(the_empty_list, the_empty_list);
-  push_root(&the_call_stack);
-
   init_prim_environment(the_global_environment);
+  vm_init_environment(the_global_environment);
   init_ffi(the_global_environment);
 
   init_prim_environment(vm_global_environment);
+  vm_init_environment(vm_global_environment);
   init_ffi(vm_global_environment);
 
   vm_init();

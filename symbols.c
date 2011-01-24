@@ -24,5 +24,3 @@ object *exit_hook_symbol;
 object *the_empty_environment;
 object *the_global_environment;
 object *vm_global_environment;
-
-object *the_call_stack;
