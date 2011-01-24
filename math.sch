@@ -13,19 +13,24 @@
 ; limitations under the License.
 ;
 
+(define (integer->real n)
+  "Cast integer to real number."
+  (assert-types (n integer?))
+  (%integer->real n))
+
 ;; build the proper promoting forms of the standard operators
-(define (promoting-arithmatic op-integer op-%real x y)
+(define (promoting-arithmatic op-integer op-real x y)
   "does standard type promotion on x and y and then calls the
 appropriate operation for the types they end up as"
   (cond
    ((and (integer? x) (integer? y))
     (op-integer x y))
-   ((and (%real? x) (%real? y))
-    (op-%real x y))
-   ((and (integer? x) (%real? y))
-    (op-%real (integer->%real x) y))
-   ((and (%real? x) (integer? y))
-    (op-%real x (integer->%real y)))
+   ((and (real? x) (real? y))
+    (op-real x y))
+   ((and (integer? x) (real? y))
+    (op-real (integer->real x) y))
+   ((and (real? x) (integer? y))
+    (op-real x (integer->real y)))
    (else (throw-error "cannot do arithmatic on " x " and " y))))
 
 (define (+ . args)
@@ -37,7 +42,7 @@ appropriate operation for the types they end up as"
   (if (length=1 args)
       (cond
        ((integer? (first args)) (%fixnum-sub 0 (first args)))
-       ((%real? (first args)) (%real-sub 0.0 (first args)))
+       ((real? (first args)) (%real-sub 0.0 (first args)))
        (else (throw-error "cannot negate" (first args))))
       (reduce (lambda (x y)
 		(promoting-arithmatic %fixnum-sub %real-sub x y))
@@ -92,8 +97,8 @@ appropriate operation for the types they end up as"
   (if (length=1 args)
       (cond
        ((integer? (first args))
-	(%real-div 1.0 (integer->%real (first args))))
-       ((%real? (first args))
+	(%real-div 1.0 (integer->real (first args))))
+       ((real? (first args))
 	(%real-div 1.0 (first args)))
        (else (throw-error "cannot invert" (first args))))
       (reduce (lambda (x y)
@@ -175,3 +180,26 @@ appropriate operation for the types they end up as"
   (if (integer? x)
       (%fixnum-log x)
       (%real-log x)))
+
+(define (ash value count)
+  "Arithmatic shift VALUE left by COUNT bits. Negative shifts right."
+  (assert-types (value integer?) (count integer?))
+  (%ash value count))
+
+(define (logor . args)
+  "Bitwise or on arguments."
+  (unless (every? integer? args)
+    (throw-error "expecting type integer"))
+  (reduce %logor args))
+
+(define (logand . args)
+  "Bitwise and on arguments."
+  (unless (every? integer? args)
+    (throw-error "expecting type integer"))
+  (reduce %logand args))
+
+(define (logxor . args)
+  "Bitwise xor on arguments."
+  (unless (every? integer? args)
+    (throw-error "expecting type integer"))
+  (reduce %logxor args))
