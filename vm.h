@@ -20,7 +20,25 @@
 #include "types.h"
 
 void vm_init(void);
-object *vm_execute(object *fn, object *stack,
-		   long n_args);
+
+object *vm_execute(object *fn, object *stack, long n_args);
+
+void vector_push(object *stack, object *obj, long top);
+
+object *vector_pop(object *stack, long top);
+
+
+#define VPUSH(obj, stack, top)				\
+  do {							\
+    vector_push(stack, obj, top);			\
+    ++top;						\
+  } while(0)
+
+#define VPOP(tgt, stack, top)			\
+  do {						\
+    tgt = vector_pop(stack, top);		\
+    --top;					\
+  } while(0)
+
 
 #endif

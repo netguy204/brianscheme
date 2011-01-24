@@ -57,29 +57,26 @@ object *error_sym;
     }						\
   } while(0)
 
+void vector_push(object *stack, object *thing, long top) {
+  if(top == VSIZE(stack)) {
+    long old_size = VSIZE(stack);
+    VSIZE(stack) = old_size * 1.8;
+    VARRAY(stack) = realloc(VARRAY(stack),
+			    sizeof(object*)
+			    * VSIZE(stack));
+    int ii;
+    for(ii = old_size; ii < VSIZE(stack); ++ii) {
+      VARRAY(stack)[ii] = the_empty_list;
+    }
+  }
+  VARRAY(stack)[top++] = thing;
+}
 
-#define VPUSH(obj, stack, top)				\
-  do {							\
-    if(top == VSIZE(stack)) {				\
-      long old_size = VSIZE(stack);			\
-      VSIZE(stack) = old_size * 1.8;			\
-      VARRAY(stack) = realloc(VARRAY(stack),		\
-			      sizeof(object*)		\
-			      * VSIZE(stack));		\
-      int ii;						\
-      for(ii = old_size; ii < VSIZE(stack); ++ii) {	\
-	VARRAY(stack)[ii] = the_empty_list;		\
-      }							\
-    }							\
-    VARRAY(stack)[top++] = obj;				\
-  } while(0)
-
-#define VPOP(tgt, stack, top)			\
-  do {						\
-    tgt = VARRAY(stack)[--top];			\
-    VARRAY(stack)[top] = the_empty_list;	\
-  } while(0)
-
+object *vector_pop(object *stack, long top) {
+  object *old = VARRAY(stack)[--top];
+  VARRAY(stack)[top] = the_empty_list;
+  return old;
+}
 
 #define VM_RETURN(obj)				\
   do {						\
@@ -264,21 +261,21 @@ vm_begin:
 	goto vm_fn_begin;
       } else if(is_primitive_proc(top)) {
 	/* build the list the target expects for the call */
-	int args_for_call = LONG(ARG1(instr));
-	int ii;
+	long args_for_call = LONG(ARG1(instr));
+	long ii;
 
 	object *pfn = top;
 	push_root(&pfn);
-	object *arglist = the_empty_list;
-	push_root(&arglist);
 
+	top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
+	/* unwind the stack since primitives don't clean up after
+	   themselves */
+	object *temp;
 	for(ii = 0; ii < args_for_call; ++ii) {
-	  VPOP(top, stack, stack_top);
-	  arglist = cons(top, arglist);
+	  VPOP(temp, stack, stack_top);
 	}
-	top = pfn->data.primitive_proc.fn(arglist, the_empty_environment);
+
 	VPUSH(top, stack, stack_top);
-	pop_root(&arglist);
 	pop_root(&pfn);
 
 	RETURN_OPCODE_INSTRUCTIONS;

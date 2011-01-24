@@ -23,20 +23,25 @@
 /* pre-declarations */
 
 object *cons(object *car, object *cdr);
+
 object *car(object *pair);
+
 object *cdr(object *pair);
-#define DEFUN1(name) \
-  object* name(object *arguments __attribute__ ((unused)),	\
-	       object *environment __attribute__ ((unused)))
 
-#define FIRST car(arguments)
-#define SECOND second(arguments)
-#define THIRD third(arguments)
-#define FOURTH fourth(arguments)
+#define DEFUN1(name)						\
+  object* name(object *args __attribute__ ((unused)),		\
+	       long n_args __attribute__ ((unused)),		\
+	       long stack_top __attribute__ ((unused)))
 
-#define NEXT arguments = cdr(arguments)
+#define FIRST (VARRAY(args)[stack_top-n_args])
+#define SECOND (VARRAY(args)[stack_top-(n_args-1)])
+#define THIRD (VARRAY(args)[stack_top-(n_args-2)])
+#define FOURTH (VARRAY(args)[stack_top-(n_args-3)])
 
 #define AS_BOOL(x) (x ? true : false)
+
+/* used to convert cons arg lists into vector arg lists */
+object *dispatch_primitive(object * arg_list, long num_args);
 
 /* environments */
 object *enclosing_environment(object *env);

@@ -179,6 +179,7 @@ about its value and optionally with more forms following"
 (define (comp-funcall f args env val? more?)
   (write-dbg 'comp-funcall f 'args args
 	     'val? val? 'more? more?)
+
   (let ((prim (primitive? f env (length args))))
     (cond
      (prim

@@ -26,13 +26,22 @@
 #include "read.h"
 #include "gc.h"
 #include "vm.h"
+#include "ffi.h"
 
 static const int DEBUG_LEVEL = 1;
 static char debug_enabled = 0;
 
+object *dispatch_stack;
+long stack_top;
+
 void eval_exit_hook() {
-  object *exit_hook = lookup_variable_value(exit_hook_symbol,
-					    the_empty_environment);
+  /* try to find an exit hook in the vm environment first */
+  object *exit_hook = get_hashtab(vm_global_environment, exit_hook_symbol, NULL);
+
+  if(exit_hook == NULL) {
+    exit_hook = get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
+  }
+
   if(exit_hook != the_empty_list) {
     object *exp = cons(exit_hook, the_empty_list);
     push_root(&exp);
@@ -219,10 +228,15 @@ DEFUN1(tag_macro_proc) {
 }
 
 DEFUN1(is_procedure_proc) {
-  return AS_BOOL(is_primitive_proc(FIRST) || is_compound_proc(FIRST) ||
-		 is_compiled_proc(FIRST) ||
-		 (is_meta(FIRST) &&
-		  is_procedure_proc(METAPROC(FIRST), environment)));
+  object *obj = FIRST;
+
+  /* unwrap meta */
+  if(is_meta(obj)) {
+    obj = METAPROC(obj);
+  }
+
+  return AS_BOOL(is_primitive_proc(obj) || is_compound_proc(obj) ||
+		 is_compiled_proc(obj));
 }
 
 DEFUN1(is_compound_proc_proc) {
@@ -259,138 +273,74 @@ DEFUN1(is_compiled_proc_proc) {
 }
 
 DEFUN1(add_fixnum_proc) {
-  long result = 0;
-  while(!is_the_empty_list(arguments)) {
-    result += LONG(FIRST);
-    NEXT;
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) + LONG(SECOND));
 }
 
 DEFUN1(add_real_proc) {
-  double result = 0;
-  while(!is_the_empty_list(arguments)) {
-    result += DOUBLE(FIRST);
-    NEXT;
-  }
-  return make_real(result);
+  return make_real(DOUBLE(FIRST) + DOUBLE(SECOND));
 }
 
 DEFUN1(sub_fixnum_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result -= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) - LONG(SECOND));
 }
 
 DEFUN1(sub_real_proc) {
-  double result = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result -= DOUBLE(FIRST);
-  }
-  return make_real(result);
+  return make_real(DOUBLE(FIRST) - DOUBLE(SECOND));
 }
 
 DEFUN1(mul_fixnum_proc) {
-  long result = 1;
-  while(!is_the_empty_list(arguments)) {
-    result *= LONG(FIRST);
-    NEXT;
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) * LONG(SECOND));
 }
 
 DEFUN1(mul_real_proc) {
-  double result = 1;
-  while(!is_the_empty_list(arguments)) {
-    result *= DOUBLE(FIRST);
-    NEXT;
-  }
-  return make_real(result);
+  return make_real(DOUBLE(FIRST) * DOUBLE(SECOND));
 }
 
 DEFUN1(div_fixnum_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result /= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) / LONG(SECOND));
 }
 
 DEFUN1(div_real_proc) {
-  double result = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result /= DOUBLE(FIRST);
-  }
-  return make_real(result);
+  return make_real(DOUBLE(FIRST) / DOUBLE(SECOND));
 }
 
 DEFUN1(mod_fixnum_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result %= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) % LONG(SECOND));
 }
 
 DEFUN1(mod_real_proc) {
-  double result = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result = fmod(result, DOUBLE(FIRST));
-  }
-  return make_real(result);
+  return make_real(fmod(DOUBLE(FIRST), DOUBLE(SECOND)));
 }
 
 DEFUN1(pow_fixnum_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result = pow(result, LONG(FIRST));
-  }
-  return make_fixnum(result);
+  return make_fixnum(pow(LONG(FIRST), LONG(SECOND)));
 }
 
 DEFUN1(pow_real_proc) {
-  double result = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result = pow(result, DOUBLE(FIRST));
-  }
-  return make_real(result);
+  return make_real(pow(DOUBLE(FIRST), DOUBLE(SECOND)));
 }
 
 DEFUN1(logand_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result &= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) & LONG(SECOND));
 }
 
 DEFUN1(logor_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result |= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) | LONG(SECOND));
 }
 
 DEFUN1(logxor_proc) {
-  long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    result ^= LONG(FIRST);
-  }
-  return make_fixnum(result);
+  return make_fixnum(LONG(FIRST) ^ LONG(SECOND));
 }
 
 DEFUN1(ash_proc) {
   unsigned long result = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    long n = LONG(FIRST);
-    if (n > 0)
-      result <<= n;
-    else
-      result >>= -n;
-  }
+  long n = LONG(SECOND);
+
+  if (n > 0)
+    result <<= n;
+  else
+    result >>= -n;
+
   return make_fixnum(result);
 }
 
@@ -425,6 +375,8 @@ DEFUN1(floor_proc) {
 DEFUN1(ceil_proc) {
   return make_fixnum((long)ceil(DOUBLE(FIRST)));
 }
+
+double round(double);
 
 DEFUN1(round_proc) {
   return make_fixnum((long)round(DOUBLE(FIRST)));
@@ -483,75 +435,27 @@ DEFUN1(is_eq_proc) {
 }
 
 DEFUN1(is_number_equal_fixnum_proc) {
-  long value = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(value != LONG(FIRST)) {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(LONG(FIRST) == LONG(SECOND));
 }
 
 DEFUN1(is_number_equal_real_proc) {
-  double value = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(value != DOUBLE(FIRST)) {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(DOUBLE(FIRST) == DOUBLE(SECOND));
 }
 
 DEFUN1(is_less_than_fixnum_proc) {
-  long last = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(last < LONG(FIRST)) {
-      last = LONG(FIRST);
-    }
-    else {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(LONG(FIRST) < LONG(SECOND));
 }
 
 DEFUN1(is_less_than_real_proc) {
-  double last = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(last < DOUBLE(FIRST)) {
-      last = DOUBLE(FIRST);
-    }
-    else {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(DOUBLE(FIRST) < DOUBLE(SECOND));
 }
 
 DEFUN1(is_greater_than_fixnum_proc) {
-  long last = LONG(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(last > LONG(FIRST)) {
-      last = LONG(FIRST);
-    }
-    else {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(LONG(FIRST) > LONG(SECOND));
 }
 
 DEFUN1(is_greater_than_real_proc) {
-  double last = DOUBLE(FIRST);
-  while(!is_the_empty_list(NEXT)) {
-    if(last > DOUBLE(FIRST)) {
-      last = DOUBLE(FIRST);
-    }
-    else {
-      return false;
-    }
-  }
-  return true;
+  return AS_BOOL(DOUBLE(FIRST) > DOUBLE(SECOND));
 }
 
 DEFUN1(open_output_port_proc) {
@@ -604,8 +508,30 @@ DEFUN1(apply_proc) {
     fn = METAPROC(fn);
   }
 
-  if(is_primitive_proc(fn)) {
-    return fn->data.primitive_proc.fn(evald_args, environment);
+  if(is_primitive_proc(fn) || is_compiled_proc(fn) ||
+     is_compiled_syntax_proc(fn)) {
+
+    object *stack = make_vector(the_empty_list, 30);
+    long stack_top = 0;
+
+    push_root(&stack);
+
+    long num_args = 0;
+    while(!is_the_empty_list(evald_args)) {
+      VPUSH(car(evald_args), stack, stack_top);
+      ++num_args;
+      evald_args = cdr(evald_args);
+    }
+
+    if(is_primitive_proc(fn)) {
+      result = fn->data.primitive_proc.fn(stack, num_args, stack_top);
+      /* no need to unwind the stack since it's just going to be
+	 gc'd */
+    } else {
+      result = vm_execute(fn, stack, stack_top);
+    }
+    pop_root(&stack);
+    return result;
   }
   else if(is_compound_proc(fn) || is_syntax_proc(fn)) {
     env = extend_environment(fn->data.compound_proc.parameters,
@@ -614,23 +540,6 @@ DEFUN1(apply_proc) {
     exp = fn->data.compound_proc.body;
     result = interp(exp, env);
     pop_root(&env);
-    return result;
-  }
-  else if(is_compiled_proc(fn)
-	  || is_compiled_syntax_proc(fn)) {
-    /* need to reverse the arguments */
-    object *stack = make_vector(the_empty_list, 30);
-    long stack_top = 0;
-
-    push_root(&stack);
-
-    while(!is_the_empty_list(evald_args)) {
-      VARRAY(stack)[stack_top++] = car(evald_args);
-      evald_args = cdr(evald_args);
-    }
-
-    result = vm_execute(fn, stack, stack_top);
-    pop_root(&stack);
     return result;
   }
 
@@ -707,6 +616,8 @@ DEFUN1(string_set_proc) {
   STRING(FIRST)[LONG(SECOND)] = CHAR(THIRD);
   return FIRST;
 }
+
+int snprintf(char*, size_t, const char*, ...);
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];
@@ -797,7 +708,7 @@ DEFUN1(vector_length_proc) {
 }
 
 DEFUN1(exit_proc) {
-  eval_exit_hook(environment);
+  eval_exit_hook();
   exit((int)LONG(FIRST));
   return false;
 }
@@ -1091,6 +1002,7 @@ object *expand_macro(object * macro, object * args, object * env, int level) {
   do {						\
     object *temp = result;			\
     D1("result", temp, level);			\
+    pop_root(&prim_call_stack);			\
     if(env_protected) {				\
       pop_root(&env);				\
     }						\
@@ -1104,6 +1016,11 @@ object *interp1(object * exp, object * env, int level) {
    * two items to something new
    */
   char env_protected = 0;
+
+  object *prim_call_stack = make_vector(the_empty_list, 10);
+  long prim_stack_top = 0;
+
+  push_root(&prim_call_stack);
 
 interp_restart:
   D1("interpreting", exp, level);
@@ -1205,36 +1122,56 @@ interp_restart:
 	INTERP_RETURN(result);
       }
 
-      /* evaluate the arguments */
-      object *evald_args = the_empty_list;
-      object *result = the_empty_list;
-      object *last = the_empty_list;
-      push_root(&evald_args);
-      push_root(&result);
-
-      while(!is_the_empty_list(args)) {
-	result = interp1(first(args), env, level + 1);
-
-	if(evald_args == the_empty_list) {
-	  evald_args = cons(result, the_empty_list);
-	  last = evald_args;
+      /* evaluate the arguments and dispatch the call */
+      if(is_primitive_proc(fn) || is_compiled_proc(fn)) {
+	long arg_count = 0;
+	object *result;
+	while(!is_the_empty_list(args)) {
+	  result = interp1(first(args), env, level + 1);
+	  VPUSH(result, prim_call_stack, prim_stack_top);
+	  ++arg_count;
+	  args = cdr(args);
 	}
-	else {
-	  set_cdr(last, cons(result, the_empty_list));
-	  last = cdr(last);
-	}
-	args = cdr(args);
-      }
 
-      /* dispatch the call */
-      if(is_primitive_proc(fn)) {
-	result = fn->data.primitive_proc.fn(evald_args, env);
-	pop_root(&result);
-	pop_root(&evald_args);
+	if(is_primitive_proc(fn)) {
+	  result = fn->data.primitive_proc.fn(prim_call_stack, arg_count, prim_stack_top);
+
+	  /* clear out the stack since primitives will not */
+	  long idx;
+	  object *temp;
+	  for(idx = 0; idx < arg_count; ++idx) {
+	    VPOP(temp, prim_call_stack, prim_stack_top);
+	  }
+	} else {
+	  result = vm_execute(fn, prim_call_stack, prim_stack_top);
+	}
+
 	pop_root(&fn);
 	INTERP_RETURN(result);
       }
       else if(is_compound_proc(fn)) {
+	/* compounds take their arguments as a linked list */
+	object *evald_args = the_empty_list;
+	object *result = the_empty_list;
+	object *last = the_empty_list;
+	push_root(&evald_args);
+	push_root(&result);
+
+	while(!is_the_empty_list(args)) {
+	  result = interp1(first(args), env, level + 1);
+
+	  if(evald_args == the_empty_list) {
+	    evald_args = cons(result, the_empty_list);
+	    last = evald_args;
+	  }
+	  else {
+	    set_cdr(last, cons(result, the_empty_list));
+	    last = cdr(last);
+	  }
+	  args = cdr(args);
+	}
+
+	/* dispatch the call */
 	env = extend_environment(fn->data.compound_proc.parameters,
 				 evald_args, fn->data.compound_proc.env);
 	if(!env_protected) {
@@ -1249,29 +1186,7 @@ interp_restart:
 	pop_root(&fn);
 	goto interp_restart;
       }
-      else if(is_compiled_proc(fn)) {
-	/* need to reverse the arguments */
-	object *stack = make_vector(the_empty_list, 30);
-	long stack_top = 0;
-
-	push_root(&stack);
-
-	while(!is_the_empty_list(evald_args)) {
-	  VARRAY(stack)[stack_top++] = car(evald_args);
-	  evald_args = cdr(evald_args);
-	}
-
-	result = vm_execute(fn, stack, stack_top);
-	pop_root(&stack);
-
-	pop_root(&result);
-	pop_root(&evald_args);
-	pop_root(&fn);
-	INTERP_RETURN(result);
-      }
       else {
-	pop_root(&result);
-	pop_root(&evald_args);
 	pop_root(&fn);
 
 	owrite(stderr, fn);

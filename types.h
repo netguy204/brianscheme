@@ -63,8 +63,8 @@ typedef struct object {
       struct hashtab_t* hash_table;
     } hash_table;
     struct {
-      struct object *(*fn)(struct object *arguments,
-			   struct object *environment);
+      struct object *(*fn)(struct object *argstack,
+			   long n, long top);
     } primitive_proc;
     struct {
       struct object *parameters;
@@ -102,7 +102,7 @@ typedef struct object {
 } object;
 
 typedef struct object* (prim_proc)(struct object*,
-				   struct object*);
+				   long, long);
 
 /* some basic functions for dealing with tagged types */
 

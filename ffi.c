@@ -124,7 +124,7 @@ DEFUN1(free_ffi_alien_object) {
   list = cons(releaser, list);
 
   /* send it to interp and return the result */
-  object *result = interp(list, environment);
+  object *result = interp(list, the_empty_environment);
   pop_root(&list);
   return result;
 }
@@ -223,11 +223,11 @@ DEFUN1(ffi_deref) {
 
 DEFUN1(ffi_prep_cif_proc) {
   ffi_cif *cif = ALIEN_PTR(FIRST);
-  long n_args = LONG(SECOND);
+  long arg_count = LONG(SECOND);
   ffi_type *rtype = ALIEN_PTR(THIRD);
-  ffi_type **args = ALIEN_PTR(FOURTH);
+  ffi_type **argarray = ALIEN_PTR(FOURTH);
 
-  if(ffi_prep_cif(cif, FFI_DEFAULT_ABI, n_args, rtype, args) == FFI_OK) {
+  if(ffi_prep_cif(cif, FFI_DEFAULT_ABI, arg_count, rtype, argarray) == FFI_OK) {
     return true;
   }
   else {
@@ -245,7 +245,8 @@ DEFUN1(ffi_call_proc) {
   return true;
 }
 
-void interp_trampoline(ffi_cif * cif, void *ret,
+void interp_trampoline(ffi_cif * cif __attribute__((unused)),
+		       void *ret __attribute__((unused)),
 		       void **args, void *target_ptr) {
   object *target = (object *) target_ptr;
   object *exp = the_empty_list;
@@ -265,7 +266,6 @@ void interp_trampoline(ffi_cif * cif, void *ret,
 DEFUN1(create_closure_proc) {
   ffi_cif *cif = ALIEN_PTR(FIRST);
   object *target = SECOND;
-  void *ret = THIRD;
 
   ffi_closure *closure;
   FN_PTR fn_with_closure;
@@ -383,7 +383,7 @@ void init_ffi(object * env) {
   ffi_type_uint64_sym = make_symbol("ffi-uint64");
 
   /* setup offset values */
-  fixnum_offset = (unsigned int)&(((object *) 0)->data.fixnum.value);
-  car_offset = (unsigned int)&(((object *) 0)->data.pair.car);
-  cdr_offset = (unsigned int)&(((object *) 0)->data.pair.cdr);
+  fixnum_offset = (unsigned int)(long)&(((object *) 0)->data.fixnum.value);
+  car_offset = (unsigned int)(long)&(((object *) 0)->data.pair.car);
+  cdr_offset = (unsigned int)(long)&(((object *) 0)->data.pair.cdr);
 }
