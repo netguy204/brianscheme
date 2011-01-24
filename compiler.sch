@@ -327,7 +327,7 @@ about its value and optionally with more forms following"
       (write-dbg 'gen-label prefix)
       (set! label-num (%fixnum-add label-num 1))
       (string->symbol
-       (string-append prefix (number->string label-num))))))
+       (prim-concat prefix (number->string label-num))))))
 
 (define (gen opcode . args)
   (write-dbg 'gen opcode 'args args)
@@ -428,7 +428,7 @@ about its value and optionally with more forms following"
     code-vector))
 
 (define (make-space spaces)
-  (reduce string-append (duplicate " " spaces) ""))
+  (reduce prim-concat (duplicate " " spaces) ""))
 
 (define (%show-fn fn indent)
   (map display (list (make-space indent)

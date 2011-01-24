@@ -686,7 +686,7 @@ list"
 (let ((required nil))
   (letrec ((sym-to-name (lambda (name)
 			  (if (symbol? name)
-			      (string-append (symbol->string name) ".sch")
+			      (prim-concat (symbol->string name) ".sch")
 			      name))))
     (define (require name)
       "load file name if it hasn't already been loaded"
@@ -891,32 +891,6 @@ it's found. return not-found otherwised"
 			 (else (scan (cddr tail)))))))
     (scan initargs)))
 
-(define (string-append . args)
-  "join a series of strings"
-  (reduce prim-concat args))
-
-(define (string-length str)
-  "find the length of a string, not including null"
-  (let ((len 0))
-    (while (not (= (char->integer (string-ref str len))
-		   0))
-      (inc! len))
-    len))
-
-(define (substring str start end)
-  "Return given substring from start (inclusive) to end (exclusive)."
-  (let* ((strlen (string-length str))
-	 (end (or end strlen))
-	 (len (- end start)))
-    (if (or (> len strlen) (> end strlen) (> start (- strlen 1)))
-	(throw-error "out of string bounds" str start end))
-    (if (> start end)
-	(throw-error "invalid substring" start end))
-    (let ((substr (make-string len #\.)))
-      (dotimes (i len)
-        (string-set! substr i (string-ref str (+ i start))))
-      substr)))
-
 (define (duplicate obj n)
   "create a list with obj duplicated n times"
   (let ((result nil))
@@ -1058,20 +1032,20 @@ returns true"
        ,result)))
 
 (define (struct-constructor-name name)
-  (string->symbol (string-append "make-" (symbol->string name))))
+  (string->symbol (prim-concat "make-" (symbol->string name))))
 
 (define (struct-predicate-name name)
-  (string->symbol (string-append (symbol->string name) "?")))
+  (string->symbol (prim-concat (symbol->string name) "?")))
 
 (define (struct-slot-getter-name name slot)
-  (string->symbol (string-append (symbol->string name)
-				 "-" (symbol->string slot)
-				 "-ref")))
+  (string->symbol (reduce prim-concat (list (symbol->string name)
+                                            "-" (symbol->string slot)
+                                            "-ref"))))
 
 (define (struct-slot-setter-name name slot)
-  (string->symbol (string-append (symbol->string name)
-				 "-" (symbol->string slot)
-				 "-set!")))
+  (string->symbol (reduce prim-concat (list (symbol->string name)
+                                            "-" (symbol->string slot)
+                                            "-set!"))))
 
 
 (define-syntax (define-struct name . docs-and-slots)
@@ -1256,6 +1230,7 @@ returns true"
 ;; compile-only. now we can load up the rest of the niceties
 
 (require 'math)
+(require 'string)
 (require 'clos)
 (provide 'stdlib)
 
