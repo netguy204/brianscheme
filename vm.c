@@ -31,23 +31,67 @@
 
 #define length1(x) (cdr(x) == the_empty_list)
 
-object *args_op;
-object *argsdot_op;
-object *return_op;
-object *const_op;
-object *fn_op;
-object *fjump_op;
-object *tjump_op;
-object *jump_op;
-object *callj_op;
-object *lvar_op;
-object *save_op;
-object *gvar_op;
-object *lset_op;
-object *gset_op;
-object *pop_op;
+#define opcode_table(define)			\
+  define(args)					\
+  define(argsdot)				\
+  define(return)				\
+  define(const)					\
+  define(fn)					\
+  define(fjump)					\
+  define(tjump)					\
+  define(jump)					\
+  define(callj)					\
+  define(lvar)					\
+  define(save)					\
+  define(gvar)					\
+  define(lset)					\
+  define(gset)					\
+  define(pop)
+
+/* generate the symbol variable declarations */
+#define generate_decls(opcode) object * opcode ## _op;
+opcode_table(generate_decls)
+
+/* generate an enumeration of all of the opcodes */
+#define generate_enum(opcode) _ ## opcode ## _,
+enum {
+  opcode_table(generate_enum)
+} opcodes;
+
+/* generate the stringified form */
+#define generate_string(opcode) "" # opcode,
+const char * opcode_names[] = {
+  opcode_table(generate_string)
+};
 
 object *error_sym;
+
+
+/* generate a function that converts a symbol into the corresponding
+   bytecode */
+#define generate_sym_to_code(opcode)		\
+  if(FIRST == opcode ## _op) {			\
+    return make_character( _ ## opcode ## _ );	\
+  }
+
+
+DEFUN1(symbol_to_code_proc) {
+  opcode_table(generate_sym_to_code);
+  return false;
+}
+
+/* generate a function that converts a bytecode back into its
+   corresponding symbol */
+
+#define generate_code_to_sym(opcode)			\
+  if(CHAR(FIRST) == _ ## opcode ## _) {			\
+    return make_symbol("" # opcode);			\
+  }
+
+DEFUN1(code_to_symbol_proc) {
+  opcode_table(generate_code_to_sym)
+    return false;
+}
 
 #define VM_ASSERT(test, msg, ...)		\
   do {						\
@@ -172,8 +216,9 @@ vm_begin:
     VPUSH(opcode, stack, stack_top);
     break;
 
-  case SYMBOL:
-    if(opcode == args_op) {
+  case CHARACTER:
+    switch(CHAR(opcode)) {
+    case _args_: {
       if(n_args != LONG(ARG1(instr))) {
 	VM_ASSERT(0, "wrong number of args. expected %ld, got %ld\n",
 		  LONG(ARG1(instr)), n_args);
@@ -195,7 +240,8 @@ vm_begin:
 
       VM_DEBUG("after_args environment", env);
     }
-    else if(opcode == argsdot_op) {
+      break;
+    case _argsdot_: {
       VM_ASSERT(n_args >= LONG(ARG1(instr)), "wrong number of args");
 
       int ii;
@@ -222,22 +268,26 @@ vm_begin:
 
       VM_DEBUG("after_args environment", env);
     }
-    else if(opcode == fjump_op) {
+      break;
+    case _fjump_: {
       VPOP(top, stack, stack_top);
       if(is_falselike(top)) {
 	pc = LONG(ARG1(instr));
       }
     }
-    else if(opcode == tjump_op) {
+      break;
+    case _tjump_: {
       VPOP(top, stack, stack_top);
       if(!is_falselike(top)) {
 	pc = LONG(ARG1(instr));
       }
     }
-    else if(opcode == jump_op) {
+      break;
+    case _jump_: {
       pc = LONG(ARG1(instr));
     }
-    else if(opcode == fn_op) {
+      break;
+    case _fn_: {
       object *fn_arg = ARG1(instr);
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
 					  env);
@@ -245,7 +295,8 @@ vm_begin:
       VPUSH(new_fn, stack, stack_top);
       pop_root(&new_fn);
     }
-    else if(opcode == callj_op) {
+      break;
+    case _callj_: {
       VPOP(top, stack, stack_top);
 
       /* unwrap meta */
@@ -287,7 +338,8 @@ vm_begin:
 	VM_ASSERT(0, "don't know how to invoke");
       }
     }
-    else if(opcode == lvar_op) {
+      break;
+    case _lvar_: {
       int env_num = LONG(ARG1(instr));
       int idx = LONG(ARG2(instr));
 
@@ -299,7 +351,8 @@ vm_begin:
       object *data = VARRAY(car(next))[idx];
       VPUSH(data, stack, stack_top);
     }
-    else if(opcode == lset_op) {
+      break;
+    case _lset_: {
       int env_num = LONG(ARG1(instr));
       int idx = LONG(ARG2(instr));
 
@@ -310,38 +363,46 @@ vm_begin:
 
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
     }
-    else if(opcode == gvar_op) {
+      break;
+    case _gvar_: {
       object *var = lookup_global_value(ARG1(instr), vm_global_environment);
       push_root(&var);
       VPUSH(var, stack, stack_top);
       pop_root(&var);
     }
-    else if(opcode == gset_op) {
+      break;
+    case _gset_: {
       object *var = ARG1(instr);
       object *val = VARRAY(stack)[stack_top - 1];
       define_global_variable(var, val, vm_global_environment);
     }
-    else if(opcode == pop_op) {
+      break;
+    case _pop_: {
       VPOP(top, stack, stack_top);
     }
-    else if(opcode == save_op) {
+      break;
+    case _save_: {
       object *ret_addr = cons(fn, env);
       push_root(&ret_addr);
       ret_addr = cons(ARG1(instr), ret_addr);
       VPUSH(ret_addr, stack, stack_top);
       pop_root(&ret_addr);
     }
-    else if(opcode == return_op) {
+      break;
+    case _return_: {
       RETURN_OPCODE_INSTRUCTIONS;
     }
-    else if(opcode == const_op) {
+      break;
+    case _const_: {
       VPUSH(ARG1(instr), stack, stack_top);
     }
-    else {
+      break;
+    default: {
       fprintf(stderr, "don't know how to process ");
       owrite(stderr, opcode);
       fprintf(stderr, "\n");
       VM_ASSERT(0, "strange opcode");
+    }
     }
     break;
 
@@ -362,22 +423,11 @@ DEFUN1(vm_tag_macro_proc) {
   return FIRST;
 }
 
+#define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
+
 void vm_init(void) {
-  args_op = make_symbol("args");
-  argsdot_op = make_symbol("args.");
-  return_op = make_symbol("return");
-  const_op = make_symbol("const");
-  fn_op = make_symbol("fn");
-  fjump_op = make_symbol("fjump");
-  tjump_op = make_symbol("tjump");
-  jump_op = make_symbol("jump");
-  callj_op = make_symbol("callj");
-  lvar_op = make_symbol("lvar");
-  save_op = make_symbol("save");
-  gvar_op = make_symbol("gvar");
-  lset_op = make_symbol("lset");
-  gset_op = make_symbol("gset");
-  pop_op = make_symbol("pop");
+  /* generate the symbol initializations */
+  opcode_table(generate_syminit)
 
   error_sym = make_symbol("error");
 
@@ -387,5 +437,20 @@ void vm_init(void) {
   define_global_variable(make_symbol("set-macro!"),
 			 curr,
 			 vm_global_environment);
+  pop_root(&curr);
+}
+
+void vm_init_environment(object * env) {
+  object *curr = the_empty_list;
+  push_root(&curr);
+
+  define_global_variable(make_symbol("symbol->bytecode"),
+			 curr = make_primitive_proc(symbol_to_code_proc),
+			 env);
+
+  define_global_variable(make_symbol("bytecode->symbol"),
+			 curr = make_primitive_proc(code_to_symbol_proc),
+			 env);
+
   pop_root(&curr);
 }

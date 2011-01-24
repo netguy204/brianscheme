@@ -20,6 +20,7 @@
 #include "types.h"
 
 void vm_init(void);
+void vm_init_environment(object *env);
 
 object *vm_execute(object *fn, object *stack, long stack_top, long n_args);
 

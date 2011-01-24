@@ -1393,13 +1393,12 @@ void init() {
   vm_global_environment = make_hashtab(100);
   push_root(&vm_global_environment);
 
-  the_call_stack = cons(the_empty_list, the_empty_list);
-  push_root(&the_call_stack);
-
   init_prim_environment(the_global_environment);
+  vm_init_environment(the_global_environment);
   init_ffi(the_global_environment);
 
   init_prim_environment(vm_global_environment);
+  vm_init_environment(vm_global_environment);
   init_ffi(vm_global_environment);
 
   vm_init();

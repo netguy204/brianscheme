@@ -293,7 +293,7 @@ about its value and optionally with more forms following"
 (define (gen-args args n-so-far)
   (cond
    ((null? args) (gen 'args n-so-far))
-   ((symbol? args) (gen 'args. n-so-far))
+   ((symbol? args) (gen 'argsdot n-so-far))
    ((and (pair? args)
 	 (symbol? (first args)))
     (gen-args (rest args) (+ n-so-far 1)))
@@ -425,6 +425,12 @@ about its value and optionally with more forms following"
 		    (if (is instr '(jump tjump fjump save))
 			(set-arg1! instr
 				   (cdr (assoc (arg1 instr) labels))))
+
+		    ;; if this has a bytecode, convert it
+		    (let ((bytecode (symbol->bytecode (opcode instr))))
+		      (if bytecode
+			  (set-car! instr bytecode)))
+
 		    (vector-set! code-vector addr instr)
 		    (inc! addr)))
     code-vector))
@@ -444,7 +450,11 @@ about its value and optionally with more forms following"
 	    (if (is instr 'fn)
 		(show-fn (second instr) (+ indent 4))
 		(begin
-		  (map display (list (make-space indent) instr))
+		  (let* ((opcode-sym (bytecode->symbol (opcode instr)))
+			 (sym (if opcode-sym opcode-sym (opcode instr)))
+			 (instr (cons sym (cdr instr))))
+
+		    (map display (list (make-space indent) instr)))
 		  (newline)))))
 
 (define (comp-show fn)
