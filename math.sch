@@ -206,3 +206,21 @@ appropriate operation for the types they end up as"
   (unless (every? integer? args)
     (throw-error "expecting type integer"))
   (reduce %logxor args))
+
+(letrec ((genf (lambda (f x)
+		 (cond
+		  ((integer? x) x)
+		  ((real? x) (f x))
+		  (#t (throw-error "expecting a number"))))))
+
+  (define (floor x)
+    "Return the largest integer no greater than X."
+    (genf %floor x))
+
+  (define (ceil x)
+    "Return the smallest integer no less than X."
+    (genf %ceil x))
+
+  (define (round x)
+    "Return the nearest integer to X."
+    (genf %round x)))
