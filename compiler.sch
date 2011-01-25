@@ -439,15 +439,16 @@ about its value and optionally with more forms following"
   (newline)
 
   (dovector (instr (compiled-bytecode fn))
-	    (if (is instr 'fn)
-		(%show-fn (second instr) (%fixnum-add indent 4))
-		(begin
-		  (let* ((opcode-sym (bytecode->symbol (opcode instr)))
-			 (sym (if opcode-sym opcode-sym (opcode instr)))
-			 (instr (cons sym (cdr instr))))
+    (let* ((opcode-sym (bytecode->symbol (opcode instr)))
+	   (sym (if opcode-sym opcode-sym (opcode instr)))
+	   (instr (cons sym (cdr instr))))
 
-		    (map display (list (make-space indent) instr)))
-		  (newline)))))
+      (if (is instr 'fn)
+	  (%show-fn (second instr) (%fixnum-add indent 4))
+	  (begin
+	    (map display (list (make-space indent) instr))
+	    (newline))))))
+
 
 (define (comp-show fn)
   (%show-fn (compiler fn) 0))
