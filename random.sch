@@ -180,3 +180,12 @@
 (define (random:chisq df . state)
   "Generate a number from the Chi-square distribution."
   (* 2.0 (random:gamma (/ df 2.0) (car-else state *random-state*))))
+
+(define (random:nc-chisq df L . state)
+  "Generate a number from the noncentral Chi-square distribution."
+  (let ((rng (car-else state *random-state*)))
+    (if (= L 0.0)
+        (random:chisq df rng)
+        (let ((r (random:poisson (/ L 2.0) rng))
+              (cum (if (> df 0) (* 2.0 (random:gamma (/ df 2.0) rng)) 0.0)))
+          (+ cum (if (= r 0) 0.0 (* 2.0 (random:gamma r rng))))))))
