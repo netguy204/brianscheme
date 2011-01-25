@@ -176,3 +176,7 @@
   (let* ((rng (car-else state *random-state*))
          (r1 (random:gamma a rng)))
     (/ r1 (+ r1 (random:gamma b rng)))))
+
+(define (random:chisq df . state)
+  "Generate a number from the Chi-square distribution."
+  (* 2.0 (random:gamma (/ df 2.0) (car-else state *random-state*))))
