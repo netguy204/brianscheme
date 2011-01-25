@@ -105,7 +105,9 @@ appropriate operation for the types they end up as"
 	(%real-div 1.0 (first args)))
        (else (throw-error "cannot invert" (first args))))
       (reduce (lambda (x y)
-		(promoting-arithmatic %fixnum-div %real-div x y))
+		(if (= y 0)
+		    (promoting-arithmatic %fixnum-div %real-div x 0.0)
+		    (promoting-arithmatic %fixnum-div %real-div x y)))
 	      args)))
 
 (define (abs a)
