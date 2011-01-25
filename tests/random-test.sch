@@ -30,6 +30,26 @@
               (set! done #t)
               (nc:clear)))))))
 
+(define (calc-pi)
+  "Calculate pi by the Monte Carlo method."
+  (with-curses win
+    (let ((total 0)
+          (in 0)
+          (step 500))
+      (while #t
+        (set! step (+ 400 (random 200)))
+        (set! total (+ total step))
+        (dotimes (i step)
+           (let ((x (- (random 2.0) 1.0))
+                 (y (- (random 2.0) 1.0)))
+             (if (> 1 (+ (* x x) (* y y)))
+                 (inc! in))))
+        (nc:mvprintw 0 0 (string-append "in    : " (number->string in)))
+        (nc:mvprintw 1 0 (string-append "total : " (number->string total)))
+        (nc:mvprintw 2 0 (string-append "pi    : "
+                                        (number->string (/ (* 4.0 in) total))))
+        (nc:refresh)))))
+
 (define (write-byte-sample file size)
   "Write a sample of the RNG to an output file for ent."
   (let ((func (lambda (port)
