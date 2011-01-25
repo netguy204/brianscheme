@@ -150,3 +150,19 @@
                        (iter (+ k 1) (* p (random:uniform rng)))
                        (- k 1)))))
     (iter 1 1)))
+
+(define (random:gamma a . state)
+  "Generate a number from the gamma distribution, gamma(A, 1)."
+  ;; Marsaglia-Tsang method
+  (let* ((rng (car-else state *random-state*))
+         (d (if (< a 1) (+ 1 a) a))
+         (c (/ (sqrt (* 9.0 d))))
+         (x (random:normal rng))
+         (v (expt (+ 1 (* c x)) 3))
+         (u (random:uniform rng))
+         (xsq (* x x)))
+    (if (or (<= v 0)
+            (and (>= u (- 1.0 (* 0.0331 xsq xsq)))
+                 (>= (log u) (+ (* xsq 0.5) (* d (- 1.0 (+ v (log v))))))))
+        (random:gamma a rng)
+        (* (* d v) (if (< a 1) (exp (/ (- (random:exp rng)) a)) 1)))))
