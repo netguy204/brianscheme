@@ -13,6 +13,9 @@
 ; limitations under the License.
 ;
 
+(define *e* 2.7182818284590452354)
+(define *pi* 3.14159265358979323846)
+
 (define (integer->real n)
   "Cast integer to real number."
   (assert-types (n integer?))
@@ -125,8 +128,6 @@ appropriate operation for the types they end up as"
 
 (define (max . nums)
   (reduce max0 nums))
-
-(define *e* 2.7182818284590452354)
 
 (define (exp x)
   (expt *e* x))
