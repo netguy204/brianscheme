@@ -166,3 +166,12 @@
                  (>= (log u) (+ (* xsq 0.5) (* d (- 1.0 (+ v (log v))))))))
         (random:gamma a rng)
         (* (* d v) (if (< a 1) (exp (/ (- (random:exp rng)) a)) 1)))))
+
+;; Below here I'm just getting excessive. The gamma distribution can
+;; be used to easily generate many more distributions.
+
+(define (random:beta a b . state)
+  "Generate a number from the beta distribution, beta(a, b)."
+  (let* ((rng (car-else state *random-state*))
+         (r1 (random:gamma a rng)))
+    (/ r1 (+ r1 (random:gamma b rng)))))
