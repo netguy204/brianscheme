@@ -78,7 +78,8 @@
    'capacity))
 
 (define-method (initialize (ht <hash-table>) args)
-  (slot-set! ht 'vector (make-vector (car-else args 32) '())))
+  (slot-set! ht 'vector (make-vector (car-else args 32) '()))
+  (slot-set! ht 'capacity 0))
 
 (define-generic get
   "Get a value from the object.")
@@ -99,6 +100,7 @@
   (let* ((v (slot-ref ht 'vector))
          (idx (mod (hash key) (vector-length v)))
          (slot (vector-ref v idx)))
+    (slot-set! ht 'capacity (+ 1 (slot-ref ht 'capacity)))
     (if (assoc key slot)
         (assoc-set! slot key value)
         (begin
