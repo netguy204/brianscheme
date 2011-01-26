@@ -743,10 +743,6 @@ DEFUN1(stats_proc) {
   return result;
 }
 
-DEFUN1(mark_and_sweep_proc) {
-  return make_fixnum(baker_collect());
-}
-
 DEFUN1(clock_proc) {
   return make_fixnum(clock());
 }
@@ -1333,7 +1329,6 @@ void init_prim_environment(object * env) {
 
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
-  add_procedure("mark-and-sweep", mark_and_sweep_proc);
   add_procedure("clock", clock_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);

@@ -40,6 +40,7 @@
   define(fjump)					\
   define(tjump)					\
   define(jump)					\
+  define(fcallj)				\
   define(callj)					\
   define(lvar)					\
   define(save)					\
@@ -61,7 +62,7 @@ enum {
 
 /* generate the stringified form */
 #define generate_string(opcode) "" # opcode,
-const char * opcode_names[] = {
+const char * bytecode_str[] = {
   opcode_table(generate_string)
 };
 
@@ -177,7 +178,12 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   long initial_top = stack_top - n_args;
   long pc = 0;
 
+  /* bootstrap an empty frame for this function since the callj opcode
+     won't have built one for us */
+
   env = CENV(fn);
+  env = cons(the_empty_vector, env);
+
   instr = the_empty_list;
   top = the_empty_list;
 
@@ -217,18 +223,13 @@ vm_begin:
 
       int ii;
       int num_args = LONG(ARG1(instr));
-      object *vector;
 
-      if(num_args > 0) {
-	vector = make_vector(the_empty_list, num_args);
-      } else {
-	vector = the_empty_vector;
+      /* resize the top frame if we need to */
+      if(num_args > VSIZE(car(env))) {
+	set_car(env, make_vector(the_empty_list, num_args));
       }
 
-      push_root(&vector);
-      env = cons(vector, env);
-      pop_root(&vector);
-
+      object *vector = car(env);
       object **vdata = VARRAY(vector);
       for(ii = num_args - 1; ii >= 0; --ii) {
 	VPOP(top, stack, stack_top);
@@ -244,14 +245,18 @@ vm_begin:
       int ii;
       long req_args = LONG(ARG1(instr));
       long array_size = req_args + 1;
-      object *vector = make_vector(the_empty_list,
-				   array_size);
-      push_root(&vector);
-      env = cons(vector, env);
-      pop_root(&vector);
 
+      /* resize the top frame if we need to */
+      if(array_size > VSIZE(car(env))) {
+	set_car(env, make_vector(the_empty_list,
+				 array_size));
+      }
+
+      object *vector = car(env);
       object **vdata = VARRAY(vector);
-      /* push the excess args onto the last position */
+
+      /* push the excess args onto the last position, top is
+	 protected */
       for(ii = 0; ii < n_args - req_args; ++ii) {
 	VPOP(top, stack, stack_top);
 	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
@@ -293,7 +298,7 @@ vm_begin:
       pop_root(&new_fn);
     }
       break;
-    case _callj_: {
+    case _fcallj_: {
       VPOP(top, stack, stack_top);
 
       /* unwrap meta */
@@ -301,19 +306,47 @@ vm_begin:
 	top = METAPROC(top);
       }
 
+      long args_for_call = LONG(ARG1(instr));
+
+      /* special case for apply */
+      if(args_for_call == -1) {
+	/* function is on the top of the stack (as usual) */
+	object * target_fn = top;
+	push_root(&target_fn);
+
+	/* and the args are in a list next, expand those */
+	VPOP(top, stack, stack_top);
+
+	args_for_call = 0;
+	while(!is_the_empty_list(top)) {
+	  VPUSH(car(top), stack, stack_top);
+	  top = cdr(top);
+	  ++args_for_call;
+	}
+
+	/* and put back the fn for the dispatch */
+	top = target_fn;
+	pop_root(&target_fn);
+      }
+
       if(is_compiled_proc(top) ||
 	 is_compiled_syntax_proc(top)) {
 	fn = top;
 	env = CENV(fn);
 	pc = 0;
-	n_args = LONG(ARG1(instr));
+	n_args = args_for_call;
+
+	/* build an environment for the receiver that's at least big
+	   enough for its args */
+	object *newframe = make_vector(the_empty_list, n_args + 1);
+	push_root(&newframe);
+	env = cons(newframe, env);
+	pop_root(&newframe);
 
 	goto vm_fn_begin;
       } else if(is_primitive_proc(top)) {
 	/* build the list the target expects for the call */
-	long args_for_call = LONG(ARG1(instr));
 	long ii;
-
 	object *pfn = top;
 	push_root(&pfn);
 
@@ -455,4 +488,19 @@ void vm_init_environment(object * env) {
 			 env);
 
   pop_root(&curr);
+}
+
+void wb(object * vector) {
+  long idx = 0;
+  long size = VSIZE(vector);
+  object ** codes = VARRAY(vector);
+
+  fprintf(stderr, "#<bytecode: ");
+  for(idx = 0; idx < size; ++idx) {
+    int code = (int)CHAR(OPCODE(codes[idx]));
+    fprintf(stderr, "(%s . ", bytecode_str[code]);
+    owrite(stderr, cdr(codes[idx]));
+    fprintf(stderr, ") ");
+  }
+  fprintf(stderr, ">\n");
 }
