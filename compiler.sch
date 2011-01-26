@@ -98,6 +98,12 @@ about its value and optionally with more forms following"
 		(comp-funcall (first x) (rest x)
 			      env val? more?)))))))
 
+(define (%<=2 a b)
+  (or (%fixnum-less-than a b) (%fixnum-equal a b)))
+
+(define (%<= . values)
+  (every-pair? %<=2 values))
+
 (define (%arg-count form min max)
   (let ((n-args (length (rest form))))
     (unless (%<= min n-args max)

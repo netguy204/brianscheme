@@ -494,6 +494,10 @@ DEFUN1(close_input_port_proc) {
   return true;
 }
 
+DEFUN1(gc_proc) {
+  return make_fixnum(baker_collect());
+}
+
 DEFUN1(eval_proc) {
   object *exp = FIRST;
   return interp(exp, the_empty_environment);
@@ -1277,8 +1281,8 @@ void init_prim_environment(object * env) {
   add_procedure("cons", cons_proc);
   add_procedure("car", car_proc);
   add_procedure("cdr", cdr_proc);
-  add_procedure("set-car!", set_car_proc);
-  add_procedure("set-cdr!", set_cdr_proc);
+  add_procedure("%set-car!", set_car_proc);
+  add_procedure("%set-cdr!", set_cdr_proc);
   add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);
@@ -1309,6 +1313,7 @@ void init_prim_environment(object * env) {
 
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
+  add_procedure("gc", gc_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("integer->char", integer_to_char_proc);

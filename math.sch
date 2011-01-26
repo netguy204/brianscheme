@@ -21,6 +21,9 @@
   (assert-types (n integer?))
   (%integer->real n))
 
+(define (zero? val)
+  (= val 0))
+
 ;; build the proper promoting forms of the standard operators
 (define (promoting-arithmatic op-integer op-real x y)
   "does standard type promotion on x and y and then calls the
@@ -105,7 +108,9 @@ appropriate operation for the types they end up as"
 	(%real-div 1.0 (first args)))
        (else (throw-error "cannot invert" (first args))))
       (reduce (lambda (x y)
-		(promoting-arithmatic %fixnum-div %real-div x y))
+		(if (= y 0)
+		    (promoting-arithmatic %fixnum-div %real-div x 0.0)
+		    (promoting-arithmatic %fixnum-div %real-div x y)))
 	      args)))
 
 (define (abs a)

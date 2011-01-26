@@ -147,11 +147,12 @@
 	  #t
 	  #f)))
 
-(set! next-gensym 0)
-(define (gensym)
-  (set! next-gensym (%fixnum-add next-gensym 1))
-  (string->uninterned-symbol
-   (prim-concat "#" (number->string next-gensym))))
+((lambda (next-gensym)
+   (define (gensym)
+     (set! next-gensym (%fixnum-add next-gensym 1))
+     (string->uninterned-symbol
+      (prim-concat "#" (number->string next-gensym)))))
+ 0)
 
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that early.
@@ -612,18 +613,6 @@ list"
 	    (second remaining)) (loop (cdr remaining)))
      (else #f))))
 
-(define (%<=2 a b)
-  (or (%fixnum-less-than a b) (%fixnum-equal a b)))
-
-(define (%<= . values)
-  (every-pair? %<=2 values))
-
-(define (%>=2 a b)
-  (or (%fixnum-greater-than a b) (%fixnum-equal a b)))
-
-(define (%>= . values)
-  (every-pair? %>=2 values))
-
 ;; Now go on and define a few useful higher level functions. This list
 ;; of things is largely driven by personal need at this point. Perhaps
 ;; I'll go back and try to implement whatever is in the spec more
@@ -856,9 +845,6 @@ not be quoted or escaped."
 
 (define eqv? equal?)
 
-(define (zero? val)
-  (= val 0))
-
 (define (char=? v1 v2)
   (eq? v1 v2))
 
@@ -947,26 +933,12 @@ returns true"
 	     (throw-error "assert failed" ',cond)
 	     ,result)))))
 
-;; Implement the classic delay/force combo directly by representing a
-;; delay as the cons of its value (nil of not yet forced) and the
-;; closure that computes it (nil if it has been forced)
-(define-syntax (delay . body)
-  "create a computation that can be completed later"
-  `(cons nil (lambda () . ,body)))
-
 (define (dynamic-wind before body after)
   "hack. do something useful here later"
   (before)
   (let ((result (body)))
     (after)
     result))
-
-(define (force fn)
-  "compute and or return the value of a delay"
-  (when (and (not (null? (cdr fn))) (null? (car fn)))
-	(set-car! fn ((cdr fn)))
-	(set-cdr! fn nil))
-  (car fn))
 
 (define (all-symbols)
   "return a list of all symbols defined in the global environment"
@@ -1154,6 +1126,16 @@ returns true"
                                              (quote ,(cadar lst))))
                              (add-check (rest lst)))))))
     (cons 'begin (add-check types))))
+
+(define (set-car! lst value)
+  "Set the car of the given cons."
+  (assert-types (lst pair?))
+  (%set-car! lst value))
+
+(define (set-cdr! lst value)
+  "Set the cdr of the given cons."
+  (assert-types (lst pair?))
+  (%set-cdr! lst value))
 
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
