@@ -21,6 +21,9 @@
   (assert-types (n integer?))
   (%integer->real n))
 
+(define (zero? val)
+  (= val 0))
+
 ;; build the proper promoting forms of the standard operators
 (define (promoting-arithmatic op-integer op-real x y)
   "does standard type promotion on x and y and then calls the

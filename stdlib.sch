@@ -612,18 +612,6 @@ list"
 	    (second remaining)) (loop (cdr remaining)))
      (else #f))))
 
-(define (%<=2 a b)
-  (or (%fixnum-less-than a b) (%fixnum-equal a b)))
-
-(define (%<= . values)
-  (every-pair? %<=2 values))
-
-(define (%>=2 a b)
-  (or (%fixnum-greater-than a b) (%fixnum-equal a b)))
-
-(define (%>= . values)
-  (every-pair? %>=2 values))
-
 ;; Now go on and define a few useful higher level functions. This list
 ;; of things is largely driven by personal need at this point. Perhaps
 ;; I'll go back and try to implement whatever is in the spec more
@@ -855,9 +843,6 @@ not be quoted or escaped."
     (ass-set! assoc alist key value)))
 
 (define eqv? equal?)
-
-(define (zero? val)
-  (= val 0))
 
 (define (char=? v1 v2)
   (eq? v1 v2))
