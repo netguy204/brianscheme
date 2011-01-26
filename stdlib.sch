@@ -1155,6 +1155,16 @@ returns true"
                              (add-check (rest lst)))))))
     (cons 'begin (add-check types))))
 
+(define (set-car! lst value)
+  "Set the car of the given cons."
+  (assert-types (lst pair?))
+  (%set-car! lst value))
+
+(define (set-cdr! lst value)
+  "Set the cdr of the given cons."
+  (assert-types (lst pair?))
+  (%set-cdr! lst value))
+
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
 ;; execute and if we're compiling the if clauses will execute (due to

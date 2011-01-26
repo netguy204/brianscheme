@@ -1277,8 +1277,8 @@ void init_prim_environment(object * env) {
   add_procedure("cons", cons_proc);
   add_procedure("car", car_proc);
   add_procedure("cdr", cdr_proc);
-  add_procedure("set-car!", set_car_proc);
-  add_procedure("set-cdr!", set_cdr_proc);
+  add_procedure("%set-car!", set_car_proc);
+  add_procedure("%set-cdr!", set_cdr_proc);
   add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);
