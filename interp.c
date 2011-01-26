@@ -431,6 +431,8 @@ DEFUN1(is_eq_proc) {
   switch (FIRST->type) {
   case FIXNUM:
     return (LONG(FIRST) == LONG(SECOND)) ? true : false;
+  case FLOATNUM:
+    return (DOUBLE(FIRST) == DOUBLE(SECOND)) ? true : false;
   case CHARACTER:
     return (CHAR(FIRST) == CHAR(SECOND)) ? true : false;
   case STRING:
