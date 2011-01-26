@@ -36,10 +36,12 @@ long stack_top;
 
 void eval_exit_hook() {
   /* try to find an exit hook in the vm environment first */
-  object *exit_hook = get_hashtab(vm_global_environment, exit_hook_symbol, NULL);
+  object *exit_hook =
+    get_hashtab(vm_global_environment, exit_hook_symbol, NULL);
 
   if(exit_hook == NULL) {
-    exit_hook = get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
+    exit_hook =
+      get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
   }
 
   if(exit_hook != the_empty_list) {
@@ -98,7 +100,7 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
 }
 
 object *lookup_global_value(object * var, object * env) {
-  object * res = get_hashtab(env, var, NULL);
+  object *res = get_hashtab(env, var, NULL);
   if(res == NULL) {
     throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
     return NULL;
@@ -336,7 +338,7 @@ DEFUN1(ash_proc) {
   unsigned long result = LONG(FIRST);
   long n = LONG(SECOND);
 
-  if (n > 0)
+  if(n > 0)
     result <<= n;
   else
     result >>= -n;
@@ -402,14 +404,14 @@ DEFUN1(cons_proc) {
 
 DEFUN1(car_proc) {
   object *first = FIRST;
-  if (!is_pair(first) && !is_the_empty_list(first))
+  if(!is_pair(first) && !is_the_empty_list(first))
     throw_interp("car expects list\n");
   return car(first);
 }
 
 DEFUN1(cdr_proc) {
   object *first = FIRST;
-  if (!is_pair(first) && !is_the_empty_list(first))
+  if(!is_pair(first) && !is_the_empty_list(first))
     throw_interp("cdr expects list\n");
   return cdr(FIRST);
 }
@@ -538,8 +540,9 @@ DEFUN1(apply_proc) {
     if(is_primitive_proc(fn)) {
       result = fn->data.primitive_proc.fn(stack, num_args, stack_top);
       /* no need to unwind the stack since it's just going to be
-	 gc'd */
-    } else {
+         gc'd */
+    }
+    else {
       result = vm_execute(fn, stack, stack_top, num_args);
     }
     pop_root(&stack);
@@ -629,15 +632,17 @@ DEFUN1(string_set_proc) {
   return FIRST;
 }
 
-int snprintf(char*, size_t, const char*, ...);
+int snprintf(char *, size_t, const char *, ...);
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];
   if(is_fixnum(FIRST)) {
     snprintf(buffer, 100, "%ld", LONG(FIRST));
-  } else if(is_real(FIRST)) {
+  }
+  else if(is_real(FIRST)) {
     snprintf(buffer, 100, "%.15lg", DOUBLE(FIRST));
-  } else {
+  }
+  else {
     throw_interp("obj is not a number");
   }
   return make_string(buffer);
@@ -999,7 +1004,8 @@ object *interp(object * exp, object * env) {
   return result;
 }
 
-object *expand_macro(object * macro, object * args, object * env, int level, object * stack, long stack_top) {
+object *expand_macro(object * macro, object * args, object * env, int level,
+		     object * stack, long stack_top) {
   object *new_env = extend_environment(macro->data.compound_proc.parameters,
 				       args,
 				       env);
@@ -1026,7 +1032,8 @@ object *expand_macro(object * macro, object * args, object * env, int level, obj
   } while(0)
 
 
-object *interp1(object * exp, object * env, int level, object *prim_call_stack, long prim_stack_top) {
+object *interp1(object * exp, object * env, int level,
+		object * prim_call_stack, long prim_stack_top) {
   /* we break the usual convention of assuming our own arguments are
    * protected here because the tail recursive call can rebind these
    * two items to something new
@@ -1064,7 +1071,8 @@ interp_restart:
     }
     else if(head == set_symbol) {
       object *args = cdr(exp);
-      object *val = interp1(second(args), env, level + 1, prim_call_stack, prim_stack_top);
+      object *val = interp1(second(args), env, level + 1, prim_call_stack,
+			    prim_stack_top);
       push_root(&val);
 
       define_variable(first(args), val, env);
@@ -1075,7 +1083,8 @@ interp_restart:
     }
     else if(head == if_symbol) {
       object *args = cdr(exp);
-      object *predicate = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
+      object *predicate =
+	interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
 
       if(is_falselike(predicate)) {
 	/* else is optional, if none return #f */
@@ -1104,7 +1113,8 @@ interp_restart:
     }
     else {
       /* procedure application */
-      object *fn = interp1(head, env, level + 1, prim_call_stack, prim_stack_top);
+      object *fn =
+	interp1(head, env, level + 1, prim_call_stack, prim_stack_top);
       push_root(&fn);
 
       object *args = cdr(exp);
@@ -1116,7 +1126,8 @@ interp_restart:
 
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
-	object *expansion = expand_macro(fn, args, env, level, prim_call_stack, prim_stack_top);
+	object *expansion =
+	  expand_macro(fn, args, env, level, prim_call_stack, prim_stack_top);
 	if(is_pair(expansion)) {
 	  /* replace the macro call with the result */
 	  set_car(exp, car(expansion));
@@ -1128,24 +1139,30 @@ interp_restart:
 	pop_root(&fn);
 
 	push_root(&exp);
-	object *result = interp1(exp, env, level + 1, prim_call_stack, prim_stack_top);
+	object *result =
+	  interp1(exp, env, level + 1, prim_call_stack, prim_stack_top);
 	pop_root(&exp);
 	INTERP_RETURN(result);
       }
 
       /* evaluate the arguments and dispatch the call */
-      if(is_primitive_proc(fn) || is_compiled_proc(fn) || is_compiled_syntax_proc(fn)) {
+      if(is_primitive_proc(fn) || is_compiled_proc(fn)
+	 || is_compiled_syntax_proc(fn)) {
 	long arg_count = 0;
 	object *result;
 	while(!is_the_empty_list(args)) {
-	  result = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
+	  result =
+	    interp1(first(args), env, level + 1, prim_call_stack,
+		    prim_stack_top);
 	  VPUSH(result, prim_call_stack, prim_stack_top);
 	  ++arg_count;
 	  args = cdr(args);
 	}
 
 	if(is_primitive_proc(fn)) {
-	  result = fn->data.primitive_proc.fn(prim_call_stack, arg_count, prim_stack_top);
+	  result =
+	    fn->data.primitive_proc.fn(prim_call_stack, arg_count,
+				       prim_stack_top);
 
 	  /* clear out the stack since primitives will not */
 	  long idx;
@@ -1153,7 +1170,8 @@ interp_restart:
 	  for(idx = 0; idx < arg_count; ++idx) {
 	    VPOP(temp, prim_call_stack, prim_stack_top);
 	  }
-	} else {
+	}
+	else {
 	  result = vm_execute(fn, prim_call_stack, prim_stack_top, arg_count);
 	}
 
@@ -1169,7 +1187,9 @@ interp_restart:
 	push_root(&result);
 
 	while(!is_the_empty_list(args)) {
-	  result = interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
+	  result =
+	    interp1(first(args), env, level + 1, prim_call_stack,
+		    prim_stack_top);
 
 	  if(evald_args == the_empty_list) {
 	    evald_args = cons(result, the_empty_list);
@@ -1412,8 +1432,7 @@ void init() {
   vm_init();
 
   define_global_variable(make_symbol("*vm-global-environment*"),
-			 vm_global_environment,
-			 the_global_environment);
+			 vm_global_environment, the_global_environment);
 }
 
 /**

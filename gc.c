@@ -226,30 +226,30 @@ typedef struct stack_set {
   long size;
 } stack_set;
 
-stack_set* make_stack_set(int initial_size) {
-  stack_set * ss = MALLOC(sizeof(stack_set));
+stack_set *make_stack_set(int initial_size) {
+  stack_set *ss = MALLOC(sizeof(stack_set));
   ss->top = 0;
   ss->size = initial_size;
-  ss->objs = MALLOC(sizeof(void*) * initial_size);
+  ss->objs = MALLOC(sizeof(void *) * initial_size);
   return ss;
 }
 
-void clear_stack_set(stack_set* ss) {
+void clear_stack_set(stack_set * ss) {
   ss->top = 0;
 }
 
-void stack_set_push(stack_set * ss, void * value) {
+void stack_set_push(stack_set * ss, void *value) {
   /* grow the stack if we need to */
   if(ss->top == ss->size) {
     long new_size = ss->size * 2;
-    ss->objs = realloc(ss->objs, sizeof(void*) * new_size);
+    ss->objs = realloc(ss->objs, sizeof(void *) * new_size);
     ss->size = new_size;
   }
 
   ss->objs[ss->top++] = value;
 }
 
-char stack_set_pop(stack_set * ss, void * value) {
+char stack_set_pop(stack_set * ss, void *value) {
   if(ss->objs[--ss->top] != value) {
     /* scan back until we find it */
     int idx = ss->top - 1;
@@ -450,16 +450,17 @@ long baker_collect() {
   /* now finalize anything that needs it */
   long idx = 0;
   for(idx = 0; idx < Finalizable_Objects->top; ++idx) {
-    object * obj = Finalizable_Objects->objs[idx];
+    object *obj = Finalizable_Objects->objs[idx];
     if(obj->color != current_color) {
       finalize_object(obj);
-    } else {
+    }
+    else {
       stack_set_push(Finalizable_Objects_Next, obj);
     }
   }
 
   /* now swap the stacks and clear the old one */
-  stack_set * temp = Finalizable_Objects;
+  stack_set *temp = Finalizable_Objects;
   Finalizable_Objects = Finalizable_Objects_Next;
   Finalizable_Objects_Next = temp;
   clear_stack_set(Finalizable_Objects_Next);

@@ -261,8 +261,7 @@ char is_primitive_proc(object * obj) {
   return obj->type == PRIMITIVE_PROC;
 }
 
-object *make_compound_proc(object * parameters, object * body,
-			   object * env) {
+object *make_compound_proc(object * parameters, object * body, object * env) {
 
   object *obj = alloc_object(0);
   obj->type = COMPOUND_PROC;

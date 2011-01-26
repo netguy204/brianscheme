@@ -245,8 +245,8 @@ DEFUN1(ffi_call_proc) {
   return true;
 }
 
-void interp_trampoline(ffi_cif * cif __attribute__((unused)),
-		       void *ret __attribute__((unused)),
+void interp_trampoline(ffi_cif * cif __attribute__ ((unused)),
+		       void *ret __attribute__ ((unused)),
 		       void **args, void *target_ptr) {
   object *target = (object *) target_ptr;
   object *exp = the_empty_list;
