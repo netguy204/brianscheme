@@ -6,6 +6,7 @@
 ;;  * copy
 ;;  * actual hashing function
 ;;    * be able to hash weird things
+;;  * print form (readable?)
 
 (require 'clos)
 
