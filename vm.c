@@ -306,12 +306,35 @@ vm_begin:
 	top = METAPROC(top);
       }
 
+      long args_for_call = LONG(ARG1(instr));
+
+      /* special case for apply */
+      if(args_for_call == -1) {
+	/* function is on the top of the stack (as usual) */
+	object * target_fn = top;
+	push_root(&target_fn);
+
+	/* and the args are in a list next, expand those */
+	VPOP(top, stack, stack_top);
+
+	args_for_call = 0;
+	while(!is_the_empty_list(top)) {
+	  VPUSH(car(top), stack, stack_top);
+	  top = cdr(top);
+	  ++args_for_call;
+	}
+
+	/* and put back the fn for the dispatch */
+	top = target_fn;
+	pop_root(&target_fn);
+      }
+
       if(is_compiled_proc(top) ||
 	 is_compiled_syntax_proc(top)) {
 	fn = top;
 	env = CENV(fn);
 	pc = 0;
-	n_args = LONG(ARG1(instr));
+	n_args = args_for_call;
 
 	/* build an environment for the receiver that's at least big
 	   enough for its args */
@@ -323,9 +346,7 @@ vm_begin:
 	goto vm_fn_begin;
       } else if(is_primitive_proc(top)) {
 	/* build the list the target expects for the call */
-	long args_for_call = LONG(ARG1(instr));
 	long ii;
-
 	object *pfn = top;
 	push_root(&pfn);
 
