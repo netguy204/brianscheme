@@ -147,11 +147,12 @@
 	  #t
 	  #f)))
 
-(set! next-gensym 0)
-(define (gensym)
-  (set! next-gensym (%fixnum-add next-gensym 1))
-  (string->uninterned-symbol
-   (prim-concat "#" (number->string next-gensym))))
+((lambda (next-gensym)
+   (define (gensym)
+     (set! next-gensym (%fixnum-add next-gensym 1))
+     (string->uninterned-symbol
+      (prim-concat "#" (number->string next-gensym)))))
+ 0)
 
 ;; We used map in our definition of let0 so we had better go ahead and
 ;; define that early.
