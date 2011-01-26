@@ -1,0 +1,21 @@
+(require 'hash-table)
+(require 'unittest)
+
+;; Test the first few numbers of the Mersenne twister.
+(define-test (hash-table-test)
+  (let ((ht (make-hash-table)))
+    (hash-set! ht 'hello 'world)
+    (hash-set! ht "hello" "world")
+    (hash-set! ht 'a '(b c))
+    (hash-set! ht '(d e) 10)
+    (hash-set! ht 98.6 'human)
+    (hash-set! ht + 'addition)
+    (check
+     (eq? (hash-ref ht 'hello) 'world)
+     (equal? (hash-ref ht "hello") "world")
+     (equal? (hash-ref ht 'a) '(b c))
+     (= (hash-ref ht '(d e)) 10)
+     (eq? (hash-ref ht 98.6) 'human)
+     (eq? (hash-ref ht +) 'addition)
+     (eq? (hash-ref ht 'empty) #f)
+     (eq? (hash-ref ht "nothing") #f))))
