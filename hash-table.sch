@@ -9,33 +9,67 @@
 
 (require 'clos)
 
+;; Hash definitions for each type
+
 (define-generic hash
   "Hash an object.")
 
+(define-method (hash (n <integer>))
+  n)
+
+(define-method (hash (char <char>))
+  (char->integer char))
+
+(define-method (hash (lst <pair>))
+  (logxor (hash (car lst)) (hash (cdr lst))))
+
+(define-method (hash (bool <boolean>))
+  (if bool 1 0))
+
+(define-method (hash (sym <symbol>))
+  (hash (symbol->string obj)))
+
+(define-method (hash (vec <vector>))
+  (let ((sum 0))
+    (dovector (x vec)
+      (set! sum (logxor sum (hash x))))
+    sum))
+
+(define-method (hash (str <string>))
+  (let ((sum 0))
+    (dotimes (i (string-length str))
+      (set! sum (logxor sum (hash (string-ref str i)))))
+    sum))
+
+;; TODO
+(define-method (hash (x <real>))
+  (round x))
+
+;; TODO
+(define-method (hash (proc <procedure>))
+  1)
+
+;; TODO
+(define-method (hash (proc <syntax-procedure>))
+  2)
+
+;; TODO
+(define-method (hash (port <input-port>))
+  3)
+
+;; TODO
+(define-method (hash (port <output-port>))
+  4)
+
+;; TODO
+(define-method (hash (port <alien>))
+  5)
+
+;; Default to slot 0
 (define-method (hash obj)
-  (cond
-   ((integer? obj) obj)
-   ((char? obj) (char->integer obj))
-   ((pair? obj) (logxor (hash (car obj)) (hash (cdr obj))))
-   ((boolean? obj) (if obj 1 0))
-   ((symbol? obj) (hash (symbol->string obj)))
-   ((vector? obj)
-    (let ((sum 0))
-      (dovector (x obj)
-        (set! sum (logxor sum (hash x))))
-      sum))
-   ((string? obj)
-    (let ((sum 0))
-      (dotimes (i (string-length obj))
-        (set! sum (logxor sum (hash (string-ref obj i)))))
-      sum))
-   ((real? obj) 1) ; ???
-   ((procedure? obj) 2) ; ???
-   ((syntax-procedure? obj) 3) ; ???
-   ((input-port? obj) 4) ; ???
-   ((output-port? obj) 5) ; ???
-   ((alien? obj) 6) ; ???
-   (#t 0)))
+  0)
+
+;; Table implementation
 
 (define-class <hash-table> ()
   "A generic hash table."
@@ -69,6 +103,8 @@
         (begin
           (vector-set! v idx (cons (cons key value) slot))
           value))))
+
+;; Non-CLOS functions
 
 (define (make-hash-table . size)
   (if size
