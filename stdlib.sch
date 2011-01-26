@@ -1183,7 +1183,7 @@ returns true"
 		'((args 2)
 		  (lvar 0 1 ";" 'args)
 		  (lvar 0 0 ";" 'fun)
-		  (fcallj -1)
+		  (callj -1)
 		  (return))
 		nil nil nil))
 
