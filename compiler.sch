@@ -189,13 +189,13 @@ about its value and optionally with more forms following"
 	(seq (gen 'save k)
 	     (comp-list args env)
 	     (comp f env #t #t)
-	     (gen 'callj (length args))
+	     (gen 'fcallj (length args))
 	     (list k)
 	     (unless val? (gen 'pop)))))
      (else
       (seq (comp-list args env)
 	   (comp f env #t #t)
-	   (gen 'callj (length args)))))))
+	   (gen 'fcallj (length args)))))))
 
 (define (primitive-procedure? obj)
   (and (procedure? obj)
