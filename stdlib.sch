@@ -947,26 +947,12 @@ returns true"
 	     (throw-error "assert failed" ',cond)
 	     ,result)))))
 
-;; Implement the classic delay/force combo directly by representing a
-;; delay as the cons of its value (nil of not yet forced) and the
-;; closure that computes it (nil if it has been forced)
-(define-syntax (delay . body)
-  "create a computation that can be completed later"
-  `(cons nil (lambda () . ,body)))
-
 (define (dynamic-wind before body after)
   "hack. do something useful here later"
   (before)
   (let ((result (body)))
     (after)
     result))
-
-(define (force fn)
-  "compute and or return the value of a delay"
-  (when (and (not (null? (cdr fn))) (null? (car fn)))
-	(set-car! fn ((cdr fn)))
-	(set-cdr! fn nil))
-  (car fn))
 
 (define (all-symbols)
   "return a list of all symbols defined in the global environment"
