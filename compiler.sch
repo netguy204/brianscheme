@@ -195,13 +195,13 @@ about its value and optionally with more forms following"
 	(seq (gen 'save k)
 	     (comp-list args env)
 	     (comp f env #t #t)
-	     (gen 'fcallj (length args))
+	     (gen 'fcallj (length args) #t)
 	     (list k)
 	     (unless val? (gen 'pop)))))
      (else
       (seq (comp-list args env)
 	   (comp f env #t #t)
-	   (gen 'fcallj (length args)))))))
+	   (gen 'fcallj (length args) #f))))))
 
 (define (primitive-procedure? obj)
   (and (procedure? obj)
@@ -319,8 +319,6 @@ about its value and optionally with more forms following"
 		     'name name
 		     'args args)))
 
-(define (optimize code) code)
-
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
@@ -433,27 +431,39 @@ about its value and optionally with more forms following"
 		    (%inc! addr)))
     code-vector))
 
+(define (fn-opcode? instr)
+  (is instr 'fn))
+
+(define (optimize code)
+  (when (not (any? fn-opcode? code))
+    ;; nothing closed over our environment so we can recycle it
+    (dolist (op code)
+      (when (and (is op 'fcallj)
+		 (not (arg2 op)))
+	    (set-car! op 'callj))))
+  code)
+
+
 (define (make-space spaces)
   (reduce prim-concat (duplicate " " spaces) ""))
 
 (define (%show-fn fn indent)
-  (map display (list (make-space indent)
-		     "environment: " (compiled-environment fn)))
   (newline)
 
-  (map display (list (make-space indent) "fn"))
-  (newline)
+  (let ((line-num 0))
+    (dovector (instr (compiled-bytecode fn))
+      (let* ((opcode-sym (bytecode->symbol (opcode instr)))
+	     (sym (if opcode-sym opcode-sym (opcode instr)))
+	     (instr (cons sym (cdr instr))))
 
-  (dovector (instr (compiled-bytecode fn))
-    (let* ((opcode-sym (bytecode->symbol (opcode instr)))
-	   (sym (if opcode-sym opcode-sym (opcode instr)))
-	   (instr (cons sym (cdr instr))))
-
-      (if (is instr 'fn)
-	  (%show-fn (second instr) (%fixnum-add indent 4))
-	  (begin
-	    (map display (list (make-space indent) instr))
-	    (newline))))))
+	(if (is instr 'fn)
+	    (begin
+	      (map display (list line-num ": " (make-space indent) "fn"))
+	      (%show-fn (second instr) (%fixnum-add indent 4)))
+	    (begin
+	      (map display (list line-num ": " (make-space indent) instr))
+	      (newline))))
+      (inc! line-num))))
 
 
 (define (comp-show fn)
