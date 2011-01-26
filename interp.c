@@ -636,7 +636,7 @@ DEFUN1(number_to_string_proc) {
   if(is_fixnum(FIRST)) {
     snprintf(buffer, 100, "%ld", LONG(FIRST));
   } else if(is_real(FIRST)) {
-    snprintf(buffer, 100, "%lf", DOUBLE(FIRST));
+    snprintf(buffer, 100, "%.15lg", DOUBLE(FIRST));
   } else {
     throw_interp("obj is not a number");
   }
