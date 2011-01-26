@@ -311,18 +311,20 @@ object *obj_read(FILE * in) {
   return obj;
 }
 
-object *string_to_number(char * buffer) {
-  char * iter = buffer;
+object *string_to_number(char *buffer) {
+  char *iter = buffer;
   char floatnum = 0;
   char c;
 
   while(*iter) {
-    c = *iter; ++iter;
+    c = *iter;
+    ++iter;
 
     if(c == '.') {
       if(!floatnum) {
 	floatnum = 1;
-      } else {
+      }
+      else {
 	return throw_read("number contained multiple decimal points\n");
       }
     }
@@ -330,7 +332,8 @@ object *string_to_number(char * buffer) {
 
   if(floatnum) {
     return make_real(atof(buffer));
-  } else {
+  }
+  else {
     return make_fixnum(atol(buffer));
   }
 }
@@ -339,8 +342,7 @@ object *read_number(char c, read_buffer * in) {
   char buffer[128];
   int idx = 0;
 
-  while(idx < 128 &&
-	(c == '-' || c == '.' || isdigit(c))) {
+  while(idx < 128 && (c == '-' || c == '.' || isdigit(c))) {
     if(idx == 127) {
       return throw_read("too many digits in number");
     }
@@ -351,7 +353,8 @@ object *read_number(char c, read_buffer * in) {
 
   if(is_delimiter(c)) {
     read_ungetc(c, in);
-  } else {
+  }
+  else {
     return throw_read("number was not followed by delimiter");
   }
 
@@ -452,7 +455,8 @@ object *lisp_read(read_buffer * in) {
 
     if(next_char == '@') {
       qsym = unquotesplicing_symbol;
-    } else {
+    }
+    else {
       read_ungetc(next_char, in);
     }
 
