@@ -383,6 +383,11 @@ object *lisp_read(read_buffer * in) {
       return read_character(in);
     case '(':
       return read_vector(in);
+    case '!':
+      /* Treat like a comment. */
+      while(((c = read_getc(in)) != EOF) && (c != '\n'))
+	continue;
+      return false;
     default:
       return throw_read("unknown boolean or character literal '%c' \n", c);
     }
