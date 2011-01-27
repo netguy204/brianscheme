@@ -50,7 +50,7 @@ object *throw_read(char *msg, ...) {
 }
 
 char *xstrdup(char *str) {
-  char *newstr = MALLOC(strlen(str) + 1);
+  char *newstr = xmalloc(strlen(str) + 1);
   strncpy(newstr, str, strlen(str) + 1);
   return newstr;
 }

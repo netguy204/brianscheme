@@ -50,7 +50,7 @@ char **split_path(char *path) {
   /* Count delimiters while making a copy. */
   char del = ':';
   int count = 1;
-  char *copy = MALLOC(strlen(path) + 1), *cp = copy, *p = path;
+  char *copy = xmalloc(strlen(path) + 1), *cp = copy, *p = path;
   while (*p != '\0') {
     *cp = *p;
     if (*p == del)
@@ -78,7 +78,7 @@ char **split_path(char *path) {
 char *pathcat(char *a, char *b) {
   size_t alen = strlen(a);
   size_t blen = strlen(b);
-  char *out = MALLOC(alen + blen + 2);
+  char *out = xmalloc(alen + blen + 2);
   strcpy(out, a);
   *(out + alen) = '/';
   strcpy(out + alen + 1, b);

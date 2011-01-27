@@ -21,12 +21,29 @@
 #include "types.h"
 #include "symbols.h"
 #include "hashtab.h"
+#include "pool.h"
 
 /* enable gc debuging by defining
  * DEBUG_GC
  */
 
+pool_t *global_pool;
+
 void *MALLOC(long size) {
+  void *obj = pool_alloc(global_pool, size);
+  if(obj == NULL) {
+    fprintf(stderr, "out of memory\n");
+    exit(1);
+  }
+  return obj;
+}
+
+void FREE(void *p) {
+  (void) p;
+  /* You're free!!! */
+}
+
+void *xmalloc(long size) {
   void *obj = malloc(size);
   if(obj == NULL) {
     fprintf(stderr, "out of memory\n");
@@ -281,6 +298,8 @@ char current_color = 0;
 void extend_heap(long);
 
 void gc_init(void) {
+  global_pool = create_pool(0);
+
   Root_Objects = make_stack_set(400);
   Finalizable_Objects = make_stack_set(400);
   Finalizable_Objects_Next = make_stack_set(400);
@@ -423,10 +442,10 @@ void finalize_object(object * head) {
   /* free any extra memory associated with this type */
   switch (head->type) {
   case STRING:
-    free(head->data.string.value);
+    FREE(head->data.string.value);
     break;
   case VECTOR:
-    free(VARRAY(head));
+    FREE(VARRAY(head));
     break;
   case HASH_TABLE:
     htb_destroy(HTAB(head));

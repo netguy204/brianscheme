@@ -2,7 +2,7 @@ TARGETS = bsch
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c symbols.c
+SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c symbols.c pool.c
 HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))

@@ -15,23 +15,11 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-
-void *xmalloc(size_t size) {
-  void *p = malloc(size);
-  if(p == NULL) {
-    fprintf(stderr, "error: fatal: out of memory: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-  return p;
-}
-
-void xfree(void *p) {
-  free(p);
-}
+#include "gc.h"
 
 hashtab_t *htb_init(size_t size, int (*hash_func) (void *, size_t)) {
-  hashtab_t *new_ht = (hashtab_t *) xmalloc(sizeof(hashtab_t));
-  new_ht->arr = (hashtab_node_t **) xmalloc(sizeof(hashtab_node_t *) * size);
+  hashtab_t *new_ht = (hashtab_t *) MALLOC(sizeof(hashtab_t));
+  new_ht->arr = (hashtab_node_t **) MALLOC(sizeof(hashtab_node_t *) * size);
   new_ht->size = size;
   new_ht->count = 0;
 
@@ -81,7 +69,7 @@ void *htb_insert(hashtab_t * hashtable, void *key, void *value) {
 
   /* create a new node */
   hashtab_node_t *new_node;
-  new_node = (hashtab_node_t *) xmalloc(sizeof(hashtab_node_t));
+  new_node = (hashtab_node_t *) MALLOC(sizeof(hashtab_node_t));
   new_node->key = key;
   new_node->value = value;
   new_node->next = NULL;
@@ -112,7 +100,7 @@ void htb_remove(hashtab_t * hashtable, void *key) {
 	hashtable->arr[index] = next_node->next;
 
       /* free the node */
-      xfree(next_node);
+      FREE(next_node);
       break;
     }
     last_node = next_node;
@@ -151,12 +139,12 @@ void htb_destroy(hashtab_t * hashtable) {
       /* destroy node */
       last_node = next_node;
       next_node = next_node->next;
-      xfree(last_node);
+      FREE(last_node);
     }
   }
 
-  xfree(hashtable->arr);
-  xfree(hashtable);
+  FREE(hashtable->arr);
+  FREE(hashtable);
 }
 
 /* iterator initilaize */
