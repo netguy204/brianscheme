@@ -12,7 +12,8 @@
 (define (clos-repl)
   (let* ((exp (read-port stdin))
 	 (res (eval exp)))
-
+    (if (eof-object? res)
+        (exit 0))
     (print-object stdout-stream res)
     (newline)
     (clos-repl)))
