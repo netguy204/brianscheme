@@ -1209,6 +1209,15 @@ returns true"
 		  (return))
 		nil nil nil))
 
+   (set-cc-bytecode! (new-fun
+		      '((args 1)
+			(lvar 1 1)
+			(lvar 1 0)
+			(setcc)
+			(lvar 0 0)
+			(return))
+		      nil nil nil))
+
    (set! call/cc (new-fun
 		  '((args 1)
 		    (cc)

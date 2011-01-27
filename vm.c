@@ -549,36 +549,16 @@ DEFUN1(vm_tag_macro_proc) {
   return FIRST;
 }
 
+
+DEFUN1(set_cc_bytecode) {
+  cc_bytecode = BYTECODE(FIRST);
+  return FIRST;
+}
+
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
 #define generate_bytecodes(opcode)				  \
   bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
   push_root(&bytecodes[_ ## opcode ## _]);
-
-
-object *make_instr(char *name, object *arg1, object *arg2) {
-  object *sym = symbol_to_code(make_symbol(name));
-  object *result = the_empty_list;
-  push_root(&result);
-  result = cons(arg2, result);
-  result = cons(arg1, result);
-  result = cons(sym, result);
-  pop_root(&result);
-  return result;
-}
-
-object *inst_array_to_bytecode(object *array) {
-  object **instrs = VARRAY(array);
-  long *bytecode = MALLOC(VSIZE(array) * sizeof(long) * 3);
-  long idx;
-  for(idx = 0; idx < VSIZE(array); ++idx) {
-    long off = idx * 3;
-    bytecode[off] = CHAR(car(instrs[idx]));
-    bytecode[off+1] = LONG(cadr(instrs[idx]));
-    bytecode[off+2] = LONG(caddr(instrs[idx]));
-  }
-
-  return make_alien(bytecode, free_ptr_fn);
-}
 
 void vm_init(void) {
   /* generate the symbol initializations */
@@ -588,34 +568,18 @@ void vm_init(void) {
 
     error_sym = make_symbol("error");
 
-  object *curr = make_primitive_proc(vm_tag_macro_proc);
-
+  object *curr = the_empty_list;
   push_root(&curr);
+
   define_global_variable(make_symbol("set-macro!"),
-			 curr, vm_global_environment);
+			 curr = make_primitive_proc(vm_tag_macro_proc),
+			 vm_global_environment);
+
+  define_global_variable(make_symbol("set-cc-bytecode!"),
+			 curr = make_primitive_proc(set_cc_bytecode),
+			 vm_global_environment);
+
   pop_root(&curr);
-
-  /* the cc opcode needs a little special bytecode to do its thing */
-  object *instrs = make_vector(the_empty_list, 6);
-  push_root(&instrs);
-
-  object **codes = VARRAY(instrs);
-  codes[0] = make_instr("args", make_fixnum(1), the_empty_list);
-  codes[1] = make_instr("lvar", make_fixnum(1), make_fixnum(1)); /* top */
-  codes[2] = make_instr("lvar", make_fixnum(1), make_fixnum(0)); /* stack */
-  codes[3] = make_instr("setcc", the_empty_list, the_empty_list);
-  codes[4] = make_instr("lvar", make_fixnum(0), make_fixnum(0)); /* fn */
-  codes[5] = make_instr("return", the_empty_list, the_empty_list);
-
-  cc_bytecode = the_empty_list;
-  push_root(&cc_bytecode);
-  cc_bytecode = cons(the_empty_vector, cc_bytecode); /* consts */
-  cc_bytecode = cons(inst_array_to_bytecode(instrs), cc_bytecode);
-
-  object *codecount = make_fixnum(VSIZE(instrs) * 3);
-  push_root(&codecount);
-  cc_bytecode = cons(codecount, cc_bytecode);
-  pop_root(&codecount);
 }
 
 void vm_init_environment(object * env) {
