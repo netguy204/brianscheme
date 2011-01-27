@@ -115,8 +115,9 @@ int main(int argc, char ** argv) {
     paths--;
     list = cons(make_string(*paths), list);
   }
-  define_global_variable(make_symbol("*load-path*"), list,
-			 the_global_environment);
+  object *sym = make_symbol("*load-path*");
+  define_global_variable(sym, list, the_global_environment);
+  define_global_variable(sym, list, vm_global_environment);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't load the standard lib */
