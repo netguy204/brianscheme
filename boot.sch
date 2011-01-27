@@ -655,18 +655,41 @@ list"
   "read from a port"
   (read-port port))
 
+(define (file-exists? name)
+  "Return #t if file exists, otherwise false."
+  (let ((port (open-input-port name)))
+    (if (eof-object? port)
+        #f
+        (begin
+          (close-input-port port)
+          #t))))
+
+(define (find-library name . paths)
+  "Find the given library in the load path."
+  (let ((paths (car-else paths *load-path*)))
+    (if (null? paths)
+        #f
+        (let ((file (prim-concat (car paths) (prim-concat "/" name))))
+          (if (file-exists? file)
+              file
+              (find-library name (cdr paths)))))))
+
 (define (load name)
   "read and evaluate all forms in a file called name"
-  (letrec ((in (open-input-port name))
-	   (iter (lambda (form)
-		   (unless (eof-object? form)
-			   (write (eval form))
-			   (newline)
-			   (iter (read-port in))))))
-    (if (eof-object? in)
-	(throw-error "failed to open" name)
-	(iter (read-port in)))
-    #t))
+  (display (find-library name))
+  (let ((file (find-library name)))
+    (if file
+        (letrec ((in (open-input-port file))
+                 (iter (lambda (form)
+                         (unless (eof-object? form)
+                           (write (eval form))
+                           (newline)
+                           (iter (read-port in))))))
+          (if (eof-object? in)
+              (throw-error "failed to open" file)
+              (iter (read-port in)))
+          #t)
+        (throw-error "could not find" name))))
 
 (let ((required nil))
   (letrec ((sym-to-name (lambda (name)
@@ -944,7 +967,7 @@ returns true"
   "return a list of all symbols defined in the global environment"
   (hashtab-keys *global-environment*))
 
-(define (global? sym)
+(define (bound? sym)
   "returns true if symbol is in the global environment"
   (let* ((sentinal (gensym))
 	 (result (hashtab-ref *global-environment* sym sentinal)))
@@ -960,7 +983,7 @@ returns true"
 
 (define (macro? sym)
   "is a given symbol defined as a global macro?"
-  (and (global? sym)
+  (and (bound? sym)
        (syntax-procedure? (global-ref sym))))
 
 (define (macroexpand0 form)
@@ -1159,17 +1182,20 @@ returns true"
 
    (define (compile-file name)
      "read and compile all forms in file"
-     (letrec ((in (open-input-port name))
-	      (iter (lambda (form)
-		      (unless (eof-object? form)
-			      ;;(write-port `((compiler ',form)) stdout)
-			      (write (eval `((compiler ',form))))
-			      (newline)
-			      (iter (read-port in))))))
-       (if (eof-object? in)
-	   (throw-error "failed to open" name)
-	   (iter (read-port in)))
-       #t))
+     (let ((file (find-library name)))
+       (if file
+           (letrec ((in (open-input-port file))
+                    (iter (lambda (form)
+                            (unless (eof-object? form)
+                              ;;(write-port `((compiler ',form)) stdout)
+                              (write (eval `((compiler ',form))))
+                              (newline)
+                              (iter (read-port in))))))
+             (if (eof-object? in)
+                 (throw-error "failed to open" file)
+                 (iter (read-port in)))
+             #t)
+           (throw-error "failed to find" name))))
 
    (compile-file "compiler.sch")
 

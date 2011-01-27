@@ -10,6 +10,13 @@
 (define *mask-31* (- (expt 2 31) 1))
 (define *mask-32* (logor (ash *mask-31* 1) 1))
 
+(define (make-seed)
+  "Generate a new seed."
+  (reduce logxor (list (gc) (getpid)
+                       (if (bound? '*random-state*)
+                           (generate *random-state*)
+                           0))))
+
 (define-class <random-state> ()
   "A random state for a PRNG.")
 
@@ -19,7 +26,7 @@
    'index))
 
 (define-method (initialize (rng <mersenne>) args)
-  (let ((seed (first args))
+  (let ((seed (car-else args (make-seed)))
 	(mt (make-vector 624 0)))
     (vector-set! mt 0 seed)
     (dotimes (j 623)
@@ -81,7 +88,7 @@
   ('state))
 
 (define-method (initialize (rng <middle-square>) args)
-  (slot-set! rng 'state (or (first args) (getpid))))
+  (slot-set! rng 'state (car-else arg (make-seed))))
 
 (define-method (copy (rng <middle-square>))
   (make <middle-square> (slot-ref rng 'state)))
@@ -104,7 +111,7 @@
   (let ((rng (car-else state *random-state*)))
     (copy rng)))
 
-(define *random-state* (make-random-state (getpid)))
+(define *random-state* (make-random-state (make-seed)))
 
 (define (random n . state)
   "Generate a random number between 0 and n."
