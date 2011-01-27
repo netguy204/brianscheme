@@ -114,8 +114,9 @@ void vector_push(object * stack, object * thing, long top) {
   if(top == VSIZE(stack)) {
     long old_size = VSIZE(stack);
     VSIZE(stack) = old_size * 1.8;
-    VARRAY(stack) = realloc(VARRAY(stack), sizeof(object *)
-			    * VSIZE(stack));
+    VARRAY(stack) = REALLOC(VARRAY(stack),
+			    sizeof(object *) * old_size,
+			    sizeof(object *) * VSIZE(stack));
     int ii;
     for(ii = old_size; ii < VSIZE(stack); ++ii) {
       VARRAY(stack)[ii] = the_empty_list;

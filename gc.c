@@ -29,7 +29,7 @@
 
 pool_t *global_pool;
 
-void *MALLOC(long size) {
+void *MALLOC(size_t size) {
   void *obj = pool_alloc(global_pool, size);
   if(obj == NULL) {
     fprintf(stderr, "out of memory\n");
@@ -38,12 +38,18 @@ void *MALLOC(long size) {
   return obj;
 }
 
+void *REALLOC(void *p, size_t old, size_t new) {
+  void *np = MALLOC(new);
+  memcpy(np, p, old);
+  return np;
+}
+
 void FREE(void *p) {
   (void) p;
   /* You're free!!! */
 }
 
-void *xmalloc(long size) {
+void *xmalloc(size_t size) {
   void *obj = malloc(size);
   if(obj == NULL) {
     fprintf(stderr, "out of memory\n");
@@ -258,8 +264,10 @@ void clear_stack_set(stack_set * ss) {
 void stack_set_push(stack_set * ss, void *value) {
   /* grow the stack if we need to */
   if(ss->top == ss->size) {
+    long old_size = ss->size;
     long new_size = ss->size * 2;
-    ss->objs = realloc(ss->objs, sizeof(void *) * new_size);
+    ss->objs = REALLOC(ss->objs, sizeof(void *) * old_size,
+		       sizeof(void *) * new_size);
     ss->size = new_size;
   }
 

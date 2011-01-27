@@ -20,7 +20,7 @@
 #ifndef POOL_H
 #define POOL_H
 
-extern int default_pool_size;
+extern size_t default_pool_size;
 
 typedef struct subpool_t
 {

@@ -23,13 +23,14 @@
 #include <bits/mman.h>
 #include "pool.h"
 
-int default_pool_size = 4096;
+size_t default_pool_size = 1048576;
 int miss_limit = 8;
+int pool_scale = 2;
 
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  printf("mmap(): %p\n", p);
+  printf("mmap(): %p (%d kB)\n", p, size / 1024);
   fflush(stdout);
   return p;
 }
@@ -97,7 +98,7 @@ void *pool_alloc (pool_t * source_pool, size_t size)
   if (chunk == NULL)
     {
       /* double the size of the last one */
-      size_t new_size = last->size * 2;
+      size_t new_size = last->size * pool_scale;
       if (new_size <= size)
 	{
 	  /* quadruple requested size if its much bigger */
