@@ -103,10 +103,20 @@ int main(int argc, char ** argv) {
 
   init();
 
+  /* Handle BS_PATH */
   char *path = getenv("BS_PATH");
   if (path == NULL)
     path = ".";
-  bs_paths = split_path(path);
+  char **paths = bs_paths = split_path(path);
+  object* list = the_empty_list;
+  while (*paths != NULL) paths++;
+  while (paths > bs_paths) {
+    /* Build up list in reverse. */
+    paths--;
+    list = cons(make_string(*paths), list);
+  }
+  define_global_variable(make_symbol("*load-path*"), list,
+			 the_global_environment);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't load the standard lib */
