@@ -62,6 +62,7 @@ void define_variable(object *var, object *new_val,
 		     object *env);
 void init_prim_environment(object * env);
 void init();
+void destroy_interp();
 
 void owrite(FILE *out, object *obj);
 char is_falselike(object *obj);
@@ -69,6 +70,7 @@ object *expand_macro(object *macro, object *args,
 		     object *env, int level, object * stack, long stack_top);
 object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level, object * stack, long stack_top);
+object *apply(object *fn, object *args);
 object *debug_write(char * msg, object *obj, int level);
 void print_obj(object *obj);
 void primitive_repl();

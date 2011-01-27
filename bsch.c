@@ -65,7 +65,7 @@ char *pathcat(char *a, char *b) {
   return out;
 }
 
-void load_library(char *libname) {
+object * load_library(char *libname) {
   char *filename;
   char **paths = bs_paths;
   while (*paths != NULL) {
@@ -88,18 +88,36 @@ void load_library(char *libname) {
   }
 
   object *form;
+  object *result;
   while((form = obj_read(stdlib)) != NULL) {
     push_root(&form);
-    print_obj(interp(form, the_empty_environment));
+    result = interp(form, the_empty_environment);
+    print_obj(result);
     pop_root(&form);
   }
 
   fclose(stdlib);
+  return result;
+}
+
+object * compile_library(char *libname) {
+  object *compile_file = make_symbol("compile-file");
+  object *compiler = get_hashtab(vm_global_environment, compile_file, NULL);
+  if(compiler == NULL) {
+    fprintf(stderr, "compile-file is not defined\n");
+    exit(4);
+  }
+
+  object *form = the_empty_list;
+  push_root(&form);
+  form = cons(make_string(libname), form);
+  object *result = apply(compiler, form);
+  pop_root(&form);
+  return result;
 }
 
 int main(int argc, char ** argv) {
   int ii;
-  char *libname = "stdlib.sch";
 
   init();
 
@@ -120,19 +138,35 @@ int main(int argc, char ** argv) {
   define_global_variable(sym, list, vm_global_environment);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
-    /* don't load the standard lib */
-    ii = 2;
-  } else {
-    /* load the stdlib */
-    load_library(libname);
-    ii = 1;
+    /* don't bootstrap, take the user straight to a totally primitive
+       environment */
+    for(ii = 2; ii < argc; ++ii) {
+      load_library(argv[ii]);
+      primitive_repl();
+      exit(0);
+    }
   }
 
-  for(; ii < argc; ++ii) {
-    load_library(argv[ii]);
+  /* fist we want to bootstrap the compiled environment */
+  object * result = load_library("boot.sch");
+
+  /* if everything went well we should get back a special symbol */
+  if(result != make_symbol("finished-compile")) {
+    fprintf(stderr, "bootstrap failed. dropping into primitive repl\n");
+    primitive_repl();
+    exit(1);
   }
 
-  primitive_repl();
+  /* now we tear down the interpreter so we can reclaim that memory */
+  destroy_interp();
 
-  return 0;
+  /* now we load standard lib (which will provide the normal repl for
+     the user */
+  compile_library("stdlib.sch");
+
+  /* we assume that stdlib will build up an environment that it will
+     terminate via non-local exit, so making it here would be an
+     error */
+  fprintf(stderr, "stdlib.sch returned. this is unexpected.\n");
+  return 1;
 }

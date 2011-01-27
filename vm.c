@@ -253,6 +253,7 @@ vm_begin:
 
       /* push the excess args onto the last position, top is
          protected */
+      vdata[array_size - 1] = the_empty_list;
       for(ii = 0; ii < n_args - req_args; ++ii) {
 	VPOP(top, stack, stack_top);
 	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
@@ -295,6 +296,57 @@ vm_begin:
     }
     break;
   case _fcallj_:{
+    VPOP(top, stack, stack_top);
+
+    /* unwrap meta */
+    if(is_meta(top)) {
+      top = METAPROC(top);
+    }
+
+    long args_for_call = LONG(ARG1(instr));
+
+    if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
+      fn = top;
+      pc = 0;
+      n_args = args_for_call;
+
+      /* generate a fresh frame for the callee */
+      env = CENV(fn);
+
+      object *newframe = make_vector(the_empty_list, n_args + 1);
+      push_root(&newframe);
+      env = cons(newframe, env);
+      pop_root(&newframe);
+
+      goto vm_fn_begin;
+    }
+    else if(is_primitive_proc(top)) {
+      /* build the list the target expects for the call */
+      long ii;
+      object *pfn = top;
+      push_root(&pfn);
+
+      top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
+      /* unwind the stack since primitives don't clean up after
+	 themselves */
+      object *temp;
+      for(ii = 0; ii < args_for_call; ++ii) {
+	VPOP(temp, stack, stack_top);
+      }
+
+      VPUSH(top, stack, stack_top);
+      pop_root(&pfn);
+
+      RETURN_OPCODE_INSTRUCTIONS;
+    }
+    else {
+      owrite(stderr, top);
+      fprintf(stderr, "\n");
+      VM_ASSERT(0, "don't know how to invoke");
+    }
+  }
+    break;
+  case _callj_:{
       VPOP(top, stack, stack_top);
 
       /* unwrap meta */
@@ -304,7 +356,7 @@ vm_begin:
 
       long args_for_call = LONG(ARG1(instr));
 
-      /* special case for apply */
+      /* special case for apply (which will always be callj) */
       if(args_for_call == -1) {
 	/* function is on the top of the stack (as usual) */
 	object *target_fn = top;
@@ -327,16 +379,21 @@ vm_begin:
 
       if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
 	fn = top;
-	env = CENV(fn);
 	pc = 0;
 	n_args = args_for_call;
 
-	/* build an environment for the receiver that's at least big
-	   enough for its args */
+	/*
+	env = CENV(fn);
 	object *newframe = make_vector(the_empty_list, n_args + 1);
 	push_root(&newframe);
 	env = cons(newframe, env);
 	pop_root(&newframe);
+	*/
+
+	/* we can reuse the cons and frame from our environment to
+	   build the new one */
+	object *fn_env = CENV(fn);
+	set_cdr(env, fn_env);
 
 	goto vm_fn_begin;
       }
