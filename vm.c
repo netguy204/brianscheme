@@ -24,6 +24,8 @@
 #include "read.h"
 #include "gc.h"
 
+object *cc_bytecode;
+
 #define OPCODE(x) CAR(x)
 #define ARGS(x) CDR(x)
 #define ARG1(x) CAR(ARGS(x))
@@ -47,6 +49,8 @@
   define(gvar)					\
   define(lset)					\
   define(gset)					\
+  define(setcc)					\
+  define(cc)					\
   define(pop)
 
 /* generate the symbol variable declarations */
@@ -73,14 +77,17 @@ object *bytecodes[INVALID_BYTECODE];
 /* generate a function that converts a symbol into the corresponding
    bytecode */
 #define generate_sym_to_code(opcode)		\
-  if(FIRST == opcode ## _op) {			\
+  if(sym == opcode ## _op) {			\
     return bytecodes[ _ ## opcode ## _ ];	\
   }
 
-
-DEFUN1(symbol_to_code_proc) {
+object *symbol_to_code(object *sym) {
   opcode_table(generate_sym_to_code);
   return false;
+}
+
+DEFUN1(symbol_to_code_proc) {
+  return symbol_to_code(FIRST);
 }
 
 /* generate a function that converts a bytecode back into its
@@ -382,14 +389,6 @@ vm_begin:
 	pc = 0;
 	n_args = args_for_call;
 
-	/*
-	env = CENV(fn);
-	object *newframe = make_vector(the_empty_list, n_args + 1);
-	push_root(&newframe);
-	env = cons(newframe, env);
-	pop_root(&newframe);
-	*/
-
 	/* we can reuse the cons and frame from our environment to
 	   build the new one */
 	object *fn_env = CENV(fn);
@@ -461,6 +460,42 @@ vm_begin:
       define_global_variable(var, val, vm_global_environment);
     }
     break;
+  case _setcc_: {
+    object *new_stack;
+    object *new_stack_top;
+
+    VPOP(new_stack, stack, stack_top);
+    VPOP(new_stack_top, stack, stack_top);
+
+    stack = car(stack);
+    stack_top = LONG(new_stack_top);
+  }
+    break;
+  case _cc_: {
+    object *cc_env = make_vector(the_empty_list, 2);
+    push_root(&cc_env);
+
+    /* copy the stack */
+    object *new_stack = make_vector(the_empty_list, VSIZE(stack));
+    push_root(&new_stack);
+    long idx;
+    for(idx = 0; idx < stack_top; ++idx) {
+      VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
+    }
+
+    /* insert it into the environment */
+    VARRAY(cc_env)[0] = new_stack;
+    VARRAY(cc_env)[1] = make_fixnum(stack_top);
+    pop_root(&new_stack);
+
+    cc_env = cons(cc_env, the_empty_list);
+
+    object *cc_fn = make_compiled_proc(cc_bytecode, cc_env);
+    pop_root(&cc_env);
+
+    VPUSH(cc_fn, stack, stack_top);
+  }
+    break;
   case _pop_:{
       VPOP(top, stack, stack_top);
     }
@@ -503,6 +538,18 @@ DEFUN1(vm_tag_macro_proc) {
   bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
   push_root(&bytecodes[_ ## opcode ## _]);
 
+
+object *make_instr(char *name, object *arg1, object *arg2) {
+  object *sym = symbol_to_code(make_symbol(name));
+  object *result = the_empty_list;
+  push_root(&result);
+  result = cons(arg2, result);
+  result = cons(arg1, result);
+  result = cons(sym, result);
+  pop_root(&result);
+  return result;
+}
+
 void vm_init(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
@@ -517,6 +564,18 @@ void vm_init(void) {
   define_global_variable(make_symbol("set-macro!"),
 			 curr, vm_global_environment);
   pop_root(&curr);
+
+  /* the cc opcode needs a little special bytecode to do its thing */
+  cc_bytecode = make_vector(the_empty_list, 6);
+  push_root(&cc_bytecode);
+
+  object **codes = VARRAY(cc_bytecode);
+  codes[0] = make_instr("args", make_fixnum(1), the_empty_list);
+  codes[1] = make_instr("lvar", make_fixnum(1), make_fixnum(1)); /* top */
+  codes[2] = make_instr("lvar", make_fixnum(1), make_fixnum(0)); /* stack */
+  codes[3] = make_instr("setcc", the_empty_list, the_empty_list);
+  codes[4] = make_instr("lvar", make_fixnum(0), make_fixnum(0)); /* fn */
+  codes[5] = make_instr("return", the_empty_list, the_empty_list);
 }
 
 void vm_init_environment(object * env) {

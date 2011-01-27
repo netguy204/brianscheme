@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
 
   init();
 
-  if(argc > 0 && strcmp(argv[1], "-b") == 0) {
+  if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't bootstrap, take the user straight to a totally primitive
        environment */
     for(ii = 2; ii < argc; ++ii) {
