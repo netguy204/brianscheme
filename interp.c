@@ -40,6 +40,10 @@ void eval_exit_hook() {
     get_hashtab(vm_global_environment, exit_hook_symbol, NULL);
 
   if(exit_hook == NULL) {
+    /* this happens if the interpreter has been destroyed but there
+       isn't an exit hook in the vm_global_environment */
+    if(is_the_empty_list(the_global_environment)) { return; }
+
     exit_hook =
       get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
   }
@@ -507,10 +511,7 @@ DEFUN1(eval_proc) {
   return interp(exp, the_empty_environment);
 }
 
-DEFUN1(apply_proc) {
-  object *fn = FIRST;
-  object *evald_args = SECOND;
-
+object *apply(object *fn, object *evald_args) {
   /* essentially duplicated from interp but I'm not
    * sure how to implement this properly otherwise.*/
   object *env;
@@ -560,6 +561,12 @@ DEFUN1(apply_proc) {
 
   throw_interp("\ncannot apply non-function\n");
   return false;
+}
+
+DEFUN1(apply_proc) {
+  object *fn = FIRST;
+  object *evald_args = SECOND;
+  return apply(fn, evald_args);
 }
 
 object *obj_read(FILE * in);
@@ -1434,6 +1441,12 @@ void init() {
   define_global_variable(make_symbol("*vm-global-environment*"),
 			 vm_global_environment, the_global_environment);
 }
+
+void destroy_interp() {
+  pop_root(&the_global_environment);
+  the_global_environment = the_empty_list;
+}
+
 
 /**
  * handy for user side debugging */
