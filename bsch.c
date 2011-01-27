@@ -128,15 +128,21 @@ int main(int argc, char ** argv) {
     path = ".";
   char **paths = bs_paths = split_path(path);
   object* list = the_empty_list;
+  object* str = the_empty_list;
+  push_root(&list);
+  push_root(&str);
   while (*paths != NULL) paths++;
   while (paths > bs_paths) {
     /* Build up list in reverse. */
     paths--;
-    list = cons(make_string(*paths), list);
+    str = make_string(*paths);
+    list = cons(str, list);
   }
+  pop_root(&str);
   object *sym = make_symbol("*load-path*");
   define_global_variable(sym, list, the_global_environment);
   define_global_variable(sym, list, vm_global_environment);
+  pop_root(&list);
 
   if(argc > 1 && strcmp(argv[1], "-b") == 0) {
     /* don't bootstrap, take the user straight to a totally primitive
