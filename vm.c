@@ -136,6 +136,7 @@ object *vector_pop(object * stack, long top) {
     pop_root(&top);				\
     pop_root(&env);				\
     pop_root(&fn);				\
+    pop_root(&stack);				\
     return obj;					\
   } while(0)
 
@@ -193,6 +194,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   instr = the_empty_list;
   top = the_empty_list;
 
+  push_root(&stack);
   push_root(&fn);
   push_root(&env);
   push_root(&top);
@@ -486,7 +488,7 @@ vm_begin:
     push_root(&cc_env);
 
     /* copy the stack */
-    object *new_stack = make_vector(the_empty_list, VSIZE(stack));
+    object *new_stack = make_vector(the_empty_list, stack_top);
     push_root(&new_stack);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
