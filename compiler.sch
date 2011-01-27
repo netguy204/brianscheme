@@ -420,13 +420,13 @@ about its value and optionally with more forms following"
 		    (ffi:long-set! result (%fixnum-add off 2)
 				   (caddr instr)))
 		  ;; no second arg
-		  (ffi:long-set! result (%fixnum-add off 2) 129)))
+		  (ffi:long-set! result (%fixnum-add off 2) -1)))
 
 	    (begin
 	      ;; no first or second arg
-	      (ffi:long-set! result (%fixnum-add off 1) 129)
+	      (ffi:long-set! result (%fixnum-add off 1) -1)
 
-	      (ffi:long-set! result (%fixnum-add off 2) 129)))))
+	      (ffi:long-set! result (%fixnum-add off 2) -1)))))
 
 
     result))
@@ -518,21 +518,25 @@ about its value and optionally with more forms following"
   (newline)
 
   (let ((line-num 0)
-	(len (vector-length (cadr (compiled-bytecode fn))))
-	(bytes (car (compiled-bytecode fn)))
-	(args (cadr (compiled-bytecode fn))))
+	(len (/ (car (compiled-bytecode fn)) 3))
+	(bytes (cadr (compiled-bytecode fn)))
+	(consts (caddr (compiled-bytecode fn))))
 
     (dotimes (idx len)
-      (let ((instr (ffi:byte-ref bytes idx))
-	    (arg (vector-ref args idx)))
-	(let* ((opcode-sym (bytecode->symbol instr))
+      (let* ((off (* idx 3))
+	     (instr (ffi:long-ref bytes off))
+	     (arg1 (ffi:long-ref bytes (+ off 1)))
+	     (arg2 (ffi:long-ref bytes (+ off 2))))
+
+	(let* ((opcode-sym (bytecode->symbol (integer->char instr)))
 	       (sym (if opcode-sym opcode-sym instr))
-	       (instr (cons sym arg)))
+	       (instr (list sym arg1 arg2)))
 
 	  (if (is instr 'fn)
 	      (begin
 		(map display (list line-num ": " (make-space indent) "fn "))
-		(%show-fn (second instr) (%fixnum-add indent 4)))
+		(%show-fn (vector-ref consts (second instr))
+			  (%fixnum-add indent 4)))
 	      (begin
 		(map display (list line-num ": " (make-space indent) instr))
 		(newline))))

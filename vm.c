@@ -580,6 +580,9 @@ void vm_init(void) {
 			 vm_global_environment);
 
   pop_root(&curr);
+
+  cc_bytecode = the_empty_list;
+  push_root(&cc_bytecode);
 }
 
 void vm_init_environment(object * env) {
