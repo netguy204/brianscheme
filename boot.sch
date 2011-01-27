@@ -1179,6 +1179,7 @@ returns true"
    ;; now the compiler is compiled so we can switch the
    ;; interpreter-hooked eval off for good
    (set! eval (lambda (form) ((compiler form))))
+
    (set! apply (new-fun
 		'((args 2)
 		  (lvar 0 1 ";" 'args)
@@ -1186,6 +1187,13 @@ returns true"
 		  (callj -1)
 		  (return))
 		nil nil nil))
+
+   (set! call/cc (new-fun
+		  '((args 1)
+		    (cc)
+		    (lvar 0 0)
+		    (callj 1))
+		  nil nil nil))
 
    (set! *vm-global-environment* *global-environment*)
    (define exit-hook comp-repl))

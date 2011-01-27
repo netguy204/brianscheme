@@ -829,7 +829,7 @@ void owrite(FILE * out, object * obj) {
     return;
   }
 
-  if(obj == the_global_environment) {
+  if(is_hashtab(obj) && obj == the_global_environment) {
     fprintf(out, "#<global-environment-hashtab>");
     return;
   }
