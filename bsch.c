@@ -31,7 +31,7 @@ object * load_library(char *libname) {
   }
 
   object *form;
-  object *result;
+  object *result = NULL;
   while((form = obj_read(stdlib)) != NULL) {
     push_root(&form);
     result = interp(form, the_empty_environment);
@@ -64,14 +64,14 @@ int main(int argc, char ** argv) {
 
   init();
 
-  if(argc > 1 && strcmp(argv[1], "-b") == 0) {
+  if(argc > 0 && strcmp(argv[1], "-b") == 0) {
     /* don't bootstrap, take the user straight to a totally primitive
        environment */
     for(ii = 2; ii < argc; ++ii) {
       load_library(argv[ii]);
-      primitive_repl();
-      exit(0);
     }
+    primitive_repl();
+    exit(0);
   }
 
   /* fist we want to bootstrap the compiled environment */
