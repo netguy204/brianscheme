@@ -16,13 +16,13 @@ ifeq ($(NO_READLINE),1)
 endif
 
 ifeq ($(FAST),1)
-	CFLAGS = -O3 -W -Wall -ansi $(EXTFLAGS)
+	CFLAGS = -O3 -W -Wall $(EXTFLAGS)
 else
 ifeq ($(PROF),1)
-	CFLAGS = -g -pg -W -Wall -ansi $(EXTFLAGS)
+	CFLAGS = -g -pg -W -Wall $(EXTFLAGS)
 	LDFLAGS += -g -pg
 else
-	CFLAGS = -g -W -Wall -ansi $(EXTFLAGS)
+	CFLAGS = -g -W -Wall $(EXTFLAGS)
 endif
 endif
 
