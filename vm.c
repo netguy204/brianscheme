@@ -198,8 +198,11 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   push_root(&top);
 
 vm_fn_begin:
-  VM_ASSERT(is_compiled_proc(fn) || is_compiled_syntax_proc(fn),
-	    "object is not compiled-procedure");
+  if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
+    owrite(stderr, fn);
+    fprintf(stderr, ": object is not compiled-procedure\n");
+    return error_sym;
+  }
 
   code_array = BYTECODE(fn);
   VM_DEBUG("bytecode", code_array);
@@ -461,14 +464,21 @@ vm_begin:
     }
     break;
   case _setcc_: {
-    object *new_stack;
+    object *cc_stack;
     object *new_stack_top;
 
-    VPOP(new_stack, stack, stack_top);
+    VPOP(cc_stack, stack, stack_top);
     VPOP(new_stack_top, stack, stack_top);
 
-    stack = car(stack);
+    /* need to copy the stack into the current stack */
     stack_top = LONG(new_stack_top);
+    push_root(&cc_stack);
+    stack = make_vector(the_empty_list, stack_top);
+    long idx;
+    for(idx = 0; idx < stack_top; ++idx) {
+      VARRAY(stack)[idx] = VARRAY(cc_stack)[idx];
+    }
+    pop_root(&cc_stack);
   }
     break;
   case _cc_: {
