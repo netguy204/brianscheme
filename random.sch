@@ -10,12 +10,22 @@
 (define *mask-31* (- (expt 2 31) 1))
 (define *mask-32* (logor (ash *mask-31* 1) 1))
 
+(define (random:urandom)
+  "Get 32-bits from /dev/urandom."
+  (with-open-file (in "/dev/urandom")
+    (let ((sum 0))
+      (dotimes (i 4)
+        (set! sum (logxor sum (ash (char->integer (read-char in)) (* i 8)))))
+      sum)))
+
 (define (make-seed)
   "Generate a new seed."
   (reduce logxor (list (gc) (getpid)
                        (if (bound? '*random-state*)
                            (generate *random-state*)
-                           0))))
+                           0)
+                       (if (file-exists? "/dev/urandom")
+                           (random:urandom)))))
 
 (define-class <random-state> ()
   "A random state for a PRNG.")
