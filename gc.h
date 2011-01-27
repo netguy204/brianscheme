@@ -17,6 +17,8 @@
 #ifndef GC_H
 #define GC_H
 
+#include "types.h"
+
 void gc_init(void);
 
 long baker_collect();
