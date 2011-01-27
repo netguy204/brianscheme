@@ -17,13 +17,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
 #include "ffi.h"
 
+char *version = "Mercury";
+
+/* Options */
+char *progname;
 char **bs_paths;
+int bootstrap = 1;
+int print_help = 0;
+
+void print_usage(int ret) {
+  printf ("Usage: %s [options] [script [arguments]]\n", progname);
+  printf ("\t-b           Do not bootstrap\n");
+  printf ("\t-v           Print version information\n");
+  printf ("\t-h           Print this usage text\n");
+  exit(ret);
+}
+
+void print_version ()
+{
+  printf ("BrianScheme, version %s.\n", version);
+  exit(EXIT_SUCCESS);
+}
 
 char **split_path(char *path) {
   /* Count delimiters while making a copy. */
@@ -63,6 +84,26 @@ char *pathcat(char *a, char *b) {
   strcpy(out + alen + 1, b);
   *(out + alen + blen + 1) = '\0';
   return out;
+}
+
+void insert_strlist(char **strv, char *name) {
+  char **strs = strv;
+  object* list = the_empty_list;
+  object* str = the_empty_list;
+  push_root(&list);
+  push_root(&str);
+  while (*strs != NULL) strs++;
+  while (strs > strv) {
+    /* Build up list in reverse. */
+    strs--;
+    str = make_string(*strs);
+    list = cons(str, list);
+  }
+  pop_root(&str);
+  object *sym = make_symbol(name);
+  define_global_variable(sym, list, the_global_environment);
+  define_global_variable(sym, list, vm_global_environment);
+  pop_root(&list);
 }
 
 object * load_library(char *libname) {
@@ -117,6 +158,7 @@ object * compile_library(char *libname) {
 
 int main(int argc, char ** argv) {
   int ii;
+  progname = argv[0];
 
   init();
 
@@ -124,25 +166,33 @@ int main(int argc, char ** argv) {
   char *path = getenv("BS_PATH");
   if (path == NULL)
     path = ".";
-  char **paths = bs_paths = split_path(path);
-  object* list = the_empty_list;
-  object* str = the_empty_list;
-  push_root(&list);
-  push_root(&str);
-  while (*paths != NULL) paths++;
-  while (paths > bs_paths) {
-    /* Build up list in reverse. */
-    paths--;
-    str = make_string(*paths);
-    list = cons(str, list);
-  }
-  pop_root(&str);
-  object *sym = make_symbol("*load-path*");
-  define_global_variable(sym, list, the_global_environment);
-  define_global_variable(sym, list, vm_global_environment);
-  pop_root(&list);
+  bs_paths = split_path(path);
+  insert_strlist(bs_paths, "*load-path*");
 
-  if(argc > 1 && strcmp(argv[1], "-b") == 0) {
+  /* Handle command line arguments. */
+  int c;
+  while ((c = getopt(argc, argv, "+bhv")) != -1)
+    switch (c)
+      {
+      case 'b':
+	bootstrap = 0;
+	break;
+      case 'v':
+	print_version ();
+	break;
+      case 'h':
+	print_help = 1;
+	break;
+      case '?':
+	print_usage (EXIT_FAILURE);
+	break;
+      }
+
+  if (print_help)
+    print_usage (EXIT_SUCCESS);
+  insert_strlist(argv + optind, "*args*");
+
+  if(!bootstrap) {
     /* don't bootstrap, take the user straight to a totally primitive
        environment */
     for(ii = 2; ii < argc; ++ii) {

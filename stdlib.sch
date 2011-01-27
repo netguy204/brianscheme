@@ -43,4 +43,8 @@
 (require 'clos)
 (provide 'stdlib)
 
-(require 'clos-repl)
+(if (null? *args*)
+    (require 'clos-repl)
+    (begin
+      (load (car *args*))
+      (exit 0)))
