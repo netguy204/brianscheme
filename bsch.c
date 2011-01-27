@@ -70,7 +70,6 @@ object * load_library(char *libname) {
   char **paths = bs_paths;
   while (*paths != NULL) {
     filename = pathcat(*paths, libname);
-    printf("checking %s\n", filename);
     if (access(filename, R_OK) == 0)
       break;
     free(filename);
@@ -93,7 +92,6 @@ object * load_library(char *libname) {
   while((form = obj_read(stdlib)) != NULL) {
     push_root(&form);
     result = interp(form, the_empty_environment);
-    print_obj(result);
     pop_root(&form);
   }
 

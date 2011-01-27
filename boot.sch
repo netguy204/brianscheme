@@ -676,14 +676,12 @@ list"
 
 (define (load name)
   "read and evaluate all forms in a file called name"
-  (display (find-library name))
   (let ((file (find-library name)))
     (if file
         (letrec ((in (open-input-port file))
                  (iter (lambda (form)
                          (unless (eof-object? form)
-                           (write (eval form))
-                           (newline)
+                           (eval form)
                            (iter (read-port in))))))
           (if (eof-object? in)
               (throw-error "failed to open" file)
@@ -1188,8 +1186,7 @@ returns true"
                     (iter (lambda (form)
                             (unless (eof-object? form)
                               ;;(write-port `((compiler ',form)) stdout)
-                              (write (eval `((compiler ',form))))
-                              (newline)
+                              (eval `((compiler ',form)))
                               (iter (read-port in))))))
              (if (eof-object? in)
                  (throw-error "failed to open" file)
