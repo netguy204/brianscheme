@@ -20,6 +20,7 @@
 ; appropriate to start building up the rest of the language niceties
 ; that weren't essential for bootstrapping.
 
+(require 'io)
 (require 'math)
 (require 'string)
 (require 'point-free)

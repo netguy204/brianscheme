@@ -7,6 +7,6 @@
     `(let ((,var (open-input-port ,file)))
        (if (eof-object? ,var)
            (throw-error "failed to open" ,file)
-           (let ((,res ,@body))
+           (let ((,res (begin ,@body)))
              (close-input-port ,var)
              ,res)))))
