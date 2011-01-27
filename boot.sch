@@ -967,7 +967,7 @@ returns true"
   "return a list of all symbols defined in the global environment"
   (hashtab-keys *global-environment*))
 
-(define (global? sym)
+(define (bound? sym)
   "returns true if symbol is in the global environment"
   (let* ((sentinal (gensym))
 	 (result (hashtab-ref *global-environment* sym sentinal)))
@@ -983,7 +983,7 @@ returns true"
 
 (define (macro? sym)
   "is a given symbol defined as a global macro?"
-  (and (global? sym)
+  (and (bound? sym)
        (syntax-procedure? (global-ref sym))))
 
 (define (macroexpand0 form)

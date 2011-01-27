@@ -40,7 +40,7 @@
   #t)
 
 
-(define (comp-global? sym)
+(define (comp-bound? sym)
   "is the symbol defined in the compiled global environment?"
   (let* ((sentinal (gensym))
 	 (result (hashtab-ref *vm-global-environment* sym sentinal)))
@@ -56,7 +56,7 @@
 
 (define (comp-macro? sym)
   "is a given symbol a macro in the compiled environment?"
-  (and (comp-global? sym)
+  (and (comp-bound? sym)
        (compiled-syntax-procedure? (comp-global-ref sym))))
 
 (define (comp-macroexpand0 form)
