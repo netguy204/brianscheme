@@ -205,6 +205,10 @@
 			     (prim <output-port>))
   (write-stream strm "#<output-port>"))
 
+(define-method (print-object (strm <output-stream>)
+			     (prim <alien>))
+  (write-stream strm "#<alien>"))
+
 (define-class <input-stream> ()
   "most basic input stream abstraction")
 

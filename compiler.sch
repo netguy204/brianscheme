@@ -393,16 +393,82 @@ about its value and optionally with more forms following"
       'label
       (first instr)))
 
-(define (assemble fn)
-  (let* ((r1 (asm-first-pass (fn-code-ref fn)))
-	 (r2 (asm-second-pass (fn-code-ref fn)
-			      (first r1)
-			      (second r1)))
-	 (nargs (num-args (fn-args-ref fn)))
-	 (result
-	  (make-compiled-proc r2 (fn-env-ref fn))))
+(define (map-vector fn vector)
+  (let* ((len (vector-length vector))
+	 (result (make-vector len nil)))
+    (dotimes (idx len)
+      (vector-set! result idx
+		   (fn (vector-ref vector idx))))
+    result))
+
+(define (instrs-to-bytes instr-vector)
+  (let* ((len (vector-length instr-vector))
+	 (result (ffi:make-longs (%fixnum-mul 3 len))))
+
+    (dotimes (idx len)
+      (let ((instr (vector-ref instr-vector idx))
+	    (off (%fixnum-mul idx 3)))
+
+	(ffi:long-set! result off (char->integer (opcode instr)))
+
+	(if (cdr instr)
+	    (begin
+	      (ffi:long-set! result (%fixnum-add off 1)
+			     (cadr instr))
+	      (if (cddr instr)
+		  (begin
+		    (ffi:long-set! result (%fixnum-add off 2)
+				   (caddr instr)))
+		  ;; no second arg
+		  (ffi:long-set! result (%fixnum-add off 2) 129)))
+
+	    (begin
+	      ;; no first or second arg
+	      (ffi:long-set! result (%fixnum-add off 1) 129)
+
+	      (ffi:long-set! result (%fixnum-add off 2) 129)))))
+
 
     result))
+
+(define (build-const-table instrs)
+  (let ((result nil)
+	(idx 0))
+
+    (dolist (inst instrs)
+      (when (is inst '(const fn gvar gset))
+        (push! (arg1 inst) result)
+	(set-car! (cdr inst) idx)
+	(%inc! idx)))
+
+    (apply vector (reverse result))))
+
+(define (assemble fn)
+  (let* (;; determine the value of each symbolic label and remove
+	 ;; those labels from the instruction stream
+	 (r1 (asm-first-pass (fn-code-ref fn)))
+
+	 ;; while everything is still symbolic we extract the consts
+	 ;; and mutate the arg of the old instruction to point into
+	 ;; the table
+	 (consts (build-const-table (fn-code-ref fn)))
+
+	 ;; resolve all jumps and convert the instrs into characters
+	 (instrs (asm-second-pass (fn-code-ref fn)
+				  (first r1)
+				  (second r1)))
+
+	 ;; remember the number of instructions in the stream since
+	 ;; the alien byte array doesn't store its length
+	 (num-bytes (%fixnum-mul (vector-length instrs) 3))
+
+	 ;; pack the instructions into the final alien byte array
+	 (bytes (instrs-to-bytes instrs)))
+
+    ;; pack the final compiled proc
+    (make-compiled-proc (list num-bytes bytes consts)
+			      (fn-env-ref fn))))
+
 
 (define (asm-first-pass code)
   (let ((length 0)
@@ -448,22 +514,29 @@ about its value and optionally with more forms following"
   (make-string spaces #\space))
 
 (define (%show-fn fn indent)
+  (map display (list "consts: " (caddr (compiled-bytecode fn))))
   (newline)
 
-  (let ((line-num 0))
-    (dovector (instr (compiled-bytecode fn))
-      (let* ((opcode-sym (bytecode->symbol (opcode instr)))
-	     (sym (if opcode-sym opcode-sym (opcode instr)))
-	     (instr (cons sym (cdr instr))))
+  (let ((line-num 0)
+	(len (vector-length (cadr (compiled-bytecode fn))))
+	(bytes (car (compiled-bytecode fn)))
+	(args (cadr (compiled-bytecode fn))))
 
-	(if (is instr 'fn)
-	    (begin
-	      (map display (list line-num ": " (make-space indent) "fn"))
-	      (%show-fn (second instr) (%fixnum-add indent 4)))
-	    (begin
-	      (map display (list line-num ": " (make-space indent) instr))
-	      (newline))))
-      (inc! line-num))))
+    (dotimes (idx len)
+      (let ((instr (ffi:byte-ref bytes idx))
+	    (arg (vector-ref args idx)))
+	(let* ((opcode-sym (bytecode->symbol instr))
+	       (sym (if opcode-sym opcode-sym instr))
+	       (instr (cons sym arg)))
+
+	  (if (is instr 'fn)
+	      (begin
+		(map display (list line-num ": " (make-space indent) "fn "))
+		(%show-fn (second instr) (%fixnum-add indent 4)))
+	      (begin
+		(map display (list line-num ": " (make-space indent) instr))
+		(newline))))
+	(inc! line-num)))))
 
 
 (define (comp-show fn)

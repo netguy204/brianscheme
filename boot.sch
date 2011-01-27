@@ -514,7 +514,7 @@ body. always executes at least once"
      (for-each
       (lambda (,(first (first args)))
 	(begin . ,body)
-	(inc! ,(second (first args))))
+	(%inc! ,(second (first args))))
       ,(second args))))
 
 (define-syntax (dovector args . body)
@@ -530,8 +530,9 @@ body. always executes at least once"
 
 (define (do-times fn times)
   "call fn times with oone argument that goese from 0 to times-1"
+  (assert (integer? times))
   (let loop ((n 0))
-    (when (< n times)
+    (when (%fixnum-less-than n times)
       (fn n)
       (loop (%fixnum-add n 1))))
   #t)

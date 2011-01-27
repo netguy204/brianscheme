@@ -44,3 +44,6 @@ clean:
 INDENT_FLAGS = -npro -npsl -npcs -nsaf -nsai -nsaw -br -brf -brs -ncs
 indent:
 	indent $(INDENT_FLAGS) $(SOURCES)
+
+linecount:
+	wc -l *.[ch] *.sch clos/*.sch examples/*.sch tests/*.sch

@@ -198,21 +198,37 @@ DEFUN1(ffi_get_pointer) {
 }
 
 DEFUN1(ffi_make_byte_array) {
-  char *array = MALLOC(LONG(FIRST));
+  unsigned char *array = MALLOC(LONG(FIRST));
   return make_alien(array, free_ptr_fn);
 }
 
 DEFUN1(ffi_get_byte) {
-  char *array = ALIEN_PTR(FIRST);
+  unsigned char *array = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
   return make_character(array[idx]);
 }
 
 DEFUN1(ffi_set_byte) {
-  char *array = ALIEN_PTR(FIRST);
+  unsigned char *array = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
-  char value = CHAR(THIRD);
+  unsigned char value = CHAR(THIRD);
   array[idx] = value;
+  return THIRD;
+}
+
+DEFUN1(ffi_make_long_array) {
+  long *array = MALLOC(LONG(FIRST) * sizeof(long));
+  return make_alien(array, free_ptr_fn);
+}
+
+DEFUN1(ffi_get_long) {
+  long *array = ALIEN_PTR(FIRST);
+  return make_fixnum(array[LONG(SECOND)]);
+}
+
+DEFUN1(ffi_set_long) {
+  long *array = ALIEN_PTR(FIRST);
+  array[LONG(SECOND)] = LONG(THIRD);
   return THIRD;
 }
 
@@ -352,6 +368,9 @@ void init_ffi(object * env) {
   add_procedure("ffi:make-bytes", ffi_make_byte_array);
   add_procedure("ffi:byte-ref", ffi_get_byte);
   add_procedure("ffi:byte-set!", ffi_set_byte);
+  add_procedure("ffi:make-longs", ffi_make_long_array);
+  add_procedure("ffi:long-ref", ffi_get_long);
+  add_procedure("ffi:long-set!", ffi_set_long);
   add_procedure("ffi:primitive", ffi_primitive_type);
   add_procedure("ffi:prep-cif", ffi_prep_cif_proc);
   add_procedure("ffi:call", ffi_call_proc);

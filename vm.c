@@ -26,10 +26,8 @@
 
 object *cc_bytecode;
 
-#define OPCODE(x) CAR(x)
-#define ARGS(x) CDR(x)
-#define ARG1(x) CAR(ARGS(x))
-#define ARG2(x) CAR(CDR(ARGS(x)))
+#define ARG1 (codes[pc-2])
+#define ARG2 (codes[pc-1])
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -176,10 +174,11 @@ object *vector_pop(object * stack, long top) {
 #endif
 
 object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
-  object *code_array;
+  object *const_array;
+
   object *env;
-  object *instr;
-  object *opcode;
+
+  long opcode;
   object *top;
 
   long initial_top = stack_top - n_args;
@@ -191,7 +190,6 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   env = CENV(fn);
   env = cons(the_empty_vector, env);
 
-  instr = the_empty_list;
   top = the_empty_list;
 
   push_root(&stack);
@@ -206,32 +204,31 @@ vm_fn_begin:
     return error_sym;
   }
 
-  code_array = BYTECODE(fn);
-  VM_DEBUG("bytecode", code_array);
-  VM_DEBUG("stack", stack);
+  long num_codes = LONG(car(BYTECODE(fn)));
+  long *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
+  const_array = caddr(BYTECODE(fn));
 
-  object **codes = VARRAY(code_array);
-  long num_codes = VSIZE(code_array);
+  VM_DEBUG("stack", stack);
 
 vm_begin:
   if(pc >= num_codes) {
     VM_ASSERT(false, "pc flew off the end of memory");
   }
 
-  instr = codes[pc++];
-  opcode = OPCODE(instr);
+  opcode = codes[pc];
+  pc += 3; /* instructions are 3 bytes wide */
 
   VM_DEBUG("dispatching", instr);
 
-  switch (CHAR(opcode)) {
+  switch (opcode) {
   case _args_:{
-      if(n_args != LONG(ARG1(instr))) {
+      if(n_args != ARG1) {
 	VM_ASSERT(0, "wrong number of args. expected %ld, got %ld\n",
-		  LONG(ARG1(instr)), n_args);
+		  ARG1, n_args);
       }
 
       int ii;
-      int num_args = LONG(ARG1(instr));
+      int num_args = ARG1;
 
       /* resize the top frame if we need to */
       if(num_args > VSIZE(car(env))) {
@@ -249,10 +246,10 @@ vm_begin:
     }
     break;
   case _argsdot_:{
-      VM_ASSERT(n_args >= LONG(ARG1(instr)), "wrong number of args");
+      VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
       int ii;
-      long req_args = LONG(ARG1(instr));
+      long req_args = ARG1;
       long array_size = req_args + 1;
 
       /* resize the top frame if we need to */
@@ -283,23 +280,23 @@ vm_begin:
   case _fjump_:{
       VPOP(top, stack, stack_top);
       if(is_falselike(top)) {
-	pc = LONG(ARG1(instr));
+	pc = ARG1 * 3; /* offsets are in instructions */
       }
     }
     break;
   case _tjump_:{
       VPOP(top, stack, stack_top);
       if(!is_falselike(top)) {
-	pc = LONG(ARG1(instr));
+	pc = ARG1 * 3;
       }
     }
     break;
   case _jump_:{
-      pc = LONG(ARG1(instr));
+      pc = ARG1 * 3;
     }
     break;
   case _fn_:{
-      object *fn_arg = ARG1(instr);
+      object *fn_arg = VARRAY(const_array)[ARG1];
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
 					  env);
       push_root(&new_fn);
@@ -315,7 +312,7 @@ vm_begin:
       top = METAPROC(top);
     }
 
-    long args_for_call = LONG(ARG1(instr));
+    long args_for_call = ARG1;
 
     if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
       fn = top;
@@ -366,7 +363,7 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      long args_for_call = LONG(ARG1(instr));
+      long args_for_call = ARG1;
 
       /* special case for apply (which will always be callj) */
       if(args_for_call == -1) {
@@ -428,8 +425,8 @@ vm_begin:
     }
     break;
   case _lvar_:{
-      int env_num = LONG(ARG1(instr));
-      int idx = LONG(ARG2(instr));
+      int env_num = ARG1;
+      int idx = ARG2;
 
       object *next = env;
       while(env_num-- > 0) {
@@ -441,8 +438,8 @@ vm_begin:
     }
     break;
   case _lset_:{
-      int env_num = LONG(ARG1(instr));
-      int idx = LONG(ARG2(instr));
+      int env_num = ARG1;
+      int idx = ARG2;
 
       object *next = env;
       while(env_num-- > 0) {
@@ -453,14 +450,15 @@ vm_begin:
     }
     break;
   case _gvar_:{
-      object *var = lookup_global_value(ARG1(instr), vm_global_environment);
+      object *var = lookup_global_value(VARRAY(const_array)[ARG1],
+					vm_global_environment);
       push_root(&var);
       VPUSH(var, stack, stack_top);
       pop_root(&var);
     }
     break;
   case _gset_:{
-      object *var = ARG1(instr);
+      object *var = VARRAY(const_array)[ARG1];
       object *val = VARRAY(stack)[stack_top - 1];
       define_global_variable(var, val, vm_global_environment);
     }
@@ -515,8 +513,13 @@ vm_begin:
   case _save_:{
       object *ret_addr = cons(fn, env);
       push_root(&ret_addr);
-      ret_addr = cons(ARG1(instr), ret_addr);
+      object *num = make_fixnum(ARG1 * 3);
+      push_root(&num);
+
+      ret_addr = cons(num, ret_addr);
       VPUSH(ret_addr, stack, stack_top);
+
+      pop_root(&num);
       pop_root(&ret_addr);
     }
     break;
@@ -525,13 +528,13 @@ vm_begin:
     }
     break;
   case _const_:{
-      VPUSH(ARG1(instr), stack, stack_top);
+    VPUSH(VARRAY(const_array)[ARG1],
+	    stack, stack_top);
     }
     break;
   default:{
-      fprintf(stderr, "don't know how to process ");
-      owrite(stderr, opcode);
-      fprintf(stderr, "\n");
+      fprintf(stderr, "don't know how to process opcode %d\n",
+	      (int)opcode);
       VM_ASSERT(0, "strange opcode");
     }
   }
@@ -605,16 +608,20 @@ void vm_init_environment(object * env) {
   pop_root(&curr);
 }
 
-void wb(object * vector) {
+void wb(object * fn) {
   long idx = 0;
-  long size = VSIZE(vector);
-  object **codes = VARRAY(vector);
+  object *code_array = car(BYTECODE(fn));
+  object *arg_vector = cadr(BYTECODE(fn));
+
+  long size = VSIZE(arg_vector);
+  char *codes = ALIEN_PTR(code_array);
+  object **args = VARRAY(arg_vector);
 
   fprintf(stderr, "#<bytecode: ");
   for(idx = 0; idx < size; ++idx) {
-    int code = (int)CHAR(OPCODE(codes[idx]));
+    int code = (int)codes[idx];
     fprintf(stderr, "(%s . ", bytecode_str[code]);
-    owrite(stderr, cdr(codes[idx]));
+    owrite(stderr, args[idx]);
     fprintf(stderr, ") ");
   }
   fprintf(stderr, ">\n");
