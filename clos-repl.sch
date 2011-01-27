@@ -20,6 +20,10 @@
 
 		 (lambda () (eval exp)))))
 
+      (when (eof-object? res)
+	    (newline)
+	    (exit 0))
+
       (print-object stdout-stream res)
       (newline)
       (clos-repl)))

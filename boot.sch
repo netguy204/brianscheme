@@ -676,14 +676,12 @@ list"
 
 (define (load name)
   "read and evaluate all forms in a file called name"
-  (display (find-library name))
   (let ((file (find-library name)))
     (if file
         (letrec ((in (open-input-port file))
                  (iter (lambda (form)
                          (unless (eof-object? form)
-                           (write (eval form))
-                           (newline)
+                           (eval form)
                            (iter (read-port in))))))
           (if (eof-object? in)
               (throw-error "failed to open" file)
@@ -1173,7 +1171,7 @@ returns true"
  ;; we need to load and compile the compiler again but we'll need the
  ;; interpreter to do that
  (begin
-   (write-port "branch 1" stdout)
+   (display "Compiling compiler..." stderr)
    (write-char #\newline stdout)
 
    ;; we still need the interpreter to run the compiler until we get
@@ -1188,8 +1186,7 @@ returns true"
                     (iter (lambda (form)
                             (unless (eof-object? form)
                               ;;(write-port `((compiler ',form)) stdout)
-                              (write (eval `((compiler ',form))))
-                              (newline)
+                              (eval `((compiler ',form)))
                               (iter (read-port in))))))
              (if (eof-object? in)
                  (throw-error "failed to open" file)
@@ -1198,9 +1195,6 @@ returns true"
            (throw-error "failed to find" name))))
 
    (compile-file "compiler.sch")
-
-   (write-port "branch 1: finished loading compiler" stdout)
-   (write-char #\newline stdout)
 
    ;; now the compiler is compiled so we can switch the
    ;; interpreter-hooked eval off for good
@@ -1228,7 +1222,7 @@ returns true"
  ;; interpreter. need to load up the compiler and start recompiling
  ;; the world
  (begin
-   (write-port "branch 2" stdout)
+   (display "Bootstrapping compiler..." stderr)
    (write-char #\newline stdout)
 
    (require 'compiler)

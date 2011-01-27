@@ -20,6 +20,9 @@
 ; appropriate to start building up the rest of the language niceties
 ; that weren't essential for bootstrapping.
 
+(display "Building stdlib..." stderr)
+(write-char #\newline stdout)
+
 (define (list* . args)
   (letrec ((chase
 	    (lambda (args)
@@ -33,6 +36,7 @@
 
 
 (require 'conditions)
+(require 'io)
 (require 'math)
 (require 'string)
 (require 'point-free)
