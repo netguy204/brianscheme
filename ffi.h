@@ -19,4 +19,6 @@
 
 void init_ffi(object *env);
 
+extern object *free_ptr_fn;
+
 #endif

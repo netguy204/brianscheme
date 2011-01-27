@@ -23,6 +23,7 @@
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
+#include "ffi.h"
 
 object *cc_bytecode;
 
@@ -565,6 +566,20 @@ object *make_instr(char *name, object *arg1, object *arg2) {
   return result;
 }
 
+object *inst_array_to_bytecode(object *array) {
+  object **instrs = VARRAY(array);
+  long *bytecode = MALLOC(VSIZE(array) * sizeof(long) * 3);
+  long idx;
+  for(idx = 0; idx < VSIZE(array); ++idx) {
+    long off = idx * 3;
+    bytecode[off] = CHAR(car(instrs[idx]));
+    bytecode[off+1] = LONG(cadr(instrs[idx]));
+    bytecode[off+2] = LONG(caddr(instrs[idx]));
+  }
+
+  return make_alien(bytecode, free_ptr_fn);
+}
+
 void vm_init(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
@@ -581,16 +596,26 @@ void vm_init(void) {
   pop_root(&curr);
 
   /* the cc opcode needs a little special bytecode to do its thing */
-  cc_bytecode = make_vector(the_empty_list, 6);
-  push_root(&cc_bytecode);
+  object *instrs = make_vector(the_empty_list, 6);
+  push_root(&instrs);
 
-  object **codes = VARRAY(cc_bytecode);
+  object **codes = VARRAY(instrs);
   codes[0] = make_instr("args", make_fixnum(1), the_empty_list);
   codes[1] = make_instr("lvar", make_fixnum(1), make_fixnum(1)); /* top */
   codes[2] = make_instr("lvar", make_fixnum(1), make_fixnum(0)); /* stack */
   codes[3] = make_instr("setcc", the_empty_list, the_empty_list);
   codes[4] = make_instr("lvar", make_fixnum(0), make_fixnum(0)); /* fn */
   codes[5] = make_instr("return", the_empty_list, the_empty_list);
+
+  cc_bytecode = the_empty_list;
+  push_root(&cc_bytecode);
+  cc_bytecode = cons(the_empty_vector, cc_bytecode); /* consts */
+  cc_bytecode = cons(inst_array_to_bytecode(instrs), cc_bytecode);
+
+  object *codecount = make_fixnum(VSIZE(instrs) * 3);
+  push_root(&codecount);
+  cc_bytecode = cons(codecount, cc_bytecode);
+  pop_root(&codecount);
 }
 
 void vm_init_environment(object * env) {
