@@ -445,7 +445,7 @@ about its value and optionally with more forms following"
 
 
 (define (make-space spaces)
-  (reduce prim-concat (duplicate " " spaces) ""))
+  (make-string spaces #\space))
 
 (define (%show-fn fn indent)
   (newline)
