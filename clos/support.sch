@@ -69,20 +69,6 @@
 
 (define ??? 'unspecified-result)
 
-(define list*
-  (lambda args
-    (letrec ((chase
-	      (lambda (args)
-		(cond ((null? args) '())
-		      ((null? (cdr args)) (car args))
-		      (else (cons (car args) (chase (cdr args))))))))
-      (chase args))))
-
-(define apply*
-    (lambda (proc . args)
-      (apply proc (apply list* args))))
-
-
 (define position-of
     (lambda (x lst)
       (if (eq? x (car lst)) 0 (+ 1 (position-of x (cdr lst))))))

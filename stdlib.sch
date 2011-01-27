@@ -20,6 +20,19 @@
 ; appropriate to start building up the rest of the language niceties
 ; that weren't essential for bootstrapping.
 
+(define (list* . args)
+  (letrec ((chase
+	    (lambda (args)
+	      (cond ((null? args) '())
+		    ((null? (cdr args)) (car args))
+		    (else (cons (car args) (chase (cdr args))))))))
+    (chase args)))
+
+(define (apply* proc . args)
+  (apply proc (apply list* args)))
+
+
+(require 'conditions)
 (require 'math)
 (require 'string)
 (require 'point-free)

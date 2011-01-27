@@ -10,12 +10,19 @@
     (print-object stream obj)))
 
 (define (clos-repl)
-  (let* ((exp (read-port stdin))
-	 (res (eval exp)))
+    (let* ((exp (read-port stdin))
+	   (res (with-exception-handler
+		 (lambda (ex)
+		   (write-stream stderr-stream "clos-repl: ")
+		   (print-object stderr-stream ex)
+		   (newline)
+		   'error)
 
-    (print-object stdout-stream res)
-    (newline)
-    (clos-repl)))
+		 (lambda () (eval exp)))))
+
+      (print-object stdout-stream res)
+      (newline)
+      (clos-repl)))
 
 (define exit-hook clos-repl)
 
