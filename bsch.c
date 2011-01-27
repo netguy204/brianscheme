@@ -86,6 +86,7 @@ object * load_library(char *libname) {
     fprintf(stderr, "Somehow failed to load %s after it existed.\n", libname);
     exit(3);
   }
+  free(filename);
 
   object *form;
   object *result;
