@@ -49,7 +49,7 @@
 (define (comp-global-ref sym)
   "return the global from the compiled env. error if not defined."
   (let* ((sentinal (gensym))
-	 (result (hashtab-ref *vm-global-environment* sym sentinal)))
+	 (result (cdr (hashtab-ref *vm-global-environment* sym sentinal))))
     (if (eq? result sentinal)
 	(throw-error "symbol" sym "is not defined in compiled env")
 	result)))

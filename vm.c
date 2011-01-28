@@ -447,17 +447,31 @@ vm_begin:
     }
     break;
   case _gvar_:{
-      object *var = lookup_global_value(VARRAY(const_array)[ARG1],
-					vm_global_environment);
-      push_root(&var);
-      VPUSH(var, stack, stack_top);
-      pop_root(&var);
+      object *var = VARRAY(const_array)[ARG1];
+      object *val;
+
+      if(is_pair(var)) {
+	val = var;
+      } else {
+	val = lookup_global_value(VARRAY(const_array)[ARG1],
+				  vm_global_environment);
+	VARRAY(const_array)[ARG1] = val;
+      }
+
+      VPUSH(cdr(val), stack, stack_top);
     }
     break;
   case _gset_:{
       object *var = VARRAY(const_array)[ARG1];
       object *val = VARRAY(stack)[stack_top - 1];
-      define_global_variable(var, val, vm_global_environment);
+      object *slot = get_hashtab(vm_global_environment,
+				 var, NULL);
+      if(slot) {
+	set_cdr(slot, val);
+      } else {
+	val = cons(var, val);
+	define_global_variable(var, val, vm_global_environment);
+      }
     }
     break;
   case _setcc_: {
@@ -556,6 +570,14 @@ DEFUN1(set_cc_bytecode) {
   bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
   push_root(&bytecodes[_ ## opcode ## _]);
 
+void vm_definer(char *sym, object *value) {
+  push_root(&value);
+  object * symbol = make_symbol(sym);
+  value = cons(symbol, value);
+  define_global_variable(symbol, value, vm_global_environment);
+  pop_root(&value);
+}
+
 void vm_init(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
@@ -564,36 +586,24 @@ void vm_init(void) {
 
     error_sym = make_symbol("error");
 
-  object *curr = the_empty_list;
-  push_root(&curr);
+  vm_definer("set-macro!",
+	     make_primitive_proc(vm_tag_macro_proc));
 
-  define_global_variable(make_symbol("set-macro!"),
-			 curr = make_primitive_proc(vm_tag_macro_proc),
-			 vm_global_environment);
-
-  define_global_variable(make_symbol("set-cc-bytecode!"),
-			 curr = make_primitive_proc(set_cc_bytecode),
-			 vm_global_environment);
-
-  pop_root(&curr);
+  vm_definer("set-cc-bytecode!",
+	     make_primitive_proc(set_cc_bytecode));
 
   cc_bytecode = the_empty_list;
   push_root(&cc_bytecode);
 }
 
-void vm_init_environment(object * env) {
-  object *curr = the_empty_list;
-  push_root(&curr);
+void vm_init_environment(definer defn) {
 
-  define_global_variable(make_symbol("symbol->bytecode"),
-			 curr = make_primitive_proc(symbol_to_code_proc),
-			 env);
+  defn("symbol->bytecode",
+       make_primitive_proc(symbol_to_code_proc));
 
-  define_global_variable(make_symbol("bytecode->symbol"),
-			 curr = make_primitive_proc(code_to_symbol_proc),
-			 env);
+  defn("bytecode->symbol",
+       make_primitive_proc(code_to_symbol_proc));
 
-  pop_root(&curr);
 }
 
 void wb(object * fn) {

@@ -17,7 +17,7 @@
 #ifndef FFI_H
 #define FFI_H
 
-void init_ffi(object *env);
+void init_ffi(definer defn);
 
 extern object *free_ptr_fn;
 

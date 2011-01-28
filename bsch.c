@@ -100,9 +100,9 @@ void insert_strlist(char **strv, char *name) {
     list = cons(str, list);
   }
   pop_root(&str);
-  object *sym = make_symbol(name);
-  define_global_variable(sym, list, the_global_environment);
-  define_global_variable(sym, list, vm_global_environment);
+
+  interp_definer(name, list);
+  vm_definer(name, list);
   pop_root(&list);
 }
 
@@ -146,6 +146,8 @@ object * compile_library(char *libname) {
   if(compiler == NULL) {
     fprintf(stderr, "compile-file is not defined\n");
     exit(4);
+  } else {
+    compiler = cdr(compiler);
   }
 
   object *form = the_empty_list;
