@@ -49,6 +49,9 @@ pool_t *create_pool (size_t init_size)
     {
       init_size = default_pool_size;
     }
+  /* Make sure it aligns as a page. */
+  size_t ps = sysconf(_SC_PAGE_SIZE);
+  init_size = (init_size / ps) * ps;
 
   pool_t *new_pool = (pool_t *) xmalloc (sizeof (pool_t));
 
@@ -181,14 +184,13 @@ subpool_t *create_subpool_node (size_t size)
 
   /* allocate subpool memory */
   new_subpool->mem_block = new_mmap (size);
-  if (new_subpool->mem_block == NULL)
-    {
-      free (new_subpool);
-      return NULL;
-    }
 
   /* initialize data */
-  new_subpool->free_start = new_subpool->mem_block;
+  ((size_t *) new_subpool->mem_block)[0] = size;
+  ((void **) (sizeof(size_t *) + new_subpool->mem_block))[0]
+    = new_subpool->mem_block;
+  new_subpool->free_start = new_subpool->mem_block
+    + sizeof(size_t) + sizeof(void *);
   new_subpool->free_end = new_subpool->mem_block + size;
   new_subpool->size = size;
   new_subpool->misses = 0;
@@ -207,8 +209,6 @@ int pool_dump (pool_t * pool, char *file)
   subpool_t *cur = pool->pools;
   while (cur != NULL)
     {
-      fwrite(&(cur->size), sizeof(size_t), 1, f);
-      fwrite(&(cur->mem_block), sizeof(void *), 1, f);
       fwrite(cur->mem_block, cur->size, 1, f);
       cur = cur->next;
     }
@@ -228,11 +228,12 @@ int pool_load (char * file)
     if (r == 0) break;
     r = read(fd, &address, sizeof(void *));
     if (r == 0) break;
-    loc += sizeof(void *);
-    loc += sizeof(size_t);
-    mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, loc);
+    void *p = mmap(address, size, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_FIXED, fd, loc);
+    if (p == MAP_FAILED)
+      return -1;
     loc += size;
-    lseek(fd, size, SEEK_CUR);
+    lseek(fd, size - (sizeof(void *) + sizeof(size_t)), SEEK_CUR);
   }
   return 0;
 }
