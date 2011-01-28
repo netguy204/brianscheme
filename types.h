@@ -259,4 +259,10 @@ char is_eof_object(object *obj);
 
 char is_atom(object *obj);
 
+/* the type for a function that is given a symbol and an object and
+   establishes a corresponding binding. The interpreted environment
+   and the compiled environment need all the same primitives but the
+   compiled environment stores them differently. */
+typedef void (*definer)(char*, object*);
+
 #endif
