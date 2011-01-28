@@ -60,8 +60,9 @@ void set_variable_value(object *var, object *new_val,
 			object *env);
 void define_variable(object *var, object *new_val,
 		     object *env);
-void init_prim_environment(object * env);
+void init_prim_environment(definer defn);
 void init();
+void interp_definer(char *sym, object *val);
 void destroy_interp();
 
 void owrite(FILE *out, object *obj);

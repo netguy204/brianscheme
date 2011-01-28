@@ -46,6 +46,8 @@ void eval_exit_hook() {
 
     exit_hook =
       get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
+  } else {
+    exit_hook = cdr(exit_hook);
   }
 
   if(exit_hook != the_empty_list) {
@@ -558,10 +560,10 @@ object *apply(object *fn, object *evald_args) {
     return result;
   }
   else if(is_compound_proc(fn) || is_syntax_proc(fn)) {
-    env = extend_environment(fn->data.compound_proc.parameters,
-			     evald_args, fn->data.compound_proc.env);
+    env = extend_environment(COMPOUND_PARAMS(fn),
+			     evald_args, COMPOUND_ENV(fn));
     push_root(&env);
-    exp = fn->data.compound_proc.body;
+    exp = COMPOUND_BODY(fn);
     result = interp(exp, env);
     pop_root(&env);
     return result;
@@ -781,15 +783,15 @@ DEFUN1(concat_proc) {
 }
 
 DEFUN1(compound_args_proc) {
-  return FIRST->data.compound_proc.parameters;
+  return COMPOUND_PARAMS(FIRST);
 }
 
 DEFUN1(compound_body_proc) {
-  return FIRST->data.compound_proc.body;
+  return COMPOUND_BODY(FIRST);
 }
 
 DEFUN1(compound_env_proc) {
-  return FIRST->data.compound_proc.env;
+  return COMPOUND_ENV(FIRST);
 }
 
 DEFUN1(is_meta_proc) {
@@ -1021,11 +1023,11 @@ object *interp(object * exp, object * env) {
 
 object *expand_macro(object * macro, object * args, object * env, int level,
 		     object * stack, long stack_top) {
-  object *new_env = extend_environment(macro->data.compound_proc.parameters,
+  object *new_env = extend_environment(COMPOUND_PARAMS(macro),
 				       args,
 				       env);
   push_root(&new_env);
-  object *expanded = interp1(macro->data.compound_proc.body,
+  object *expanded = interp1(COMPOUND_BODY(macro),
 			     new_env, level, stack, stack_top);
   pop_root(&new_env);
 
@@ -1218,14 +1220,14 @@ interp_restart:
 	}
 
 	/* dispatch the call */
-	env = extend_environment(fn->data.compound_proc.parameters,
-				 evald_args, fn->data.compound_proc.env);
+	env = extend_environment(COMPOUND_PARAMS(fn),
+				 evald_args, COMPOUND_ENV(fn));
 	if(!env_protected) {
 	  push_root(&env);
 	  env_protected = 1;
 	}
 
-	exp = fn->data.compound_proc.body;
+	exp = COMPOUND_BODY(fn);
 
 	pop_root(&result);
 	pop_root(&evald_args);
@@ -1248,16 +1250,20 @@ interp_restart:
 }
 
 
-void init_prim_environment(object * env) {
+void interp_definer(char *sym, object *value) {
+  push_root(&value);
+  object * symbol = make_symbol(sym);
+  define_global_variable(symbol, value, the_global_environment);
+  pop_root(&value);
+}
+
+void init_prim_environment(definer defn) {
   /* used throughout this method to protect the thing in definition
    * from gc */
-  object *curr = the_empty_list;
-  push_root(&curr);
 
 #define add_procedure(scheme_name, c_name)			\
-  define_global_variable(make_symbol(scheme_name),		\
-			 curr=make_primitive_proc(c_name),	\
-			 env);
+  defn(scheme_name,						\
+       make_primitive_proc(c_name));
 
 
   add_procedure("null?", is_null_proc);
@@ -1376,13 +1382,10 @@ void init_prim_environment(object * env) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  define_global_variable(stdin_symbol, curr = make_input_port(stdin), env);
-  define_global_variable(stdout_symbol, curr = make_output_port(stdout), env);
-  define_global_variable(stderr_symbol, curr = make_output_port(stderr), env);
-  define_global_variable(make_symbol("*global-environment*"), env, env);
-  define_global_variable(exit_hook_symbol, the_empty_list, env);
-
-  pop_root(&curr);
+  defn(SYMBOL(stdin_symbol), make_input_port(stdin));
+  defn(SYMBOL(stdout_symbol), make_output_port(stdout));
+  defn(SYMBOL(stderr_symbol), make_output_port(stderr));
+  defn(SYMBOL(exit_hook_symbol), the_empty_list);
 }
 
 void init() {
@@ -1433,22 +1436,27 @@ void init() {
   the_empty_environment = the_empty_list;
   the_global_environment = make_hashtab(100);
   push_root(&the_global_environment);
+  interp_definer("*global-environment*",
+		 the_global_environment);
+
 
   vm_global_environment = make_hashtab(100);
   push_root(&vm_global_environment);
+  vm_definer("*global-environment*",
+	     vm_global_environment);
 
-  init_prim_environment(the_global_environment);
-  vm_init_environment(the_global_environment);
-  init_ffi(the_global_environment);
+  init_prim_environment(interp_definer);
+  vm_init_environment(interp_definer);
+  init_ffi(interp_definer);
 
-  init_prim_environment(vm_global_environment);
-  vm_init_environment(vm_global_environment);
-  init_ffi(vm_global_environment);
+  init_prim_environment(vm_definer);
+  vm_init_environment(vm_definer);
+  init_ffi(vm_definer);
 
   vm_init();
 
-  define_global_variable(make_symbol("*vm-global-environment*"),
-			 vm_global_environment, the_global_environment);
+  interp_definer("*vm-global-environment*",
+		 vm_global_environment);
 }
 
 void destroy_interp() {

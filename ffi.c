@@ -343,19 +343,14 @@ DEFUN1(alien_to_primitive) {
 }
 
 
-void init_ffi(object * env) {
+void init_ffi(definer defn) {
 #define add_procedure(scheme_name, c_name)			\
-  define_global_variable(make_symbol(scheme_name),		\
-			 curr=make_primitive_proc(c_name),	\
-			 env);
-
-
-  object *curr = the_empty_list;
+  defn(scheme_name,						\
+       make_primitive_proc(c_name))
 
   free_ptr_fn = make_primitive_proc(free_ptr);
   push_root(&free_ptr_fn);
 
-  push_root(&curr);
   add_procedure("ffi:dlopen", dlopen_proc);
   add_procedure("ffi:dlsym", dlsym_proc);
   add_procedure("ffi:dlsym-var", dlsym2_proc);
@@ -385,8 +380,6 @@ void init_ffi(object * env) {
   add_procedure("ffi:create-closure", create_closure_proc);
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
-
-  pop_root(&curr);
 
   ffi_type_pointer_sym = make_symbol("ffi-pointer");
   ffi_type_void_sym = make_symbol("ffi-void");
