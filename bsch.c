@@ -31,10 +31,12 @@ char *progname;
 char **bs_paths;
 int bootstrap = 1;
 int print_help = 0;
+char *image = NULL;
 
 void print_usage(int ret) {
   printf ("Usage: %s [options] [script [arguments]]\n", progname);
   printf ("\t-b           Do not bootstrap\n");
+  printf ("\t-l           Load an image\n");
   printf ("\t-v           Print version information\n");
   printf ("\t-h           Print this usage text\n");
   exit(ret);
@@ -160,22 +162,16 @@ int main(int argc, char ** argv) {
   int ii;
   progname = argv[0];
 
-  init();
-
-  /* Handle BS_PATH */
-  char *path = getenv("BS_PATH");
-  if (path == NULL)
-    path = ".";
-  bs_paths = split_path(path);
-  insert_strlist(bs_paths, "*load-path*");
-
   /* Handle command line arguments. */
   int c;
-  while ((c = getopt(argc, argv, "+bhv")) != -1)
+  while ((c = getopt(argc, argv, "+bhvl:")) != -1)
     switch (c)
       {
       case 'b':
 	bootstrap = 0;
+	break;
+      case 'l':
+	image = optarg;
 	break;
       case 'v':
 	print_version ();
@@ -187,9 +183,25 @@ int main(int argc, char ** argv) {
 	print_usage (EXIT_FAILURE);
 	break;
       }
-
   if (print_help)
     print_usage (EXIT_SUCCESS);
+
+  if (image) {
+    load_image(image);
+    printf("Image loaded.\n");
+    exit(0);
+  }
+
+  init();
+
+  /* Handle BS_PATH */
+  char *path = getenv("BS_PATH");
+  if (path == NULL)
+    path = ".";
+  bs_paths = split_path(path);
+  insert_strlist(bs_paths, "*load-path*");
+
+  /* Stick arguments in global environment. */
   insert_strlist(argv + optind, "*args*");
 
   if(!bootstrap) {

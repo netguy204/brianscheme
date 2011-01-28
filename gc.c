@@ -59,6 +59,10 @@ int save_image(char *filename) {
   return pool_dump(global_pool, filename);
 }
 
+int load_image(char *filename) {
+  return pool_load(filename);
+}
+
 void throw_gc_va(char *msg, va_list args) {
   vfprintf(stderr, msg, args);
   exit(2);

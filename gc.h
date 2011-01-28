@@ -34,5 +34,6 @@ void *REALLOC(void *p, size_t new);  /* mmap()ed */
 void FREE(void *p);       /* mmap()ed */
 
 int save_image(char *filename);
+int load_image(char *filename);
 
 #endif
