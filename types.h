@@ -31,7 +31,12 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM, FLOATNUM,
 	      HASH_TABLE, ALIEN, META_PROC} object_type;
 
 typedef struct object {
+  char color;
+  /* garbage collection data */
   object_type type;
+  struct object* next;
+  struct object* prev;
+
   union {
     struct {
       char value;
@@ -92,12 +97,6 @@ typedef struct object {
       struct object *data;
     } meta_proc;
   } data;
-
-  /* garbage collection data */
-  struct object* next;
-  struct object* prev;
-
-  char color;
 } object;
 
 typedef struct object* (prim_proc)(struct object*,
