@@ -42,7 +42,7 @@ void* new_mmap(size_t size) {
 /* Used internally to allocate more pool space. */
 static subpool_t *create_subpool_node (size_t size);
 
-pool_t *create_pool (size_t init_size)
+pool_t *create_pool (size_t init_size, size_t init_alloc, void **init)
 {
   /* if init_size == 0, user didn't want to choose one */
   if (init_size == 0)
@@ -59,8 +59,7 @@ pool_t *create_pool (size_t init_size)
   new_pool->pools = create_subpool_node (init_size);
   new_pool->first = new_pool->pools;
 
-  if (new_pool->first == NULL)
-    return NULL;
+  *init = pool_alloc(new_pool, init_alloc);
 
   return new_pool;
 }
@@ -217,7 +216,7 @@ int pool_dump (pool_t * pool, char *file)
 }
 
 /* Read the pool from the given file into memory. */
-int pool_load (char * file)
+void* pool_load (char * file)
 {
   int fd = open(file, O_RDWR);
   off_t loc = 0;
@@ -231,9 +230,9 @@ int pool_load (char * file)
     void *p = mmap(address, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_FIXED, fd, loc);
     if (p == MAP_FAILED)
-      return -1;
+      return NULL;
     loc += size;
     lseek(fd, size - (sizeof(void *) + sizeof(size_t)), SEEK_CUR);
   }
-  return 0;
+  return NULL; /* TODO */
 }

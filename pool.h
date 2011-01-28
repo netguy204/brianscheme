@@ -47,8 +47,10 @@ typedef struct pool_t
 } pool_t;
 
 /* Create a pool with a given initial size. If init_size is 0, the
- * default size is used. Returns NULL if malloc() fails. */
-pool_t *create_pool (size_t init_size);
+ * default size is used. Given a positive init_alloc it will initially
+ * allocate that many bytes and store it in init. When loading a pool,
+ * this same pointer is returned. */
+pool_t *create_pool (size_t init_size, size_t init_alloc, void **init);
 
 /* Returns a pointer to the allocated size bytes from the given
  * pool. Returns NULL if malloc() fails. */
@@ -65,6 +67,6 @@ void pool_free (pool_t * pool, void *p);
 int pool_dump (pool_t * pool, char *file);
 
 /* Read the pool from the given file into memory. */
-int pool_load (char * file);
+void *pool_load (char * file);
 
 #endif
