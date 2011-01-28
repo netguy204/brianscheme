@@ -60,4 +60,8 @@ void *pool_realloc (pool_t * source_pool, void * p, size_t new);
 /* Free memory back into the pool. */
 void pool_free (pool_t * pool, void *p);
 
+/* Dump entire pool to file that can be read back in later to the same
+ * place in memory. */
+int pool_dump (pool_t * pool, char *file);
+
 #endif

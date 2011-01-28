@@ -195,3 +195,21 @@ subpool_t *create_subpool_node (size_t size)
 
   return new_subpool;
 }
+
+/* Dump entire pool to file that can be read back in later to the same
+ * place in memory. */
+int pool_dump (pool_t * pool, char *file)
+{
+  FILE *f = fopen(file, "w");
+  if (f == NULL) return -1;
+  subpool_t *cur = pool->pools;
+  while (cur != NULL)
+    {
+      fwrite(&(cur->size), sizeof(size_t), 1, f);
+      fwrite(&(cur->mem_block), sizeof(void *), 1, f);
+      fwrite(cur->mem_block, cur->size, 1, f);
+      cur = cur->next;
+    }
+  fclose(f);
+  return 0;
+}
