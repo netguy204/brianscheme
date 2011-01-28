@@ -55,6 +55,10 @@ void *xmalloc(size_t size) {
   return obj;
 }
 
+int save_image(char *filename) {
+  return pool_dump(global_pool, filename);
+}
+
 void throw_gc_va(char *msg, va_list args) {
   vfprintf(stderr, msg, args);
   exit(2);

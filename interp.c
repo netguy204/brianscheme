@@ -511,6 +511,14 @@ DEFUN1(eval_proc) {
   return interp(exp, the_empty_environment);
 }
 
+DEFUN1(save_image_proc) {
+  object *file = FIRST;
+  int r = save_image(STRING(file));
+  if (r < 0)
+    throw_interp("could not save image");
+  return true;
+}
+
 object *apply(object *fn, object *evald_args) {
   /* essentially duplicated from interp but I'm not
    * sure how to implement this properly otherwise.*/
@@ -1339,6 +1347,7 @@ void init_prim_environment(object * env) {
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
   add_procedure("gc", gc_proc);
+  add_procedure("save-image", save_image_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("integer->char", integer_to_char_proc);
