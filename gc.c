@@ -387,8 +387,7 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
       break;
     case COMPOUND_PROC:
     case SYNTAX_PROC:
-      maybe_move(COMPOUND_ENV(scan_iter));
-      maybe_move(COMPOUND_PARAMS(scan_iter));
+      maybe_move(COMPOUND_PARMS_AND_ENV(scan_iter));
       maybe_move(COMPOUND_BODY(scan_iter));
       break;
     case VECTOR:
@@ -487,7 +486,7 @@ object *alloc_object(char needs_finalization) {
      baker_collect();
    */
 
-  if(Next_Free_Object == NULL) {
+  if(unlikely(Next_Free_Object == NULL)) {
     debug_gc("no space. trying baker-collect\n");
     print_backtrace();
 
@@ -511,7 +510,7 @@ object *alloc_object(char needs_finalization) {
   object *obj = Next_Free_Object;
   obj->color = current_color;
 
-  if(needs_finalization) {
+  if(unlikely(needs_finalization)) {
     stack_set_push(Finalizable_Objects, obj);
   }
 

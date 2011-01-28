@@ -213,7 +213,7 @@ vm_fn_begin:
 
 vm_begin:
   if(pc >= num_codes) {
-    VM_ASSERT(false, "pc flew off the end of memory");
+    VM_ASSERT(0, "pc flew off the end of memory");
   }
 
   opcode = codes[pc];
@@ -223,10 +223,8 @@ vm_begin:
 
   switch (opcode) {
   case _args_:{
-      if(n_args != ARG1) {
-	VM_ASSERT(0, "wrong number of args. expected %ld, got %ld\n",
-		  ARG1, n_args);
-      }
+    VM_ASSERT(n_args == ARG1, "wrong number of args. expected %ld, got %ld\n",
+	      ARG1, n_args);
 
       int ii;
       int num_args = ARG1;
@@ -247,7 +245,7 @@ vm_begin:
     }
     break;
   case _argsdot_:{
-      VM_ASSERT(n_args >= ARG1, "wrong number of args");
+    VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
       int ii;
       long req_args = ARG1;
@@ -300,9 +298,7 @@ vm_begin:
       object *fn_arg = VARRAY(const_array)[ARG1];
       object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
 					  env);
-      push_root(&new_fn);
       VPUSH(new_fn, stack, stack_top);
-      pop_root(&new_fn);
     }
     break;
   case _fcallj_:{
