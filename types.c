@@ -265,10 +265,8 @@ object *make_compound_proc(object * parameters, object * body, object * env) {
 
   object *obj = alloc_object(0);
   obj->type = COMPOUND_PROC;
-
-  obj->data.compound_proc.parameters = parameters;
-  obj->data.compound_proc.body = body;
-  obj->data.compound_proc.env = env;
+  COMPOUND_PARMS_AND_ENV(obj) = cons(parameters, env);
+  COMPOUND_BODY(obj) = body;
   return obj;
 }
 

@@ -67,9 +67,8 @@ typedef struct object {
 			   long n, long top);
     } primitive_proc;
     struct {
-      struct object *parameters;
+      struct object *parms_and_env;
       struct object *body;
-      struct object *env;
     } compound_proc; /* also syntax */
     struct {
       struct object *bytecode;
@@ -219,8 +218,9 @@ long get_cons_count();
 #define INPUT(x) (x->data.input_port.stream)
 #define OUTPUT(x) (x->data.output_port.stream)
 #define COMPOUND_BODY(x) (x->data.compound_proc.body)
-#define COMPOUND_ENV(x) (x->data.compound_proc.env)
-#define COMPOUND_PARAMS(x) (x->data.compound_proc.parameters)
+#define COMPOUND_PARMS_AND_ENV(x) (x->data.compound_proc.parms_and_env)
+#define COMPOUND_PARAMS(x) (CAR(COMPOUND_PARMS_AND_ENV(x)))
+#define COMPOUND_ENV(x) (CDR(COMPOUND_PARMS_AND_ENV(x)))
 #define VARRAY(obj) (obj->data.vector.objects)
 #define VSIZE(obj) (obj->data.vector.size)
 #define BYTECODE(obj) (obj->data.compiled_proc.bytecode)
@@ -232,6 +232,11 @@ long get_cons_count();
 #define ALIEN_FN_PTR(obj) (obj->data.alien.data.fn_ptr)
 #define METAPROC(obj) (obj->data.meta_proc.proc)
 #define METADATA(obj) (obj->data.meta_proc.data)
+
+/* some gcc specific magic so that we can give the compiler hints
+   about what sides of a branch to optimize for */
+#define likely(x) __builtin_expect((x), 1)
+#define unlikely(x) __builtin_expect((x), 0)
 
 object *make_primitive_proc(prim_proc fn);
 char is_primitive_proc(object *obj);

@@ -550,10 +550,10 @@ object *apply(object *fn, object *evald_args) {
     return result;
   }
   else if(is_compound_proc(fn) || is_syntax_proc(fn)) {
-    env = extend_environment(fn->data.compound_proc.parameters,
-			     evald_args, fn->data.compound_proc.env);
+    env = extend_environment(COMPOUND_PARAMS(fn),
+			     evald_args, COMPOUND_ENV(fn));
     push_root(&env);
-    exp = fn->data.compound_proc.body;
+    exp = COMPOUND_BODY(fn);
     result = interp(exp, env);
     pop_root(&env);
     return result;
@@ -773,15 +773,15 @@ DEFUN1(concat_proc) {
 }
 
 DEFUN1(compound_args_proc) {
-  return FIRST->data.compound_proc.parameters;
+  return COMPOUND_PARAMS(FIRST);
 }
 
 DEFUN1(compound_body_proc) {
-  return FIRST->data.compound_proc.body;
+  return COMPOUND_BODY(FIRST);
 }
 
 DEFUN1(compound_env_proc) {
-  return FIRST->data.compound_proc.env;
+  return COMPOUND_ENV(FIRST);
 }
 
 DEFUN1(is_meta_proc) {
@@ -1013,11 +1013,11 @@ object *interp(object * exp, object * env) {
 
 object *expand_macro(object * macro, object * args, object * env, int level,
 		     object * stack, long stack_top) {
-  object *new_env = extend_environment(macro->data.compound_proc.parameters,
+  object *new_env = extend_environment(COMPOUND_PARAMS(macro),
 				       args,
 				       env);
   push_root(&new_env);
-  object *expanded = interp1(macro->data.compound_proc.body,
+  object *expanded = interp1(COMPOUND_BODY(macro),
 			     new_env, level, stack, stack_top);
   pop_root(&new_env);
 
@@ -1210,14 +1210,14 @@ interp_restart:
 	}
 
 	/* dispatch the call */
-	env = extend_environment(fn->data.compound_proc.parameters,
-				 evald_args, fn->data.compound_proc.env);
+	env = extend_environment(COMPOUND_PARAMS(fn),
+				 evald_args, COMPOUND_ENV(fn));
 	if(!env_protected) {
 	  push_root(&env);
 	  env_protected = 1;
 	}
 
-	exp = fn->data.compound_proc.body;
+	exp = COMPOUND_BODY(fn);
 
 	pop_root(&result);
 	pop_root(&evald_args);
