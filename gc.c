@@ -38,10 +38,8 @@ void *MALLOC(size_t size) {
   return obj;
 }
 
-void *REALLOC(void *p, size_t old, size_t new) {
-  void *np = MALLOC(new);
-  memcpy(np, p, old);
-  return np;
+void *REALLOC(void *p, size_t new) {
+  return pool_realloc(global_pool, p, new);
 }
 
 void FREE(void *p) {
@@ -263,10 +261,8 @@ void clear_stack_set(stack_set * ss) {
 void stack_set_push(stack_set * ss, void *value) {
   /* grow the stack if we need to */
   if(ss->top == ss->size) {
-    long old_size = ss->size;
     long new_size = ss->size * 2;
-    ss->objs = REALLOC(ss->objs, sizeof(void *) * old_size,
-		       sizeof(void *) * new_size);
+    ss->objs = REALLOC(ss->objs, sizeof(void *) * new_size);
     ss->size = new_size;
   }
 

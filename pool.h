@@ -54,6 +54,9 @@ pool_t *create_pool (size_t init_size);
  * pool. Returns NULL if malloc() fails. */
 void *pool_alloc (pool_t * source_pool, size_t size);
 
+/* Reallocate pool memory at location. */
+void *pool_realloc (pool_t * source_pool, void * p, size_t new);
+
 /* Free memory back into the pool. */
 void pool_free (pool_t * pool, void *p);
 

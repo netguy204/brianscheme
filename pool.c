@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <bits/mman.h>
 #include "pool.h"
@@ -137,6 +138,18 @@ void *pool_alloc (pool_t * source_pool, size_t size)
     }
   ((size_t *) chunk)[0] = size;
   return chunk + s;
+}
+
+/* Reallocate pool memory at location. */
+void *pool_realloc (pool_t * source_pool, void * p, size_t new)
+{
+  size_t old = *(((size_t *) p) - 1);
+  if (old >= new)
+    return p;
+  void *np = pool_alloc (source_pool, new);
+  memcpy(np, p, old);
+  pool_free (source_pool, p);
+  return np;
 }
 
 /* Return memory to the pool. */
