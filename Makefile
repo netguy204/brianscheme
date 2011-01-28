@@ -7,6 +7,8 @@ HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
+IMAGE = boot.img
+
 LDFLAGS = -leditline -lffi -ldl -lm -rdynamic
 
 CC = gcc
@@ -29,6 +31,9 @@ endif
 bsch: $(OBJECTS) bsch.o $(HEADERS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bsch.o
 
+image: bsch
+	./bsch save-image.sch $(IMAGE)
+
 test: bsch
 	echo '(load "run-tests.sch")' | ./bsch
 
@@ -39,7 +44,7 @@ TAGS:
 	find . -name "*.[chCH]" -print | etags -
 
 clean:
-	rm -f *.o $(TARGETS) *.nul
+	rm -f *.o $(TARGETS) *.nul $(IMAGE)
 
 INDENT_FLAGS = -npro -npsl -npcs -nsaf -nsai -nsaw -br -brf -brs -ncs
 indent:
