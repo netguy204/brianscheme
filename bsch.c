@@ -23,6 +23,7 @@
 #include "read.h"
 #include "gc.h"
 #include "ffi.h"
+#include "vm.h"
 
 char *version = "Mercury";
 
