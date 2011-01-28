@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/mman.h>
 #include <bits/mman.h>
 #include "pool.h"
@@ -211,5 +213,26 @@ int pool_dump (pool_t * pool, char *file)
       cur = cur->next;
     }
   fclose(f);
+  return 0;
+}
+
+/* Read the pool from the given file into memory. */
+int pool_load (char * file)
+{
+  int fd = open(file, O_RDWR);
+  off_t loc = 0;
+  while (1) {
+    void *address;
+    size_t size, r;
+    r = read(fd, &size, sizeof(size_t));
+    if (r == 0) break;
+    r = read(fd, &address, sizeof(void *));
+    if (r == 0) break;
+    loc += sizeof(void *);
+    loc += sizeof(size_t);
+    mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, loc);
+    loc += size;
+    lseek(fd, size, SEEK_CUR);
+  }
   return 0;
 }
