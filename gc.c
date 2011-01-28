@@ -45,8 +45,7 @@ void *REALLOC(void *p, size_t old, size_t new) {
 }
 
 void FREE(void *p) {
-  (void) p;
-  /* You're free!!! */
+  pool_free(global_pool, p);
 }
 
 void *xmalloc(size_t size) {

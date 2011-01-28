@@ -22,6 +22,13 @@
 
 extern size_t default_pool_size;
 
+typedef struct freed_t
+{
+  void *p;			/* location of free memory. */
+  size_t size;			/* size of free memory */
+  struct freed_t *next;		/* next chunk of free memory */
+} freed_t;
+
 typedef struct subpool_t
 {
   void *mem_block;		/* beginning of the memory block */
@@ -29,6 +36,7 @@ typedef struct subpool_t
   void *free_end;		/* end of free segment */
   size_t size;			/* total size of the block */
   int misses;			/* allocation misses for this subpool */
+  freed_t *freed;		/* freed memory */
   struct subpool_t *next;	/* next subpool in this pool */
 } subpool_t;
 
@@ -46,8 +54,7 @@ pool_t *create_pool (size_t init_size);
  * pool. Returns NULL if malloc() fails. */
 void *pool_alloc (pool_t * source_pool, size_t size);
 
-/* Frees all data allocated by the pool. This will free all data
- * obtained by pool_alloc for this pool. */
-void free_pool (pool_t * source_pool);
+/* Free memory back into the pool. */
+void pool_free (pool_t * pool, void *p);
 
 #endif

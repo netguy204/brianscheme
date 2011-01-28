@@ -22,6 +22,7 @@
 #include <sys/mman.h>
 #include <bits/mman.h>
 #include "pool.h"
+#include "gc.h"
 
 size_t default_pool_size = 1048576;
 int miss_limit = 8;
@@ -30,7 +31,7 @@ int pool_scale = 2;
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  printf("mmap(): %p (%d kB)\n", p, size / 1024);
+  printf("mmap(): %p (%ld kB)\n", p, size / 1024);
   fflush(stdout);
   return p;
 }
@@ -46,9 +47,7 @@ pool_t *create_pool (size_t init_size)
       init_size = default_pool_size;
     }
 
-  pool_t *new_pool = (pool_t *) malloc (sizeof (pool_t));
-  if (new_pool == NULL)
-    return NULL;
+  pool_t *new_pool = (pool_t *) xmalloc (sizeof (pool_t));
 
   /* allocate first subpool */
   new_pool->pools = create_subpool_node (init_size);
@@ -66,6 +65,7 @@ void *pool_alloc (pool_t * source_pool, size_t size)
 {
   subpool_t *cur, *last;
   void *chunk = NULL;
+  size_t s = sizeof(size_t);
 
   cur = source_pool->first;
   if (cur->misses > miss_limit)
@@ -76,11 +76,30 @@ void *pool_alloc (pool_t * source_pool, size_t size)
 
   do
     {
-      if (size <= (size_t) (cur->free_end - cur->free_start))
+      /* Check this pool's free list. */
+      freed_t *lastf = NULL, *f = cur->freed;
+      while (f != NULL)
+	{
+	  if (f->size >= size)
+	    {
+	      cur->misses = 0;
+	      if (lastf == NULL)
+		cur->freed = f->next;
+	      else
+		lastf->next = f->next;
+	      void *chunk = f->p;
+	      free (f);
+	      return chunk;
+	    }
+	  lastf = f;
+	  f = f->next;
+	}
+
+      if ((size + s) <= (size_t) (cur->free_end - cur->free_start))
 	{
 	  /* cut off a chunk and return it */
 	  chunk = cur->free_start;
-	  cur->free_start += size;
+	  cur->free_start += size + s;
 	  cur->misses = 0;
 	}
       else
@@ -99,10 +118,10 @@ void *pool_alloc (pool_t * source_pool, size_t size)
     {
       /* double the size of the last one */
       size_t new_size = last->size * pool_scale;
-      if (new_size <= size)
+      if (new_size <= (size + s))
 	{
-	  /* quadruple requested size if its much bigger */
-	  new_size = size * 4;
+	  /* square requested size if its much bigger */
+	  new_size = (size + s) * pool_scale * pool_scale;
 	}
 
       /* create new subpool */
@@ -114,35 +133,36 @@ void *pool_alloc (pool_t * source_pool, size_t size)
 
       /* chop off requested amount */
       chunk = cur->free_start;
-      cur->free_start += size;
+      cur->free_start += size + s;
     }
-  return chunk;
+  ((size_t *) chunk)[0] = size;
+  return chunk + s;
 }
 
-/* Frees all data allocated by the pool. This will free all data
- * obtained by pool_alloc for this pool. */
-void free_pool (pool_t * source_pool)
+/* Return memory to the pool. */
+void pool_free (pool_t * source_pool, void *p)
 {
-  subpool_t *last;
-  subpool_t *cur = source_pool->pools;
+  subpool_t *cur, *next;
 
-  while (cur != NULL)
+  cur = source_pool->first;
+  next = cur->next;
+  while (next != NULL)
     {
-      free (cur->mem_block);
-
-      last = cur;
-      cur = cur->next;
-
-      free (last);
+      if (p >= ((void *) cur) && p < ((void *) next))
+	break;
+      cur = next;
+      next = cur->next;
     }
-  free(source_pool);
+  freed_t *f = (freed_t *) xmalloc (sizeof(freed_t));
+  f->p = p;
+  f->size = *(((size_t *) p) - 1);
+  f->next = cur->freed;
+  cur->freed = f;
 }
 
 subpool_t *create_subpool_node (size_t size)
 {
-  subpool_t *new_subpool = (subpool_t *) malloc (sizeof (subpool_t));
-  if (new_subpool == NULL)
-    return NULL;
+  subpool_t *new_subpool = (subpool_t *) xmalloc (sizeof (subpool_t));
 
   /* allocate subpool memory */
   new_subpool->mem_block = new_mmap (size);
@@ -157,6 +177,7 @@ subpool_t *create_subpool_node (size_t size)
   new_subpool->free_end = new_subpool->mem_block + size;
   new_subpool->size = size;
   new_subpool->misses = 0;
+  new_subpool->freed = NULL;
   new_subpool->next = NULL;
 
   return new_subpool;
