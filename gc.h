@@ -50,6 +50,7 @@ typedef struct stack_set {
 } stack_set;
 
 typedef struct global_state {
+  /* GC */
   pool_t *global_pool;
 
   doubly_linked_list Active_Heap_Objects;
@@ -64,6 +65,12 @@ typedef struct global_state {
   long Next_Heap_Extension;
 
   char current_color;
+
+  /* VM */
+  object *cc_bytecode;
+  object *error_sym;
+
+
 } global_state;
 
 extern global_state *g;

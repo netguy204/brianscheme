@@ -25,8 +25,6 @@
 #include "gc.h"
 #include "ffi.h"
 
-object *cc_bytecode;
-
 #define ARG1 (codes[pc-2])
 #define ARG2 (codes[pc-1])
 
@@ -69,8 +67,6 @@ opcode_table(generate_decls)
        opcode_table(generate_string)
      };
 
-object *error_sym;
-
 object *bytecodes[INVALID_BYTECODE];
 
 /* generate a function that converts a symbol into the corresponding
@@ -106,7 +102,7 @@ DEFUN1(code_to_symbol_proc) {
   do {						\
     if(!(test)) {				\
       fprintf(stderr, msg, ##__VA_ARGS__);	\
-      VM_RETURN(error_sym);			\
+      VM_RETURN(g->error_sym);			\
     }						\
   } while(0)
 
@@ -202,7 +198,7 @@ vm_fn_begin:
   if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
     owrite(stderr, fn);
     fprintf(stderr, ": object is not compiled-procedure\n");
-    return error_sym;
+    return g->error_sym;
   }
 
   long num_codes = LONG(car(BYTECODE(fn)));
@@ -495,7 +491,7 @@ vm_begin:
 
     cc_env = cons(cc_env, the_empty_list);
 
-    object *cc_fn = make_compiled_proc(cc_bytecode, cc_env);
+    object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
     pop_root(&cc_env);
 
     VPUSH(cc_fn, stack, stack_top);
@@ -534,7 +530,7 @@ vm_begin:
   }
 
   goto vm_begin;
-  VM_RETURN(error_sym);
+  VM_RETURN(g->error_sym);
 }
 
 DEFUN1(vm_tag_macro_proc) {
@@ -544,7 +540,7 @@ DEFUN1(vm_tag_macro_proc) {
 
 
 DEFUN1(set_cc_bytecode) {
-  cc_bytecode = BYTECODE(FIRST);
+  g->cc_bytecode = BYTECODE(FIRST);
   return FIRST;
 }
 
@@ -567,7 +563,7 @@ void vm_init(void) {
 
     opcode_table(generate_bytecodes)
 
-    error_sym = make_symbol("error");
+    g->error_sym = make_symbol("error");
 
   vm_definer("set-macro!",
 	     make_primitive_proc(vm_tag_macro_proc));
@@ -575,8 +571,8 @@ void vm_init(void) {
   vm_definer("set-cc-bytecode!",
 	     make_primitive_proc(set_cc_bytecode));
 
-  cc_bytecode = the_empty_list;
-  push_root(&cc_bytecode);
+  g->cc_bytecode = the_empty_list;
+  push_root(&(g->cc_bytecode));
 }
 
 void vm_init_environment(definer defn) {
