@@ -319,10 +319,8 @@ vm_begin:
       /* generate a fresh frame for the callee */
       env = CENV(fn);
 
-      object *newframe = make_vector(the_empty_list, n_args + 1);
-      push_root(&newframe);
-      env = cons(newframe, env);
-      pop_root(&newframe);
+      top = make_vector(the_empty_list, n_args + 1);
+      env = cons(top, env);
 
       goto vm_fn_begin;
     }
@@ -330,7 +328,6 @@ vm_begin:
       /* build the list the target expects for the call */
       long ii;
       object *pfn = top;
-      push_root(&pfn);
 
       top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
       /* unwind the stack since primitives don't clean up after
@@ -341,7 +338,6 @@ vm_begin:
       }
 
       VPUSH(top, stack, stack_top);
-      pop_root(&pfn);
 
       RETURN_OPCODE_INSTRUCTIONS;
     }
@@ -364,23 +360,16 @@ vm_begin:
 
       /* special case for apply (which will always be callj) */
       if(args_for_call == -1) {
-	/* function is on the top of the stack (as usual) */
-	object *target_fn = top;
-	push_root(&target_fn);
-
-	/* and the args are in a list next, expand those */
-	VPOP(top, stack, stack_top);
+	/* the args are in a list next, expand those */
+	object *args;
+	VPOP(args, stack, stack_top);
 
 	args_for_call = 0;
-	while(!is_the_empty_list(top)) {
-	  VPUSH(car(top), stack, stack_top);
-	  top = cdr(top);
+	while(!is_the_empty_list(args)) {
+	  VPUSH(car(args), stack, stack_top);
+	  args = cdr(args);
 	  ++args_for_call;
 	}
-
-	/* and put back the fn for the dispatch */
-	top = target_fn;
-	pop_root(&target_fn);
       }
 
       if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
@@ -399,7 +388,6 @@ vm_begin:
 	/* build the list the target expects for the call */
 	long ii;
 	object *pfn = top;
-	push_root(&pfn);
 
 	top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
 	/* unwind the stack since primitives don't clean up after
@@ -410,7 +398,6 @@ vm_begin:
 	}
 
 	VPUSH(top, stack, stack_top);
-	pop_root(&pfn);
 
 	RETURN_OPCODE_INSTRUCTIONS;
       }
@@ -450,6 +437,7 @@ vm_begin:
       object *var = VARRAY(const_array)[ARG1];
       object *val;
 
+      /* see if we can get it from cache */
       if(is_pair(var)) {
 	val = var;
       } else {
@@ -475,21 +463,19 @@ vm_begin:
     }
     break;
   case _setcc_: {
-    object *cc_stack;
     object *new_stack_top;
 
-    VPOP(cc_stack, stack, stack_top);
+    VPOP(top, stack, stack_top);
     VPOP(new_stack_top, stack, stack_top);
 
     /* need to copy the stack into the current stack */
     stack_top = LONG(new_stack_top);
-    push_root(&cc_stack);
+
     stack = make_vector(the_empty_list, stack_top);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
-      VARRAY(stack)[idx] = VARRAY(cc_stack)[idx];
+      VARRAY(stack)[idx] = VARRAY(top)[idx];
     }
-    pop_root(&cc_stack);
   }
     break;
   case _cc_: {
@@ -498,7 +484,6 @@ vm_begin:
 
     /* copy the stack */
     object *new_stack = make_vector(the_empty_list, stack_top);
-    push_root(&new_stack);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
       VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
@@ -507,7 +492,6 @@ vm_begin:
     /* insert it into the environment */
     VARRAY(cc_env)[0] = new_stack;
     VARRAY(cc_env)[1] = make_fixnum(stack_top);
-    pop_root(&new_stack);
 
     cc_env = cons(cc_env, the_empty_list);
 
@@ -523,15 +507,14 @@ vm_begin:
     break;
   case _save_:{
       object *ret_addr = cons(fn, env);
-      push_root(&ret_addr);
-      object *num = make_fixnum(ARG1 * 3);
-      push_root(&num);
-
-      ret_addr = cons(num, ret_addr);
+      /* push this immediately so we don't have to add a root */
       VPUSH(ret_addr, stack, stack_top);
 
-      pop_root(&num);
-      pop_root(&ret_addr);
+      object **addr = &VARRAY(stack)[stack_top-1];
+
+      *addr = cons(the_empty_list, *addr);
+      object *num = make_fixnum(ARG1 * 3);
+      set_car(*addr, num);
     }
     break;
   case _return_:{
