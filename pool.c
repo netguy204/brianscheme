@@ -22,6 +22,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/mman.h>
 #include <bits/mman.h>
 #include "pool.h"
@@ -37,7 +38,6 @@ size_t init_freed_stack = 256;
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  printf("mmap(): %p (%ld kB)\n", p, size / 1024);
   fflush(stdout);
   return p;
 }
@@ -243,7 +243,11 @@ int pool_dump (pool_t * pool, char *file)
 /* Read the pool from the given file into memory. */
 void* pool_load (char * file)
 {
-  int fd = open(file, O_RDWR);
+  int fd = open(file, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
+    return NULL;
+  }
   off_t loc = 0;
   void *first = NULL;
   while (1) {
@@ -257,10 +261,17 @@ void* pool_load (char * file)
       first = address;
     void *p = mmap(address, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_FIXED, fd, loc);
-    if (p == MAP_FAILED)
+    if (p == MAP_FAILED) {
+      fprintf(stderr, "error: failed to mmap() %s: %s\n",
+	      file, strerror(errno));
       return NULL;
+    }
     loc += size;
     lseek(fd, size - hdr, SEEK_CUR);
+  }
+  if (first == NULL) {
+    fprintf(stderr, "error: empty image file: %s\n", file);
+    return NULL;
   }
   return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
 }

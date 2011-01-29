@@ -192,10 +192,8 @@ int main(int argc, char ** argv) {
   if (image) {
     int r = load_image(image);
     if (r != 0) {
-      printf("Failure.\n");
       exit(EXIT_FAILURE);
     }
-    printf("Image loaded (%p).\n", g);
 
     /* need to reset the roots since some point to our old stack */
     gc_boot();
