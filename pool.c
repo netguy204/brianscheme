@@ -32,6 +32,7 @@ static const size_t hdr = sizeof(void *) + sizeof(size_t);
 size_t default_pool_size = 1048576;
 int miss_limit = 8;
 int pool_scale = 2;
+size_t init_freed_stack = 256;
 
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -86,23 +87,21 @@ void *pool_alloc (pool_t * source_pool, size_t size)
   do
     {
       /* Check this pool's free list. */
-      freed_t *lastf = NULL, *f = cur->freed;
-      while (f != NULL)
-	{
-	  if (f->size >= size)
-	    {
-	      cur->misses = 0;
-	      if (lastf == NULL)
-		cur->freed = f->next;
-	      else
-		lastf->next = f->next;
-	      void *chunk = f->p;
-	      free (f);
-	      return chunk;
-	    }
-	  lastf = f;
-	  f = f->next;
-	}
+      if (cur->freedb != NULL) {
+	freed_t *p = cur->freedp - 1;
+	while (p >= cur->freedb)
+	  {
+	    if (p->size >= size)
+	      {
+		cur->misses = 0;
+		void *chunk = p->p;
+		memmove(p, p + 1, (cur->freedp - p - 1) * sizeof(freed_t));
+		cur->freedp--;
+		return chunk;
+	      }
+	    p--;
+	  }
+      }
 
       if ((size + s) <= (size_t) (cur->free_end - cur->free_start))
 	{
@@ -155,8 +154,8 @@ void *pool_realloc (pool_t * source_pool, void * p, size_t new)
   if (old >= new)
     return p;
   void *np = pool_alloc (source_pool, new);
-  memcpy(np, p, old);
   pool_free (source_pool, p);
+  memcpy(np, p, old);
   return np;
 }
 
@@ -165,6 +164,7 @@ void pool_free (pool_t * source_pool, void *p)
 {
   subpool_t *cur, *next;
 
+  /* Locate the right pool. */
   cur = source_pool->first;
   next = cur->next;
   while (next != NULL)
@@ -174,11 +174,29 @@ void pool_free (pool_t * source_pool, void *p)
       cur = next;
       next = cur->next;
     }
-  freed_t *f = (freed_t *) xmalloc (sizeof(freed_t));
-  f->p = p;
-  f->size = *(((size_t *) p) - 1);
-  f->next = cur->freed;
-  cur->freed = f;
+
+  /* Add to the free list. */
+  if (cur->freedb == NULL) {
+    cur->freedb = pool_alloc(source_pool, init_freed_stack * sizeof(freed_t));
+    cur->freedp = cur->freedb;
+    cur->freed_size = init_freed_stack;
+  }
+  if (((size_t) (cur->freedp - cur->freedb))
+      > ((size_t) (cur->freed_size - 3))) {
+    cur->freed_size *= pool_scale;
+    fflush(stdout);
+    freed_t *stack = pool_realloc(source_pool, cur->freedb,
+				  cur->freed_size * sizeof(freed_t));
+    /* Old stack may end up on itself here. */
+    fflush(stdout);
+    size_t diff = cur->freedp - cur->freedb;
+    cur->freedb = stack;
+    cur->freedp = stack + diff;
+  }
+  size_t size = *(((size_t *) p) - 1);
+  cur->freedp->size = size;
+  cur->freedp->p = p;
+  cur->freedp++;
 }
 
 subpool_t *create_subpool_node (size_t size)
@@ -196,8 +214,12 @@ subpool_t *create_subpool_node (size_t size)
   new_subpool->free_end = new_subpool->mem_block + size;
   new_subpool->size = size;
   new_subpool->misses = 0;
-  new_subpool->freed = NULL;
   new_subpool->next = NULL;
+
+  /* freed stack (create later) */
+  new_subpool->freedb = NULL;
+  new_subpool->freedp = NULL;
+  new_subpool->freed_size = 0;
 
   return new_subpool;
 }
