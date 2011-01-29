@@ -64,7 +64,7 @@ char **split_path(char *path) {
   *cp = '\0';
 
   cp = copy;
-  char **r = MALLOC((count + 1) * sizeof(char**));
+  char **r = xmalloc((count + 1) * sizeof(char**));
   int i;
   for (i = 0; i < count; i++) {
     r[i] = cp;
@@ -89,7 +89,7 @@ char *pathcat(char *a, char *b) {
   return out;
 }
 
-void insert_strlist(char **strv, char *name) {
+void insert_strlist(char **strv, char *name, int use_interp) {
   char **strs = strv;
   object* list = g->empty_list;
   object* str = g->empty_list;
@@ -104,7 +104,8 @@ void insert_strlist(char **strv, char *name) {
   }
   pop_root(&str);
 
-  interp_definer(name, list);
+  if (use_interp)
+    interp_definer(name, list);
   vm_definer(name, list);
   pop_root(&list);
 }
@@ -165,6 +166,12 @@ int main(int argc, char ** argv) {
   int ii;
   progname = argv[0];
 
+  /* Handle BS_PATH */
+  char *path = getenv("BS_PATH");
+  if (path == NULL)
+    path = ".";
+  bs_paths = split_path(path);
+
   /* Handle command line arguments. */
   int c;
   while ((c = getopt(argc, argv, "+bhvl:")) != -1)
@@ -209,6 +216,10 @@ int main(int argc, char ** argv) {
     patch_object(g->stdout_symbol, make_output_port(stdout));
     patch_object(g->stderr_symbol, make_output_port(stderr));
 
+    /* Stick arguments and BS_PATH in global environment. */
+    insert_strlist(bs_paths, "*load-path*", 0);
+    insert_strlist(argv + optind, "*args*", 0);
+
     /* Fire up a REPL. */
     apply(cdr(get_hashtab(g->vm_env, make_symbol("clos-repl"), NULL)),
 	  g->empty_list);
@@ -217,15 +228,9 @@ int main(int argc, char ** argv) {
 
   init();
 
-  /* Handle BS_PATH */
-  char *path = getenv("BS_PATH");
-  if (path == NULL)
-    path = ".";
-  bs_paths = split_path(path);
-  insert_strlist(bs_paths, "*load-path*");
-
-  /* Stick arguments in global environment. */
-  insert_strlist(argv + optind, "*args*");
+  /* Stick arguments and BS_PATH in global environment. */
+  insert_strlist(bs_paths, "*load-path*", 1);
+  insert_strlist(argv + optind, "*args*", 1);
 
   if(!bootstrap) {
     /* don't bootstrap, take the user straight to a totally primitive
