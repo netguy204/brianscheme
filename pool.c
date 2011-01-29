@@ -53,13 +53,15 @@ pool_t *create_pool (size_t init_size, size_t init_alloc, void **init)
   size_t ps = sysconf(_SC_PAGE_SIZE);
   init_size = (init_size / ps) * ps;
 
-  pool_t *new_pool = (pool_t *) xmalloc (sizeof (pool_t));
-
-  /* allocate first subpool */
-  new_pool->pools = create_subpool_node (init_size);
+  /* allocate first subpool and use it for the pool */
+  subpool_t *first = create_subpool_node (init_size);
+  pool_t *new_pool = first->free_start;
+  first->free_start += sizeof (pool_t);
+  new_pool->pools = first;
   new_pool->first = new_pool->pools;
 
-  *init = pool_alloc(new_pool, init_alloc);
+  if (init_alloc > 0 && init != NULL)
+    *init = pool_alloc(new_pool, init_alloc);
 
   return new_pool;
 }
@@ -179,17 +181,17 @@ void pool_free (pool_t * source_pool, void *p)
 
 subpool_t *create_subpool_node (size_t size)
 {
-  subpool_t *new_subpool = (subpool_t *) xmalloc (sizeof (subpool_t));
-
+  size_t hdr = sizeof(size_t) + sizeof(void *);
   /* allocate subpool memory */
-  new_subpool->mem_block = new_mmap (size);
+  void *block = new_mmap (size);
+  subpool_t *new_subpool = block + hdr;
+  new_subpool->mem_block = block;
 
   /* initialize data */
   ((size_t *) new_subpool->mem_block)[0] = size;
   ((void **) (sizeof(size_t *) + new_subpool->mem_block))[0]
     = new_subpool->mem_block;
-  new_subpool->free_start = new_subpool->mem_block
-    + sizeof(size_t) + sizeof(void *);
+  new_subpool->free_start = new_subpool->mem_block + hdr + sizeof(subpool_t);
   new_subpool->free_end = new_subpool->mem_block + size;
   new_subpool->size = size;
   new_subpool->misses = 0;
