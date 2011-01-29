@@ -61,9 +61,13 @@ int save_image(char *filename) {
 
 int load_image(char *filename) {
   g = pool_load(filename);
-  if (g != NULL)
-    return 0;
-  return -1; /* Error. */
+  if (g == NULL)
+    return -1; /* Error. */
+  /* Hook the external environment back up. */
+  vm_definer(SYMBOL(g->stdin_symbol), make_input_port(stdin));
+  vm_definer(SYMBOL(g->stdout_symbol), make_output_port(stdout));
+  vm_definer(SYMBOL(g->stderr_symbol), make_output_port(stderr));
+  return 0;
 }
 
 void throw_gc_va(char *msg, va_list args) {

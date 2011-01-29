@@ -189,8 +189,15 @@ int main(int argc, char ** argv) {
     print_usage (EXIT_SUCCESS);
 
   if (image) {
-    load_image(image);
-    printf("Image loaded.\n");
+    int r = load_image(image);
+    if (r != 0) {
+      printf("Failure.\n");
+      exit(EXIT_FAILURE);
+    }
+    printf("Image loaded (%p).\n", g);
+    /* Fire up a REPL. */
+    apply(cdr(get_hashtab(g->vm_env, make_symbol("clos-repl"), NULL)),
+	  g->empty_list);
     exit(0);
   }
 
