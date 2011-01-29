@@ -29,9 +29,3 @@
       (clos-repl)))
 
 (define exit-hook clos-repl)
-
-(clos-repl)
-
-
-
-

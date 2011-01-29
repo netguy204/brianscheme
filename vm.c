@@ -19,13 +19,12 @@
 
 #include "vm.h"
 #include "types.h"
-#include "symbols.h"
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
 #include "ffi.h"
 
-object *cc_bytecode;
+char profiling_enabled;
 
 #define ARG1 (codes[pc-2])
 #define ARG2 (codes[pc-1])
@@ -50,6 +49,7 @@ object *cc_bytecode;
   define(gset)					\
   define(setcc)					\
   define(cc)					\
+  define(incprof)				\
   define(pop)
 
 /* generate the symbol variable declarations */
@@ -69,8 +69,6 @@ opcode_table(generate_decls)
        opcode_table(generate_string)
      };
 
-object *error_sym;
-
 object *bytecodes[INVALID_BYTECODE];
 
 /* generate a function that converts a symbol into the corresponding
@@ -82,7 +80,7 @@ object *bytecodes[INVALID_BYTECODE];
 
 object *symbol_to_code(object *sym) {
   opcode_table(generate_sym_to_code);
-  return false;
+  return g->false;
 }
 
 DEFUN1(symbol_to_code_proc) {
@@ -99,14 +97,14 @@ DEFUN1(symbol_to_code_proc) {
 
 DEFUN1(code_to_symbol_proc) {
   opcode_table(generate_code_to_sym)
-    return false;
+    return g->false;
 }
 
 #define VM_ASSERT(test, msg, ...)		\
   do {						\
     if(!(test)) {				\
       fprintf(stderr, msg, ##__VA_ARGS__);	\
-      VM_RETURN(error_sym);			\
+      VM_RETURN(g->error_sym);			\
     }						\
   } while(0)
 
@@ -114,11 +112,11 @@ void vector_push(object * stack, object * thing, long top) {
   if(top == VSIZE(stack)) {
     long old_size = VSIZE(stack);
     VSIZE(stack) = old_size * 1.8;
-    VARRAY(stack) = realloc(VARRAY(stack), sizeof(object *)
+    VARRAY(stack) = REALLOC(VARRAY(stack), sizeof(object *)
 			    * VSIZE(stack));
     int ii;
     for(ii = old_size; ii < VSIZE(stack); ++ii) {
-      VARRAY(stack)[ii] = the_empty_list;
+      VARRAY(stack)[ii] = g->empty_list;
     }
   }
   VARRAY(stack)[top++] = thing;
@@ -126,7 +124,7 @@ void vector_push(object * stack, object * thing, long top) {
 
 object *vector_pop(object * stack, long top) {
   object *old = VARRAY(stack)[--top];
-  VARRAY(stack)[top] = the_empty_list;
+  VARRAY(stack)[top] = g->empty_list;
   return old;
 }
 
@@ -189,9 +187,9 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
      won't have built one for us */
 
   env = CENV(fn);
-  env = cons(the_empty_vector, env);
+  env = cons(g->empty_vector, env);
 
-  top = the_empty_list;
+  top = g->empty_list;
 
   push_root(&stack);
   push_root(&fn);
@@ -202,7 +200,7 @@ vm_fn_begin:
   if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
     owrite(stderr, fn);
     fprintf(stderr, ": object is not compiled-procedure\n");
-    return error_sym;
+    return g->error_sym;
   }
 
   long num_codes = LONG(car(BYTECODE(fn)));
@@ -231,7 +229,7 @@ vm_begin:
 
       /* resize the top frame if we need to */
       if(num_args > VSIZE(car(env))) {
-	set_car(env, make_vector(the_empty_list, num_args));
+	set_car(env, make_vector(g->empty_list, num_args));
       }
 
       object *vector = car(env);
@@ -253,7 +251,7 @@ vm_begin:
 
       /* resize the top frame if we need to */
       if(array_size > VSIZE(car(env))) {
-	set_car(env, make_vector(the_empty_list, array_size));
+	set_car(env, make_vector(g->empty_list, array_size));
       }
 
       object *vector = car(env);
@@ -261,7 +259,7 @@ vm_begin:
 
       /* push the excess args onto the last position, top is
          protected */
-      vdata[array_size - 1] = the_empty_list;
+      vdata[array_size - 1] = g->empty_list;
       for(ii = 0; ii < n_args - req_args; ++ii) {
 	VPOP(top, stack, stack_top);
 	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
@@ -319,7 +317,7 @@ vm_begin:
       /* generate a fresh frame for the callee */
       env = CENV(fn);
 
-      top = make_vector(the_empty_list, n_args + 1);
+      top = make_vector(g->empty_list, n_args + 1);
       env = cons(top, env);
 
       goto vm_fn_begin;
@@ -441,8 +439,7 @@ vm_begin:
       if(is_pair(var)) {
 	val = var;
       } else {
-	val = lookup_global_value(VARRAY(const_array)[ARG1],
-				  vm_global_environment);
+	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
 	VARRAY(const_array)[ARG1] = val;
       }
 
@@ -452,13 +449,12 @@ vm_begin:
   case _gset_:{
       object *var = VARRAY(const_array)[ARG1];
       object *val = VARRAY(stack)[stack_top - 1];
-      object *slot = get_hashtab(vm_global_environment,
-				 var, NULL);
+      object *slot = get_hashtab(g->vm_env, var, NULL);
       if(slot) {
 	set_cdr(slot, val);
       } else {
 	val = cons(var, val);
-	define_global_variable(var, val, vm_global_environment);
+	define_global_variable(var, val, g->vm_env);
       }
     }
     break;
@@ -471,7 +467,7 @@ vm_begin:
     /* need to copy the stack into the current stack */
     stack_top = LONG(new_stack_top);
 
-    stack = make_vector(the_empty_list, stack_top);
+    stack = make_vector(g->empty_list, stack_top);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
       VARRAY(stack)[idx] = VARRAY(top)[idx];
@@ -479,11 +475,11 @@ vm_begin:
   }
     break;
   case _cc_: {
-    object *cc_env = make_vector(the_empty_list, 2);
+    object *cc_env = make_vector(g->empty_list, 2);
     push_root(&cc_env);
 
     /* copy the stack */
-    object *new_stack = make_vector(the_empty_list, stack_top);
+    object *new_stack = make_vector(g->empty_list, stack_top);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
       VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
@@ -493,12 +489,18 @@ vm_begin:
     VARRAY(cc_env)[0] = new_stack;
     VARRAY(cc_env)[1] = make_fixnum(stack_top);
 
-    cc_env = cons(cc_env, the_empty_list);
+    cc_env = cons(cc_env, g->empty_list);
 
-    object *cc_fn = make_compiled_proc(cc_bytecode, cc_env);
+    object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
     pop_root(&cc_env);
 
     VPUSH(cc_fn, stack, stack_top);
+  }
+    break;
+  case _incprof_: {
+    if(profiling_enabled) {
+      ARG1++;
+    }
   }
     break;
   case _pop_:{
@@ -512,7 +514,7 @@ vm_begin:
 
       object **addr = &VARRAY(stack)[stack_top-1];
 
-      *addr = cons(the_empty_list, *addr);
+      *addr = cons(g->empty_list, *addr);
       object *num = make_fixnum(ARG1 * 3);
       set_car(*addr, num);
     }
@@ -534,7 +536,7 @@ vm_begin:
   }
 
   goto vm_begin;
-  VM_RETURN(error_sym);
+  VM_RETURN(g->error_sym);
 }
 
 DEFUN1(vm_tag_macro_proc) {
@@ -544,7 +546,16 @@ DEFUN1(vm_tag_macro_proc) {
 
 
 DEFUN1(set_cc_bytecode) {
-  cc_bytecode = BYTECODE(FIRST);
+  g->cc_bytecode = BYTECODE(FIRST);
+  return FIRST;
+}
+
+DEFUN1(set_profiling_proc) {
+  if(is_falselike(FIRST)) {
+    profiling_enabled = 0;
+  } else {
+    profiling_enabled = 1;
+  }
   return FIRST;
 }
 
@@ -554,20 +565,33 @@ DEFUN1(set_cc_bytecode) {
   push_root(&bytecodes[_ ## opcode ## _]);
 
 void vm_definer(char *sym, object *value) {
-  push_root(&value);
   object * symbol = make_symbol(sym);
-  value = cons(symbol, value);
-  define_global_variable(symbol, value, vm_global_environment);
-  pop_root(&value);
+  object * slot = get_hashtab(g->vm_env, symbol, NULL);
+
+  if(slot) {
+    set_cdr(slot, value);
+  } else {
+    push_root(&value);
+    value = cons(symbol, value);
+    define_global_variable(symbol, value, g->vm_env);
+    pop_root(&value);
+  }
+}
+
+void vm_boot(void) {
+  /* generate the symbol initializations */
+  opcode_table(generate_syminit)
+  opcode_table(generate_bytecodes)
+}
+
+void vm_add_roots(void) {
+  push_root(&(g->cc_bytecode));
 }
 
 void vm_init(void) {
-  /* generate the symbol initializations */
-  opcode_table(generate_syminit)
+  vm_boot();
 
-    opcode_table(generate_bytecodes)
-
-    error_sym = make_symbol("error");
+  g->error_sym = make_symbol("error");
 
   vm_definer("set-macro!",
 	     make_primitive_proc(vm_tag_macro_proc));
@@ -575,8 +599,10 @@ void vm_init(void) {
   vm_definer("set-cc-bytecode!",
 	     make_primitive_proc(set_cc_bytecode));
 
-  cc_bytecode = the_empty_list;
-  push_root(&cc_bytecode);
+  g->cc_bytecode = g->empty_list;
+  push_root(&(g->cc_bytecode));
+
+  profiling_enabled = 0;
 }
 
 void vm_init_environment(definer defn) {
@@ -587,6 +613,8 @@ void vm_init_environment(definer defn) {
   defn("bytecode->symbol",
        make_primitive_proc(code_to_symbol_proc));
 
+  defn("set-profiling!",
+       make_primitive_proc(set_profiling_proc));
 }
 
 void wb(object * fn) {

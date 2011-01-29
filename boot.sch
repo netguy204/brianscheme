@@ -31,6 +31,8 @@
 ; back and doing things more by the book. Most of these methods were
 ; simply written as they were required.
 
+;; turn off profiling first so those numbers can be more useful later
+(set-profiling! #f)
 
 ;; Some very basic defines to get us started
 

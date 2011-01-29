@@ -17,8 +17,10 @@
 #ifndef GC_H
 #define GC_H
 
+#include "pool.h"
 #include "types.h"
 
+void gc_boot(void);
 void gc_init(void);
 
 long baker_collect();
@@ -27,5 +29,95 @@ void pop_root(object **stack);
 
 object *alloc_object(char needs_finalization);
 long get_alloc_count();
+
+void *xmalloc(size_t size); /* exit() on failure */
+void *MALLOC(size_t size);  /* mmap()ed */
+void *REALLOC(void *p, size_t new);  /* mmap()ed */
+void FREE(void *p);       /* mmap()ed */
+
+int save_image(char *filename);
+int load_image(char *filename);
+void patch_object(object *sym, object *new_value);
+
+typedef struct doubly_linked_list {
+  object *head;
+  object *tail;
+  long num_objects;
+} doubly_linked_list;
+
+typedef struct stack_set {
+  void **objs;
+  long top;
+  long size;
+} stack_set;
+
+typedef struct global_state {
+  /* GC */
+  pool_t *global_pool;
+
+  doubly_linked_list Active_Heap_Objects;
+  doubly_linked_list Old_Heap_Objects;
+
+  object *Next_Free_Object;
+  struct stack_set *Root_Objects;
+  struct stack_set *Finalizable_Objects;
+  struct stack_set *Finalizable_Objects_Next;
+
+  long Alloc_Count;
+  long Next_Heap_Extension;
+
+  char current_color;
+
+  /* VM */
+  object *cc_bytecode;
+  object *error_sym;
+
+  /* interp */
+  char debug_enabled;
+  long stack_top;
+
+  /* symbols */
+  object *empty_list;
+  object *empty_vector;
+  object *false;
+  object *true;
+  object *symbol_table;
+  object *quote_symbol;
+  object *quasiquote_symbol;
+  object *unquote_symbol;
+  object *unquotesplicing_symbol;
+  object *set_symbol;
+  object *if_symbol;
+  object *begin_symbol;
+  object *lambda_symbol;
+  object *macro_symbol;
+  object *stdin_symbol;
+  object *stdout_symbol;
+  object *stderr_symbol;
+  object *eof_object;
+  object *exit_hook_symbol;
+
+  object *empty_env;
+  object *env;
+  object *vm_env;
+
+  /* FFI */
+  object *free_ptr_fn;
+
+  object *ffi_type_pointer_sym;
+  object *ffi_type_void_sym;
+  object *ffi_type_uchar_sym;
+  object *ffi_type_ushort_sym;
+  object *ffi_type_uint_sym;
+  object *ffi_type_sint_sym;
+  object *ffi_type_ulong_sym;
+
+  object *ffi_type_uint8_sym;
+  object *ffi_type_uint16_sym;
+  object *ffi_type_uint32_sym;
+  object *ffi_type_uint64_sym;
+} global_state;
+
+extern global_state *g;
 
 #endif

@@ -104,8 +104,6 @@ typedef struct object* (prim_proc)(struct object*,
 
 /* some basic functions for dealing with tagged types */
 
-void *MALLOC(long size);
-
 object *alloc_object(char needs_finalization);
 
 object *make_uninterned_symbol(char *value);

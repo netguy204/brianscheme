@@ -19,11 +19,10 @@
 #include <string.h>
 
 #include "types.h"
-#include "symbols.h"
 #include "gc.h"
 
 char is_the_empty_list(object * obj) {
-  return obj == the_empty_list;
+  return obj == g->empty_list;
 }
 
 char is_boolean(object * obj) {
@@ -31,11 +30,11 @@ char is_boolean(object * obj) {
 }
 
 char is_false(object * obj) {
-  return obj == false;
+  return obj == g->false;
 }
 
 char is_true(object * obj) {
-  return obj == true;
+  return obj == g->true;
 }
 
 char is_symbol(object * obj) {
@@ -188,7 +187,7 @@ object *list_to_vector(object * list) {
   object *next = list;
 
   if(is_the_empty_list(list)) {
-    return the_empty_vector;
+    return g->empty_vector;
   }
 
   while(!is_the_empty_list(next)) {
@@ -237,7 +236,7 @@ object *get_hashtab(object * tab, object * key, object * fail) {
 }
 
 object *get_hashtab_keys(object * table) {
-  object *result = the_empty_list;
+  object *result = g->empty_list;
   push_root(&result);
 
   hashtab_iter_t iter;
@@ -265,7 +264,7 @@ object *make_compound_proc(object * parameters, object * body, object * env) {
 
   object *obj = alloc_object(0);
   obj->type = COMPOUND_PROC;
-  COMPOUND_PARMS_AND_ENV(obj) = the_empty_list;
+  COMPOUND_PARMS_AND_ENV(obj) = g->empty_list;
   COMPOUND_BODY(obj) = body;
 
   push_root(&obj);
@@ -318,7 +317,7 @@ char is_output_port(object * obj) {
 }
 
 char is_eof_object(object * obj) {
-  return obj == eof_object;
+  return obj == g->eof_object;
 }
 
 object *make_output_port(FILE * stream) {
@@ -332,7 +331,7 @@ object *make_output_port(FILE * stream) {
 object *find_symbol(char *value) {
   object *element;
 
-  element = symbol_table;
+  element = g->symbol_table;
   while(!is_the_empty_list(element)) {
     if(strcmp(car(element)->data.symbol.value, value) == 0) {
       return element;
@@ -363,7 +362,7 @@ object *make_symbol(char *value) {
   obj = make_uninterned_symbol(value);
 
   push_root(&obj);
-  symbol_table = cons(obj, symbol_table);
+  g->symbol_table = cons(obj, g->symbol_table);
   pop_root(&obj);
 
   return obj;

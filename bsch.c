@@ -32,10 +32,12 @@ char *progname;
 char **bs_paths;
 int bootstrap = 1;
 int print_help = 0;
+char *image = NULL;
 
 void print_usage(int ret) {
   printf ("Usage: %s [options] [script [arguments]]\n", progname);
   printf ("\t-b           Do not bootstrap\n");
+  printf ("\t-l           Load an image\n");
   printf ("\t-v           Print version information\n");
   printf ("\t-h           Print this usage text\n");
   exit(ret);
@@ -51,7 +53,7 @@ char **split_path(char *path) {
   /* Count delimiters while making a copy. */
   char del = ':';
   int count = 1;
-  char *copy = MALLOC(strlen(path) + 1), *cp = copy, *p = path;
+  char *copy = xmalloc(strlen(path) + 1), *cp = copy, *p = path;
   while (*p != '\0') {
     *cp = *p;
     if (*p == del)
@@ -79,7 +81,7 @@ char **split_path(char *path) {
 char *pathcat(char *a, char *b) {
   size_t alen = strlen(a);
   size_t blen = strlen(b);
-  char *out = MALLOC(alen + blen + 2);
+  char *out = xmalloc(alen + blen + 2);
   strcpy(out, a);
   *(out + alen) = '/';
   strcpy(out + alen + 1, b);
@@ -89,8 +91,8 @@ char *pathcat(char *a, char *b) {
 
 void insert_strlist(char **strv, char *name) {
   char **strs = strv;
-  object* list = the_empty_list;
-  object* str = the_empty_list;
+  object* list = g->empty_list;
+  object* str = g->empty_list;
   push_root(&list);
   push_root(&str);
   while (*strs != NULL) strs++;
@@ -133,7 +135,7 @@ object * load_library(char *libname) {
   object *result = NULL;
   while((form = obj_read(stdlib)) != NULL) {
     push_root(&form);
-    result = interp(form, the_empty_environment);
+    result = interp(form, g->empty_env);
     pop_root(&form);
   }
 
@@ -143,7 +145,7 @@ object * load_library(char *libname) {
 
 object * compile_library(char *libname) {
   object *compile_file = make_symbol("compile-file");
-  object *compiler = get_hashtab(vm_global_environment, compile_file, NULL);
+  object *compiler = get_hashtab(g->vm_env, compile_file, NULL);
   if(compiler == NULL) {
     fprintf(stderr, "compile-file is not defined\n");
     exit(4);
@@ -151,7 +153,7 @@ object * compile_library(char *libname) {
     compiler = cdr(compiler);
   }
 
-  object *form = the_empty_list;
+  object *form = g->empty_list;
   push_root(&form);
   form = cons(make_string(libname), form);
   object *result = apply(compiler, form);
@@ -163,22 +165,16 @@ int main(int argc, char ** argv) {
   int ii;
   progname = argv[0];
 
-  init();
-
-  /* Handle BS_PATH */
-  char *path = getenv("BS_PATH");
-  if (path == NULL)
-    path = ".";
-  bs_paths = split_path(path);
-  insert_strlist(bs_paths, "*load-path*");
-
   /* Handle command line arguments. */
   int c;
-  while ((c = getopt(argc, argv, "+bhv")) != -1)
+  while ((c = getopt(argc, argv, "+bhvl:")) != -1)
     switch (c)
       {
       case 'b':
 	bootstrap = 0;
+	break;
+      case 'l':
+	image = optarg;
 	break;
       case 'v':
 	print_version ();
@@ -190,9 +186,47 @@ int main(int argc, char ** argv) {
 	print_usage (EXIT_FAILURE);
 	break;
       }
-
   if (print_help)
     print_usage (EXIT_SUCCESS);
+
+  if (image) {
+    int r = load_image(image);
+    if (r != 0) {
+      printf("Failure.\n");
+      exit(EXIT_FAILURE);
+    }
+    printf("Image loaded (%p).\n", g);
+
+    /* need to reset the roots since some point to our old stack */
+    gc_boot();
+    interp_add_roots();
+    vm_add_roots();
+    ffi_add_roots();
+
+    /* the vm needs to build some tables */
+    vm_boot();
+
+    /* need to patch up some things that move between boots */
+    patch_object(g->stdin_symbol, make_input_port(stdin));
+    patch_object(g->stdout_symbol, make_output_port(stdout));
+    patch_object(g->stderr_symbol, make_output_port(stderr));
+
+    /* Fire up a REPL. */
+    apply(cdr(get_hashtab(g->vm_env, make_symbol("clos-repl"), NULL)),
+	  g->empty_list);
+    exit(0);
+  }
+
+  init();
+
+  /* Handle BS_PATH */
+  char *path = getenv("BS_PATH");
+  if (path == NULL)
+    path = ".";
+  bs_paths = split_path(path);
+  insert_strlist(bs_paths, "*load-path*");
+
+  /* Stick arguments in global environment. */
   insert_strlist(argv + optind, "*args*");
 
   if(!bootstrap) {

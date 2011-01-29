@@ -22,7 +22,7 @@
 (define (report-result result form)
   "print out form annotated with the truth value of result"
   (let ((result-str (if result "pass" "FAIL"))
-	(name-str (if (*test-name*) (string-append 
+	(name-str (if (*test-name*) (string-append
 				     (symbol->string (*test-name*))
 				     ":")
 		      "")))
@@ -39,20 +39,11 @@
        ,result)))
 
 
-(define (copy-tree tree)
-  "create a deep of tree so macroexpansion doesn't gobble it up"
-  (cond
-   ((pair? tree) (cons (copy-tree (car tree))
-		       (copy-tree (cdr tree))))
-   (else tree)))
-		   
-
 (define-syntax (check . forms)
   "run report result for each form in forms"
   `(combine-results . ,(map (lambda (form)
 			      (let ((copy (gensym)))
-				`(let ((,copy (copy-tree ',form)))
-				   (report-result ,form ,copy))))
+				`(report-result ,form ',form)))
 			    forms)))
 
 (define-syntax (define-test name-and-params . body)
