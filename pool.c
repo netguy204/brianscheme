@@ -239,14 +239,16 @@ int pool_dump (pool_t * pool, char *file)
 }
 
 /* Read the pool from the given file into memory. */
-void* pool_load (char * file)
+void* pool_load (char * file, off_t offset)
 {
   int fd = open(file, O_RDONLY);
   if (fd < 0) {
     fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
     return NULL;
   }
-  off_t loc = 0;
+  off_t loc = offset;
+  if (offset > 0)
+    lseek(fd, offset, SEEK_SET);
   void *first = NULL;
   while (1) {
     void *address;

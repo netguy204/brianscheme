@@ -73,8 +73,8 @@ void patch_object(object *sym, object *new_value) {
   memcpy(&(old_val->data), &(new_value->data), sizeof(new_value->data));
 }
 
-int load_image(char *filename) {
-  g = pool_load(filename);
+int load_image(char *filename, off_t offset) {
+  g = pool_load(filename, offset);
   if (g == NULL)
     return -1; /* Error. */
   return 0;
