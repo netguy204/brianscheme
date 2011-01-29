@@ -669,13 +669,15 @@ list"
 
 (define (find-library name . paths)
   "Find the given library in the load path."
-  (let ((paths (car-else paths *load-path*)))
-    (if (null? paths)
-        #f
-        (let ((file (prim-concat (car paths) (prim-concat "/" name))))
-          (if (file-exists? file)
-              file
-              (find-library name (cdr paths)))))))
+  (if (file-exists? name)
+      name
+      (let ((paths (car-else paths *load-path*)))
+        (if (null? paths)
+            #f
+            (let ((file (prim-concat (car paths) (prim-concat "/" name))))
+              (if (file-exists? file)
+                  file
+                  (find-library name (cdr paths))))))))
 
 (define (load name)
   "read and evaluate all forms in a file called name"
