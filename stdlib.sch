@@ -41,10 +41,11 @@
 (require 'string)
 (require 'point-free)
 (require 'clos)
+(require 'clos-repl)
 (provide 'stdlib)
 
 (if (null? *args*)
-    (require 'clos-repl)
+    (clos-repl)
     (begin
       (load (car *args*))
       (exit 0)))
