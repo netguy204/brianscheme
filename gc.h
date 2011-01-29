@@ -99,6 +99,21 @@ typedef struct global_state {
   object *env;
   object *vm_env;
 
+  /* FFI */
+  object *free_ptr_fn;
+
+  object *ffi_type_pointer_sym;
+  object *ffi_type_void_sym;
+  object *ffi_type_uchar_sym;
+  object *ffi_type_ushort_sym;
+  object *ffi_type_uint_sym;
+  object *ffi_type_sint_sym;
+  object *ffi_type_ulong_sym;
+
+  object *ffi_type_uint8_sym;
+  object *ffi_type_uint16_sym;
+  object *ffi_type_uint32_sym;
+  object *ffi_type_uint64_sym;
 } global_state;
 
 extern global_state *g;

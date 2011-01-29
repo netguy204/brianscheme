@@ -28,22 +28,6 @@ unsigned int fixnum_offset;
 unsigned int car_offset;
 unsigned int cdr_offset;
 
-object *free_ptr_fn;
-object *ffi_release_type_fn;
-
-object *ffi_type_pointer_sym;
-object *ffi_type_void_sym;
-object *ffi_type_uchar_sym;
-object *ffi_type_ushort_sym;
-object *ffi_type_uint_sym;
-object *ffi_type_sint_sym;
-object *ffi_type_ulong_sym;
-
-object *ffi_type_uint8_sym;
-object *ffi_type_uint16_sym;
-object *ffi_type_uint32_sym;
-object *ffi_type_uint64_sym;
-
 typedef void (*FN_PTR) (void);
 
 DEFUN1(dlopen_proc) {
@@ -131,43 +115,43 @@ DEFUN1(free_ffi_alien_object) {
 
 DEFUN1(ffi_make_cif) {
   ffi_cif *cif = xmalloc(sizeof(ffi_cif));
-  return make_alien(cif, free_ptr_fn);
+  return make_alien(cif, g->free_ptr_fn);
 }
 
 DEFUN1(ffi_primitive_type) {
   object *type = FIRST;
   ffi_type *tgt_type;
-  if(type == ffi_type_pointer_sym) {
+  if(type == g->ffi_type_pointer_sym) {
     tgt_type = &ffi_type_pointer;
   }
-  else if(type == ffi_type_void_sym) {
+  else if(type == g->ffi_type_void_sym) {
     tgt_type = &ffi_type_void;
   }
-  else if(type == ffi_type_uchar_sym) {
+  else if(type == g->ffi_type_uchar_sym) {
     tgt_type = &ffi_type_uchar;
   }
-  else if(type == ffi_type_ushort_sym) {
+  else if(type == g->ffi_type_ushort_sym) {
     tgt_type = &ffi_type_ushort;
   }
-  else if(type == ffi_type_uint_sym) {
+  else if(type == g->ffi_type_uint_sym) {
     tgt_type = &ffi_type_uint;
   }
-  else if(type == ffi_type_sint_sym) {
+  else if(type == g->ffi_type_sint_sym) {
     tgt_type = &ffi_type_sint;
   }
-  else if(type == ffi_type_ulong_sym) {
+  else if(type == g->ffi_type_ulong_sym) {
     tgt_type = &ffi_type_ulong;
   }
-  else if(type == ffi_type_uint8_sym) {
+  else if(type == g->ffi_type_uint8_sym) {
     tgt_type = &ffi_type_uint8;
   }
-  else if(type == ffi_type_uint16_sym) {
+  else if(type == g->ffi_type_uint16_sym) {
     tgt_type = &ffi_type_uint16;
   }
-  else if(type == ffi_type_uint32_sym) {
+  else if(type == g->ffi_type_uint32_sym) {
     tgt_type = &ffi_type_uint32;
   }
-  else if(type == ffi_type_uint64_sym) {
+  else if(type == g->ffi_type_uint64_sym) {
     tgt_type = &ffi_type_uint64;
   }
   else {
@@ -180,7 +164,7 @@ DEFUN1(ffi_primitive_type) {
 
 DEFUN1(ffi_make_pointer_array) {
   void **array = xmalloc(sizeof(void *) * LONG(FIRST));
-  return make_alien(array, free_ptr_fn);
+  return make_alien(array, g->free_ptr_fn);
 }
 
 DEFUN1(ffi_set_pointer) {
@@ -199,7 +183,7 @@ DEFUN1(ffi_get_pointer) {
 
 DEFUN1(ffi_make_byte_array) {
   unsigned char *array = xmalloc(LONG(FIRST));
-  return make_alien(array, free_ptr_fn);
+  return make_alien(array, g->free_ptr_fn);
 }
 
 DEFUN1(ffi_get_byte) {
@@ -218,7 +202,7 @@ DEFUN1(ffi_set_byte) {
 
 DEFUN1(ffi_make_long_array) {
   long *array = xmalloc(LONG(FIRST) * sizeof(long));
-  return make_alien(array, free_ptr_fn);
+  return make_alien(array, g->free_ptr_fn);
 }
 
 DEFUN1(ffi_get_long) {
@@ -315,7 +299,7 @@ char *strdup(const char *string);
 
 DEFUN1(string_to_alien) {
   char *str = STRING(FIRST);
-  return make_alien(strdup(str), free_ptr_fn);
+  return make_alien(strdup(str), g->free_ptr_fn);
 }
 
 DEFUN1(alien_to_string) {
@@ -348,8 +332,8 @@ void init_ffi(definer defn) {
   defn(scheme_name,						\
        make_primitive_proc(c_name))
 
-  free_ptr_fn = make_primitive_proc(free_ptr);
-  push_root(&free_ptr_fn);
+  g->free_ptr_fn = make_primitive_proc(free_ptr);
+  push_root(&(g->free_ptr_fn));
 
   add_procedure("ffi:dlopen", dlopen_proc);
   add_procedure("ffi:dlsym", dlsym_proc);
@@ -381,18 +365,18 @@ void init_ffi(definer defn) {
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
 
-  ffi_type_pointer_sym = make_symbol("ffi-pointer");
-  ffi_type_void_sym = make_symbol("ffi-void");
-  ffi_type_uchar_sym = make_symbol("ffi-uchar");
-  ffi_type_ushort_sym = make_symbol("ffi-ushort");
-  ffi_type_uint_sym = make_symbol("ffi-uint");
-  ffi_type_sint_sym = make_symbol("ffi-sint");
-  ffi_type_ulong_sym = make_symbol("ffi-ulong");
+  g->ffi_type_pointer_sym = make_symbol("ffi-pointer");
+  g->ffi_type_void_sym = make_symbol("ffi-void");
+  g->ffi_type_uchar_sym = make_symbol("ffi-uchar");
+  g->ffi_type_ushort_sym = make_symbol("ffi-ushort");
+  g->ffi_type_uint_sym = make_symbol("ffi-uint");
+  g->ffi_type_sint_sym = make_symbol("ffi-sint");
+  g->ffi_type_ulong_sym = make_symbol("ffi-ulong");
 
-  ffi_type_uint8_sym = make_symbol("ffi-uint8");
-  ffi_type_uint16_sym = make_symbol("ffi-uint16");
-  ffi_type_uint32_sym = make_symbol("ffi-uint32");
-  ffi_type_uint64_sym = make_symbol("ffi-uint64");
+  g->ffi_type_uint8_sym = make_symbol("ffi-uint8");
+  g->ffi_type_uint16_sym = make_symbol("ffi-uint16");
+  g->ffi_type_uint32_sym = make_symbol("ffi-uint32");
+  g->ffi_type_uint64_sym = make_symbol("ffi-uint64");
 
   /* setup offset values */
   fixnum_offset = (unsigned int)(long)&(((object *) 0)->data.fixnum.value);
