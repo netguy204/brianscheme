@@ -89,7 +89,7 @@ DEFUN1(dlclose_proc) {
 
 DEFUN1(free_ptr) {
   void *ptr = ALIEN_PTR(FIRST);
-  free(ptr);
+  FREE(ptr);
   return g->true;
 }
 
@@ -114,7 +114,7 @@ DEFUN1(free_ffi_alien_object) {
 }
 
 DEFUN1(ffi_make_cif) {
-  ffi_cif *cif = xmalloc(sizeof(ffi_cif));
+  ffi_cif *cif = MALLOC(sizeof(ffi_cif));
   return make_alien(cif, g->free_ptr_fn);
 }
 
@@ -163,7 +163,7 @@ DEFUN1(ffi_primitive_type) {
 }
 
 DEFUN1(ffi_make_pointer_array) {
-  void **array = xmalloc(sizeof(void *) * LONG(FIRST));
+  void **array = MALLOC(sizeof(void *) * LONG(FIRST));
   return make_alien(array, g->free_ptr_fn);
 }
 
@@ -182,7 +182,7 @@ DEFUN1(ffi_get_pointer) {
 }
 
 DEFUN1(ffi_make_byte_array) {
-  unsigned char *array = xmalloc(LONG(FIRST));
+  unsigned char *array = MALLOC(LONG(FIRST));
   return make_alien(array, g->free_ptr_fn);
 }
 
@@ -201,7 +201,7 @@ DEFUN1(ffi_set_byte) {
 }
 
 DEFUN1(ffi_make_long_array) {
-  long *array = xmalloc(LONG(FIRST) * sizeof(long));
+  long *array = MALLOC(LONG(FIRST) * sizeof(long));
   return make_alien(array, g->free_ptr_fn);
 }
 
