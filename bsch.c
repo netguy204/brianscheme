@@ -201,6 +201,7 @@ int main(int argc, char ** argv) {
     gc_boot();
     interp_add_roots();
     vm_add_roots();
+    ffi_add_roots();
 
     /* the vm needs to build some tables */
     vm_boot();

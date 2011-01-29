@@ -105,10 +105,9 @@ DEFUN1(free_ffi_alien_object) {
   object *list = g->empty_list;
   push_root(&list);
   list = cons(alien, list);
-  list = cons(releaser, list);
 
-  /* send it to interp and return the result */
-  object *result = interp(list, g->empty_env);
+  /* send it to apply and return the result */
+  object *result = apply(releaser, list);
   pop_root(&list);
   return result;
 }
@@ -326,6 +325,9 @@ DEFUN1(alien_to_primitive) {
   return make_primitive_proc(fn);
 }
 
+void ffi_add_roots() {
+  push_root(&(g->free_ptr_fn));
+}
 
 void init_ffi(definer defn) {
 #define add_procedure(scheme_name, c_name)			\

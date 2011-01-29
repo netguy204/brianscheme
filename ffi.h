@@ -17,6 +17,7 @@
 #ifndef FFI_H
 #define FFI_H
 
+void ffi_add_roots(void);
 void init_ffi(definer defn);
 
 extern object *free_ptr_fn;

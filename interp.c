@@ -567,6 +567,7 @@ object *apply(object *fn, object *evald_args) {
     return result;
   }
 
+  owrite(stderr, fn);
   throw_interp("\ncannot apply non-function\n");
   return g->false;
 }
