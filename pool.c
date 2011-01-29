@@ -27,6 +27,8 @@
 #include "pool.h"
 #include "gc.h"
 
+static const size_t hdr = sizeof(void *) + sizeof(size_t);
+
 size_t default_pool_size = 1048576;
 int miss_limit = 8;
 int pool_scale = 2;
@@ -181,7 +183,6 @@ void pool_free (pool_t * source_pool, void *p)
 
 subpool_t *create_subpool_node (size_t size)
 {
-  size_t hdr = sizeof(size_t) + sizeof(void *);
   /* allocate subpool memory */
   void *block = new_mmap (size);
   subpool_t *new_subpool = block + hdr;
