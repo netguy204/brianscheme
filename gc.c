@@ -61,64 +61,16 @@ int save_image(char *filename) {
 
 void patch_object(object *sym, object *new_value) {
   /* find what the symbol points to */
-  long ii;
-  hashtab_iter_t htab_iter;
   object *old_val = get_hashtab(g->vm_env, sym, NULL);
   if(!old_val) {
     fprintf(stderr, "couldn't find symbol %s to patch it\n", SYMBOL(sym));
     exit(1);
   }
 
-#define maybe_patch(x)							\
-  do {									\
-    if((x) == old_val) {						\
-      fprintf(stderr, "found something\n");				\
-      (x) = new_value;							\
-    }									\
-  } while(0)
-
-  /* now scan the heap for old_val and replace it with new_value */
-  object * scan_iter = g->Old_Heap_Objects.head;
-  while(scan_iter) {
-    switch (scan_iter->type) {
-    case PAIR:
-      maybe_patch(CAR(scan_iter));
-      maybe_patch(CDR(scan_iter));
-      break;
-    case COMPOUND_PROC:
-    case SYNTAX_PROC:
-      maybe_patch(COMPOUND_PARMS_AND_ENV(scan_iter));
-      maybe_patch(COMPOUND_BODY(scan_iter));
-      break;
-    case VECTOR:
-      for(ii = 0; ii < VSIZE(scan_iter); ++ii) {
-	maybe_patch(VARRAY(scan_iter)[ii]);
-      }
-      break;
-    case COMPILED_PROC:
-    case COMPILED_SYNTAX_PROC:
-      maybe_patch(BYTECODE(scan_iter));
-      maybe_patch(CENV(scan_iter));
-      break;
-    case META_PROC:
-      maybe_patch(METAPROC(scan_iter));
-      maybe_patch(METADATA(scan_iter));
-      break;
-    case HASH_TABLE:
-      htb_iter_init(HTAB(scan_iter), &htab_iter);
-      while(htab_iter.key != NULL) {
-	/* not going to try patching keys */
-	if((object*)htab_iter.value == old_val) {
-	  set_hashtab(scan_iter, (object *)htab_iter.key, new_value);
-	}
-	htb_iter_inc(&htab_iter);
-      }
-    default:
-      break;
-    }
-
-    scan_iter = scan_iter->next;
-  }
+  /* overwrite the object's data, need to keep it's meta info
+     intact */
+  old_val = cdr(old_val);
+  memcpy(&(old_val->data), &(new_value->data), sizeof(new_value->data));
 }
 
 int load_image(char *filename) {
