@@ -262,5 +262,5 @@ void* pool_load (char * file)
     loc += size;
     lseek(fd, size - hdr, SEEK_CUR);
   }
-  return first + hdr + sizeof(subpool_t);
+  return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
 }
