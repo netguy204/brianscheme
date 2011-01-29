@@ -23,6 +23,7 @@
 #include "read.h"
 #include "gc.h"
 #include "ffi.h"
+#include "vm.h"
 
 char *version = "Mercury";
 
@@ -195,6 +196,20 @@ int main(int argc, char ** argv) {
       exit(EXIT_FAILURE);
     }
     printf("Image loaded (%p).\n", g);
+
+    /* need to reset the roots since some point to our old stack */
+    gc_boot();
+    interp_add_roots();
+    vm_add_roots();
+
+    /* the vm needs to build some tables */
+    vm_boot();
+
+    /* need to patch up some things that move between boots */
+    patch_object(g->stdin_symbol, make_input_port(stdin));
+    patch_object(g->stdout_symbol, make_output_port(stdout));
+    patch_object(g->stderr_symbol, make_output_port(stderr));
+
     /* Fire up a REPL. */
     apply(cdr(get_hashtab(g->vm_env, make_symbol("clos-repl"), NULL)),
 	  g->empty_list);

@@ -510,6 +510,8 @@ DEFUN1(eval_proc) {
 }
 
 DEFUN1(save_image_proc) {
+  baker_collect();
+
   object *file = FIRST;
   int r = save_image(STRING(file));
   if (r < 0)
@@ -1382,6 +1384,16 @@ void init_prim_environment(definer defn) {
   defn(SYMBOL(g->stdout_symbol), make_output_port(stdout));
   defn(SYMBOL(g->stderr_symbol), make_output_port(stderr));
   defn(SYMBOL(g->exit_hook_symbol), g->empty_list);
+}
+
+void interp_add_roots(void) {
+  push_root(&(g->empty_list));
+  push_root(&(g->empty_vector));
+  push_root(&(g->true));
+  push_root(&(g->symbol_table));
+  push_root(&(g->eof_object));
+  push_root(&(g->env));
+  push_root(&(g->vm_env));
 }
 
 void init() {

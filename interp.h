@@ -61,6 +61,7 @@ void define_variable(object *var, object *new_val,
 		     object *env);
 void init_prim_environment(definer defn);
 void init();
+void interp_add_roots(void);
 void interp_definer(char *sym, object *val);
 void destroy_interp();
 

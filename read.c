@@ -72,7 +72,7 @@ void grow_history(read_buffer * in) {
 /* Wraps calls to getc() to work on our buffer. */
 int read_getc(read_buffer * in) {
 #ifdef NO_READLINE
-  if(true) {
+  if(1) {
 #else
   if(in->stream != stdin) {
 #endif
@@ -103,7 +103,7 @@ int read_getc(read_buffer * in) {
 /* Wraps calls to ungetc() to work on our buffer. */
 void read_ungetc(char c, read_buffer * in) {
 #ifdef NO_READLINE
-  if(true) {
+  if(1) {
 #else
   if(in->stream != stdin) {
 #endif

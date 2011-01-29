@@ -547,20 +547,33 @@ DEFUN1(set_cc_bytecode) {
   push_root(&bytecodes[_ ## opcode ## _]);
 
 void vm_definer(char *sym, object *value) {
-  push_root(&value);
   object * symbol = make_symbol(sym);
-  value = cons(symbol, value);
-  define_global_variable(symbol, value, g->vm_env);
-  pop_root(&value);
+  object * slot = get_hashtab(g->vm_env, symbol, NULL);
+
+  if(slot) {
+    set_cdr(slot, value);
+  } else {
+    push_root(&value);
+    value = cons(symbol, value);
+    define_global_variable(symbol, value, g->vm_env);
+    pop_root(&value);
+  }
+}
+
+void vm_boot(void) {
+  /* generate the symbol initializations */
+  opcode_table(generate_syminit)
+  opcode_table(generate_bytecodes)
+}
+
+void vm_add_roots(void) {
+  push_root(&(g->cc_bytecode));
 }
 
 void vm_init(void) {
-  /* generate the symbol initializations */
-  opcode_table(generate_syminit)
+  vm_boot();
 
-    opcode_table(generate_bytecodes)
-
-    g->error_sym = make_symbol("error");
+  g->error_sym = make_symbol("error");
 
   vm_definer("set-macro!",
 	     make_primitive_proc(vm_tag_macro_proc));

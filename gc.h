@@ -20,6 +20,7 @@
 #include "pool.h"
 #include "types.h"
 
+void gc_boot(void);
 void gc_init(void);
 
 long baker_collect();
@@ -36,6 +37,7 @@ void FREE(void *p);       /* mmap()ed */
 
 int save_image(char *filename);
 int load_image(char *filename);
+void patch_object(object *sym, object *new_value);
 
 typedef struct doubly_linked_list {
   object *head;
