@@ -195,12 +195,14 @@ about its value and optionally with more forms following"
 	(seq (gen 'save k)
 	     (comp-list args env)
 	     (comp f env #t #t)
+	     (gen 'incprof 0)
 	     (gen 'fcallj (length args) #t)
 	     (list k)
 	     (unless val? (gen 'pop)))))
      (else
       (seq (comp-list args env)
 	   (comp f env #t #t)
+	   (gen 'incprof 0)
 	   (gen 'fcallj (length args) #f))))))
 
 (define (primitive-procedure? obj)
@@ -513,34 +515,37 @@ about its value and optionally with more forms following"
 (define (make-space spaces)
   (make-string spaces #\space))
 
-(define (%show-fn fn indent)
-  (map display (list "consts: " (caddr (compiled-bytecode fn))))
-  (newline)
-
-  (let ((line-num 0)
-	(len (/ (car (compiled-bytecode fn)) 3))
+(define (%compiled->instructions fn)
+  "produce a stream of readable instructions from compiled bytecode"
+  (let ((len (/ (car (compiled-bytecode fn)) 3))
 	(bytes (cadr (compiled-bytecode fn)))
-	(consts (caddr (compiled-bytecode fn))))
-
+	(consts (caddr (compiled-bytecode fn)))
+	(result nil))
     (dotimes (idx len)
       (let* ((off (* idx 3))
 	     (instr (ffi:long-ref bytes off))
 	     (arg1 (ffi:long-ref bytes (+ off 1)))
-	     (arg2 (ffi:long-ref bytes (+ off 2))))
+	     (arg2 (ffi:long-ref bytes (+ off 2)))
+	     (instr* (bytecode->symbol (integer->char instr)))
+	     (arg1* (if (member instr* '(fn const gvar gset))
+			(vector-ref consts arg1)
+			arg1)))
+	(push! (list instr* arg1* arg2)
+	       result)))
+    (reverse result)))
 
-	(let* ((opcode-sym (bytecode->symbol (integer->char instr)))
-	       (sym (if opcode-sym opcode-sym instr))
-	       (instr (list sym arg1 arg2)))
-
-	  (if (is instr 'fn)
-	      (begin
-		(map display (list line-num ": " (make-space indent) "fn "))
-		(%show-fn (vector-ref consts (second instr))
-			  (%fixnum-add indent 4)))
-	      (begin
-		(map display (list line-num ": " (make-space indent) instr))
-		(newline))))
-	(inc! line-num)))))
+(define (%show-fn fn indent)
+  (newline)
+  (let ((line-num 0))
+    (dolist (instr (%compiled->instructions fn))
+      (if (is instr 'fn)
+	  (begin
+	    (map display (list line-num ": " (make-space indent) "fn "))
+	    (%show-fn (arg1 instr) (%fixnum-add indent 4)))
+	  (begin
+	    (map display (list line-num ": " (make-space indent) instr))
+	    (newline)))
+      (inc! line-num))))
 
 
 (define (comp-show fn)

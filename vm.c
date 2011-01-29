@@ -24,6 +24,8 @@
 #include "gc.h"
 #include "ffi.h"
 
+char profiling_enabled;
+
 #define ARG1 (codes[pc-2])
 #define ARG2 (codes[pc-1])
 
@@ -47,6 +49,7 @@
   define(gset)					\
   define(setcc)					\
   define(cc)					\
+  define(incprof)				\
   define(pop)
 
 /* generate the symbol variable declarations */
@@ -494,6 +497,12 @@ vm_begin:
     VPUSH(cc_fn, stack, stack_top);
   }
     break;
+  case _incprof_: {
+    if(profiling_enabled) {
+      ARG1++;
+    }
+  }
+    break;
   case _pop_:{
       VPOP(top, stack, stack_top);
     }
@@ -541,6 +550,14 @@ DEFUN1(set_cc_bytecode) {
   return FIRST;
 }
 
+DEFUN1(set_profiling_proc) {
+  if(is_falselike(FIRST)) {
+    profiling_enabled = 0;
+  } else {
+    profiling_enabled = 1;
+  }
+}
+
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
 #define generate_bytecodes(opcode)				  \
   bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
@@ -583,6 +600,8 @@ void vm_init(void) {
 
   g->cc_bytecode = g->empty_list;
   push_root(&(g->cc_bytecode));
+
+  profiling_enabled = 0;
 }
 
 void vm_init_environment(definer defn) {
@@ -593,6 +612,8 @@ void vm_init_environment(definer defn) {
   defn("bytecode->symbol",
        make_primitive_proc(code_to_symbol_proc));
 
+  defn("set-profiling!",
+       make_primitive_proc(set_profiling_proc));
 }
 
 void wb(object * fn) {
