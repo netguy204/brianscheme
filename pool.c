@@ -1,20 +1,18 @@
 /* pool.c - Allocation Pool Library
- * Copyright (C) 2007 Christopher Wellons <mosquitopsu@gmail.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * Copyright (C) 2007, 2011 Christopher Wellons <mosquitopsu@gmail.com>
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <stdio.h>
@@ -22,6 +20,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/mman.h>
 #include <bits/mman.h>
 #include "pool.h"
@@ -37,7 +36,6 @@ size_t init_freed_stack = 256;
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  printf("mmap(): %p (%ld kB)\n", p, size / 1024);
   fflush(stdout);
   return p;
 }
@@ -243,7 +241,11 @@ int pool_dump (pool_t * pool, char *file)
 /* Read the pool from the given file into memory. */
 void* pool_load (char * file)
 {
-  int fd = open(file, O_RDWR);
+  int fd = open(file, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
+    return NULL;
+  }
   off_t loc = 0;
   void *first = NULL;
   while (1) {
@@ -257,10 +259,17 @@ void* pool_load (char * file)
       first = address;
     void *p = mmap(address, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_FIXED, fd, loc);
-    if (p == MAP_FAILED)
+    if (p == MAP_FAILED) {
+      fprintf(stderr, "error: failed to mmap() %s: %s\n",
+	      file, strerror(errno));
       return NULL;
+    }
     loc += size;
     lseek(fd, size - hdr, SEEK_CUR);
+  }
+  if (first == NULL) {
+    fprintf(stderr, "error: empty image file: %s\n", file);
+    return NULL;
   }
   return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
 }

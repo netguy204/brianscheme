@@ -44,8 +44,12 @@
 (require 'clos-repl)
 (provide 'stdlib)
 
-(if (null? *args*)
-    (clos-repl)
-    (begin
-      (load (car *args*))
-      (exit 0)))
+(define (repl-or-script)
+  "Run either the REPL or the script given in *args*."
+  (if (null? *args*)
+      (clos-repl)
+      (begin
+        (load (car *args*))
+        (exit 0))))
+
+(repl-or-script)
