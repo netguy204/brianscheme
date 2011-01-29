@@ -68,7 +68,8 @@
 
 (set! not
   (lambda (x)
-    (if x #f #t)))
+    (list 'if x #f #t)))
+(set-macro! not)
 
 (set! atom?
   (lambda (x)
@@ -819,6 +820,7 @@ not be quoted or escaped."
 (define (equal? a b)
   "true if each node in trees a and b are eq?"
   (cond
+   ((eq? a b) #t)
    ((and (pair? a) (pair? b))
     (and (equal? (car a) (car b))
 	 (equal? (cdr a) (cdr b))))
@@ -832,8 +834,7 @@ not be quoted or escaped."
                     (vector-ref b idx))
 	    (loop (%fixnum-add idx 1))
 	    #f))
-       (else #t))))
-   (else (eq? a b))))
+       (else #t))))))
 
 ;; A-list functions.
 (let ((ass (lambda (eqf key list)

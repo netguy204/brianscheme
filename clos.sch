@@ -95,6 +95,13 @@
 (define stdout-stream (make <native-output-stream> 'port stdout))
 (define stderr-stream (make <native-output-stream> 'port stderr))
 
+(define (call-with-output-stream fname fn)
+  "like call-with-output-file but wraps in stream object"
+  (call-with-output-file
+   fname
+   (lambda (f)
+     (fn (make <native-output-stream> 'port f)))))
+
 ;; these overrides on print-object provide all of the functionality of
 ;; the primitive writer but also give the user the opportunity to
 ;; define their own printed form for their classes.
