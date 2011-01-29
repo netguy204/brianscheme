@@ -223,6 +223,7 @@ void* pool_load (char * file)
 {
   int fd = open(file, O_RDWR);
   off_t loc = 0;
+  void *first = NULL;
   while (1) {
     void *address;
     size_t size, r;
@@ -230,12 +231,14 @@ void* pool_load (char * file)
     if (r == 0) break;
     r = read(fd, &address, sizeof(void *));
     if (r == 0) break;
+    if (first == NULL)
+      first = address;
     void *p = mmap(address, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_FIXED, fd, loc);
     if (p == MAP_FAILED)
       return NULL;
     loc += size;
-    lseek(fd, size - (sizeof(void *) + sizeof(size_t)), SEEK_CUR);
+    lseek(fd, size - hdr, SEEK_CUR);
   }
-  return NULL; /* TODO */
+  return first + hdr + sizeof(subpool_t);
 }
