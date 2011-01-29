@@ -33,6 +33,7 @@ bsch: $(OBJECTS) bsch.o $(HEADERS)
 
 bschsfx: $(OBJECTS) bschsfx.o $(HEADERS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bschsfx.o
+	perl padsfx.pl $@
 
 bschsfx.o: bsch.c
 	$(CC) -DSFX $(CFLAGS) -c -o $@ $^
