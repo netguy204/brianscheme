@@ -29,10 +29,6 @@
 #include "ffi.h"
 
 static const int DEBUG_LEVEL = 1;
-static char debug_enabled = 0;
-
-object *dispatch_stack;
-long stack_top;
 
 void eval_exit_hook() {
   /* try to find an exit hook in the vm environment first */
@@ -396,10 +392,10 @@ DEFUN1(fixnum_to_real_proc) {
 
 DEFUN1(debug_proc) {
   if(FIRST == false) {
-    debug_enabled = 0;
+    g->debug_enabled = 0;
   }
   else {
-    debug_enabled = 1;
+    g->debug_enabled = 1;
   }
   return FIRST;
 }
@@ -976,7 +972,7 @@ void owrite(FILE * out, object * obj) {
 }
 
 object *debug_write(char *msg, object * obj, int level) {
-  if(debug_enabled) {
+  if(g->debug_enabled) {
     int ii;
     for(ii = 0; ii < level; ++ii) {
       fprintf(stderr, " ");
@@ -1390,6 +1386,8 @@ void init_prim_environment(definer defn) {
 
 void init() {
   gc_init();
+
+  g->debug_enabled = 0;
 
   the_empty_list = alloc_object(0);
   the_empty_list->type = THE_EMPTY_LIST;

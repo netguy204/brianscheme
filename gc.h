@@ -70,6 +70,9 @@ typedef struct global_state {
   object *cc_bytecode;
   object *error_sym;
 
+  /* interp */
+  char debug_enabled;
+  long stack_top;
 
 } global_state;
 
