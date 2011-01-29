@@ -1352,7 +1352,7 @@ void init_prim_environment(definer defn) {
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
   add_procedure("gc", gc_proc);
-  add_procedure("save-image", save_image_proc);
+  add_procedure("%save-image", save_image_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
   add_procedure("integer->char", integer_to_char_proc);

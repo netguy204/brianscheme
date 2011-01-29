@@ -162,6 +162,32 @@ object * compile_library(char *libname) {
   return result;
 }
 
+/* SFX stuff. */
+#include <inttypes.h>
+
+char temp_image[L_tmpnam];
+
+off_t find_image() {
+  size_t ps = sysconf(_SC_PAGE_SIZE);
+  FILE *self = fopen("/proc/self/exe", "r");
+  uint32_t sample;
+  off_t loc = 0;
+  while (1) {
+    int r = fseek(self, ps - 4, SEEK_CUR);
+    if (r < 0) break;
+    r = fread(&sample, 4, 1, self);
+    if (r == 0) break;
+    loc += ps;
+    if (sample == 0xdeadbeef) {
+      fclose(self);
+      return loc;
+    }
+  }
+  fclose(self);
+  return 0;
+}
+/* End SFX stuff. */
+
 int main(int argc, char ** argv) {
   int ii;
   progname = argv[0];
@@ -196,8 +222,15 @@ int main(int argc, char ** argv) {
   if (print_help)
     print_usage (EXIT_SUCCESS);
 
+#ifdef SFX
+  /* Always load an image. */
+  off_t img_off = find_image();
+  image = "/proc/self/exe";
+#else
+  off_t img_off = 0;
+#endif
   if (image) {
-    int r = load_image(image);
+    int r = load_image(image, img_off);
     if (r != 0) {
       exit(EXIT_FAILURE);
     }
@@ -221,7 +254,7 @@ int main(int argc, char ** argv) {
     insert_strlist(argv + optind, "*args*", 0);
 
     /* Fire up a REPL. */
-    apply(cdr(get_hashtab(g->vm_env, make_symbol("repl-or-script"), NULL)),
+    apply(cdr(get_hashtab(g->vm_env, make_symbol("*image-start*"), NULL)),
 	  g->empty_list);
     exit(0);
   }

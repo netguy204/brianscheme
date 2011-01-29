@@ -1,4 +1,4 @@
-TARGETS = bsch
+TARGETS = bsch bschsfx
 
 default: $(TARGETS)
 
@@ -30,6 +30,13 @@ endif
 
 bsch: $(OBJECTS) bsch.o $(HEADERS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bsch.o
+
+bschsfx: $(OBJECTS) bschsfx.o $(HEADERS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) bschsfx.o
+	perl padsfx.pl $@
+
+bschsfx.o: bsch.c
+	$(CC) -DSFX $(CFLAGS) -c -o $@ $^
 
 image: bsch
 	./bsch save-image.sch $(IMAGE)

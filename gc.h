@@ -36,7 +36,7 @@ void *REALLOC(void *p, size_t new);  /* mmap()ed */
 void FREE(void *p);       /* mmap()ed */
 
 int save_image(char *filename);
-int load_image(char *filename);
+int load_image(char *filename, off_t offset);
 void patch_object(object *sym, object *new_value);
 
 typedef struct doubly_linked_list {
