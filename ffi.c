@@ -49,7 +49,7 @@ typedef void (*FN_PTR) (void);
 DEFUN1(dlopen_proc) {
   void *handle;
 
-  if(FIRST == the_empty_list) {
+  if(FIRST == g->empty_list) {
     handle = dlopen(NULL, RTLD_LAZY);
   }
   else {
@@ -57,10 +57,10 @@ DEFUN1(dlopen_proc) {
   }
 
   if(handle == NULL) {
-    return false;
+    return g->false;
   }
   else {
-    return make_alien(handle, the_empty_list);
+    return make_alien(handle, g->empty_list);
   }
 }
 
@@ -75,10 +75,10 @@ DEFUN1(dlsym_proc) {
   char *msg;
   if((msg = dlerror()) != NULL) {
     fprintf(stderr, "dlerror: %s\n", msg);
-    return false;
+    return g->false;
   }
 
-  return make_alien_fn(fn, the_empty_list);
+  return make_alien_fn(fn, g->empty_list);
 }
 
 DEFUN1(dlsym2_proc) {
@@ -89,10 +89,10 @@ DEFUN1(dlsym2_proc) {
   char *msg;
   if((msg = dlerror()) != NULL) {
     fprintf(stderr, "dlerror: %s\n", msg);
-    return false;
+    return g->false;
   }
 
-  return make_alien(ptr, the_empty_list);
+  return make_alien(ptr, g->empty_list);
 }
 
 
@@ -100,13 +100,13 @@ DEFUN1(dlsym2_proc) {
 DEFUN1(dlclose_proc) {
   void *handle = ALIEN_PTR(FIRST);
   dlclose(handle);
-  return true;
+  return g->true;
 }
 
 DEFUN1(free_ptr) {
   void *ptr = ALIEN_PTR(FIRST);
   free(ptr);
-  return true;
+  return g->true;
 }
 
 DEFUN1(free_ffi_alien_object) {
@@ -114,17 +114,17 @@ DEFUN1(free_ffi_alien_object) {
   object *releaser = ALIEN_RELEASER(alien);
 
   if(is_the_empty_list(releaser)) {
-    return false;
+    return g->false;
   }
 
   /* build the list to eval */
-  object *list = the_empty_list;
+  object *list = g->empty_list;
   push_root(&list);
   list = cons(alien, list);
   list = cons(releaser, list);
 
   /* send it to interp and return the result */
-  object *result = interp(list, the_empty_environment);
+  object *result = interp(list, g->empty_env);
   pop_root(&list);
   return result;
 }
@@ -172,10 +172,10 @@ DEFUN1(ffi_primitive_type) {
   }
   else {
     /* unknown type */
-    return false;
+    return g->false;
   }
 
-  return make_alien(tgt_type, the_empty_list);
+  return make_alien(tgt_type, g->empty_list);
 }
 
 DEFUN1(ffi_make_pointer_array) {
@@ -194,7 +194,7 @@ DEFUN1(ffi_set_pointer) {
 DEFUN1(ffi_get_pointer) {
   void **array = ALIEN_PTR(FIRST);
   long idx = LONG(SECOND);
-  return make_alien(array[idx], the_empty_list);
+  return make_alien(array[idx], g->empty_list);
 }
 
 DEFUN1(ffi_make_byte_array) {
@@ -234,7 +234,7 @@ DEFUN1(ffi_set_long) {
 
 DEFUN1(ffi_deref) {
   void **value = ALIEN_PTR(FIRST);
-  return make_alien(*value, the_empty_list);
+  return make_alien(*value, g->empty_list);
 }
 
 DEFUN1(ffi_prep_cif_proc) {
@@ -244,10 +244,10 @@ DEFUN1(ffi_prep_cif_proc) {
   ffi_type **argarray = ALIEN_PTR(FOURTH);
 
   if(ffi_prep_cif(cif, FFI_DEFAULT_ABI, arg_count, rtype, argarray) == FFI_OK) {
-    return true;
+    return g->true;
   }
   else {
-    return false;
+    return g->false;
   }
 }
 
@@ -258,22 +258,22 @@ DEFUN1(ffi_call_proc) {
   void **values = ALIEN_PTR(FOURTH);
 
   ffi_call(cif, fn, result, values);
-  return true;
+  return g->true;
 }
 
 void interp_trampoline(ffi_cif * cif __attribute__ ((unused)),
 		       void *ret __attribute__ ((unused)),
 		       void **args, void *target_ptr) {
   object *target = (object *) target_ptr;
-  object *exp = the_empty_list;
-  object *alien = make_alien(args, the_empty_list);
+  object *exp = g->empty_list;
+  object *alien = make_alien(args, g->empty_list);
 
   push_root(&exp);
   push_root(&alien);
 
   exp = cons(alien, exp);
   exp = cons(target, exp);
-  interp(exp, the_empty_environment);
+  interp(exp, g->empty_env);
 
   pop_root(&alien);
   pop_root(&exp);
@@ -287,16 +287,16 @@ DEFUN1(create_closure_proc) {
   FN_PTR fn_with_closure;
   closure = ffi_closure_alloc(sizeof(ffi_closure), (void **)&fn_with_closure);
   if(!closure) {
-    return false;
+    return g->false;
   }
 
   if(ffi_prep_closure_loc
      (closure, cif, interp_trampoline, target, fn_with_closure) != FFI_OK) {
     ffi_closure_free(closure);
-    return false;
+    return g->false;
   }
 
-  return make_alien_fn(fn_with_closure, the_empty_list);
+  return make_alien_fn(fn_with_closure, g->empty_list);
 }
 
 /* provides an example function that can be called from userland to
@@ -308,7 +308,7 @@ void test_fn(void (*rfn) (int)) {
 
 DEFUN1(ffi_address_of) {
   void **ptr = &(ALIEN_PTR(FIRST));
-  return make_alien(ptr, the_empty_list);
+  return make_alien(ptr, g->empty_list);
 }
 
 char *strdup(const char *string);
@@ -325,11 +325,11 @@ DEFUN1(alien_to_string) {
 
 DEFUN1(stream_to_alien) {
   FILE *stream = INPUT(FIRST);
-  return make_alien(stream, the_empty_list);
+  return make_alien(stream, g->empty_list);
 }
 
 DEFUN1(int_to_alien) {
-  return make_alien((void *)LONG(FIRST), the_empty_list);
+  return make_alien((void *)LONG(FIRST), g->empty_list);
 }
 
 DEFUN1(alien_to_int) {

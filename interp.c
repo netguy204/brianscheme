@@ -33,23 +33,23 @@ static const int DEBUG_LEVEL = 1;
 void eval_exit_hook() {
   /* try to find an exit hook in the vm environment first */
   object *exit_hook =
-    get_hashtab(vm_global_environment, exit_hook_symbol, NULL);
+    get_hashtab(g->vm_env, g->exit_hook_symbol, NULL);
 
   if(exit_hook == NULL) {
     /* this happens if the interpreter has been destroyed but there
-       isn't an exit hook in the vm_global_environment */
-    if(is_the_empty_list(the_global_environment)) { return; }
+       isn't an exit hook in the g->vm_env */
+    if(is_the_empty_list(g->env)) { return; }
 
     exit_hook =
-      get_hashtab(the_global_environment, exit_hook_symbol, the_empty_list);
+      get_hashtab(g->env, g->exit_hook_symbol, g->empty_list);
   } else {
     exit_hook = cdr(exit_hook);
   }
 
-  if(exit_hook != the_empty_list) {
-    object *exp = cons(exit_hook, the_empty_list);
+  if(exit_hook != g->empty_list) {
+    object *exp = cons(exit_hook, g->empty_list);
     push_root(&exp);
-    interp(exp, the_empty_environment);
+    interp(exp, g->empty_env);
     pop_root(&exp);
   }
 }
@@ -147,7 +147,7 @@ object *lookup_variable_value(object * var, object * env) {
   }
 
   /* check the global environment */
-  return lookup_global_value(var, the_global_environment);
+  return lookup_global_value(var, g->env);
 }
 
 void define_global_variable(object * var, object * new_val, object * env) {
@@ -189,7 +189,7 @@ void define_variable(object * var, object * new_val, object * env) {
   }
 
   /* we define at the global level */
-  define_global_variable(var, new_val, the_global_environment);
+  define_global_variable(var, new_val, g->env);
 }
 
 /* define a few primitives */
@@ -391,7 +391,7 @@ DEFUN1(fixnum_to_real_proc) {
 }
 
 DEFUN1(debug_proc) {
-  if(FIRST == false) {
+  if(FIRST == g->false) {
     g->debug_enabled = 0;
   }
   else {
@@ -430,19 +430,19 @@ DEFUN1(set_cdr_proc) {
 
 DEFUN1(is_eq_proc) {
   if(FIRST->type != SECOND->type) {
-    return false;
+    return g->false;
   }
   switch (FIRST->type) {
   case FIXNUM:
-    return (LONG(FIRST) == LONG(SECOND)) ? true : false;
+    return (LONG(FIRST) == LONG(SECOND)) ? g->true : g->false;
   case FLOATNUM:
-    return (DOUBLE(FIRST) == DOUBLE(SECOND)) ? true : false;
+    return (DOUBLE(FIRST) == DOUBLE(SECOND)) ? g->true : g->false;
   case CHARACTER:
-    return (CHAR(FIRST) == CHAR(SECOND)) ? true : false;
+    return (CHAR(FIRST) == CHAR(SECOND)) ? g->true : g->false;
   case STRING:
-    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ? true : false;
+    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ? g->true : g->false;
   default:
-    return (FIRST == SECOND) ? true : false;
+    return (FIRST == SECOND) ? g->true : g->false;
   }
 }
 
@@ -474,7 +474,7 @@ DEFUN1(open_output_port_proc) {
   object *name = FIRST;
   FILE *out = fopen(STRING(name), "w");
   if(out == NULL) {
-    return eof_object;
+    return g->eof_object;
   }
   return make_output_port(out);
 }
@@ -482,14 +482,14 @@ DEFUN1(open_output_port_proc) {
 DEFUN1(close_output_port_proc) {
   FILE *out = OUTPUT(FIRST);
   fclose(out);
-  return true;
+  return g->true;
 }
 
 DEFUN1(open_input_port_proc) {
   object *name = FIRST;
   FILE *in = fopen(STRING(name), "r");
   if(in == NULL) {
-    return eof_object;
+    return g->eof_object;
   }
   return make_input_port(in);
 }
@@ -497,7 +497,7 @@ DEFUN1(open_input_port_proc) {
 DEFUN1(close_input_port_proc) {
   FILE *in = INPUT(FIRST);
   fclose(in);
-  return true;
+  return g->true;
 }
 
 DEFUN1(gc_proc) {
@@ -506,7 +506,7 @@ DEFUN1(gc_proc) {
 
 DEFUN1(eval_proc) {
   object *exp = FIRST;
-  return interp(exp, the_empty_environment);
+  return interp(exp, g->empty_env);
 }
 
 DEFUN1(save_image_proc) {
@@ -514,7 +514,7 @@ DEFUN1(save_image_proc) {
   int r = save_image(STRING(file));
   if (r < 0)
     throw_interp("could not save image");
-  return true;
+  return g->true;
 }
 
 object *apply(object *fn, object *evald_args) {
@@ -532,7 +532,7 @@ object *apply(object *fn, object *evald_args) {
   if(is_primitive_proc(fn) || is_compiled_proc(fn) ||
      is_compiled_syntax_proc(fn)) {
 
-    object *stack = make_vector(the_empty_list, 30);
+    object *stack = make_vector(g->empty_list, 30);
     long stack_top = 0;
 
     push_root(&stack);
@@ -566,7 +566,7 @@ object *apply(object *fn, object *evald_args) {
   }
 
   throw_interp("\ncannot apply non-function\n");
-  return false;
+  return g->false;
 }
 
 DEFUN1(apply_proc) {
@@ -579,27 +579,27 @@ object *obj_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
   object *result = obj_read(INPUT(in_port));
-  return (result == NULL) ? eof_object : result;
+  return (result == NULL) ? g->eof_object : result;
 }
 
 DEFUN1(write_proc) {
   object *port = SECOND;
   object *obj = FIRST;
   owrite(OUTPUT(port), obj);
-  return true;
+  return g->true;
 }
 
 DEFUN1(write_char_proc) {
   object *port = SECOND;
   object *ch = FIRST;
   putc(CHAR(ch), OUTPUT(port));
-  return true;
+  return g->true;
 }
 
 DEFUN1(read_char_proc) {
   object *port = FIRST;
   int result = getc(INPUT(port));
-  return (result == EOF) ? eof_object : make_character(result);
+  return (result == EOF) ? g->eof_object : make_character(result);
 }
 
 DEFUN1(unread_char_proc) {
@@ -607,7 +607,7 @@ DEFUN1(unread_char_proc) {
   object *ch = SECOND;
 
   ungetc(CHAR(ch), INPUT(port));
-  return true;
+  return g->true;
 }
 
 DEFUN1(char_to_integer_proc) {
@@ -730,7 +730,7 @@ DEFUN1(get_hashtab_keys_proc) {
 
 DEFUN1(remkey_hashtab_proc) {
   remkey_hashtab(FIRST, SECOND);
-  return true;
+  return g->true;
 }
 
 DEFUN1(vector_length_proc) {
@@ -740,18 +740,18 @@ DEFUN1(vector_length_proc) {
 DEFUN1(exit_proc) {
   eval_exit_hook();
   exit((int)LONG(FIRST));
-  return false;
+  return g->false;
 }
 
 DEFUN1(stats_proc) {
-  object *temp = cons(make_fixnum(get_cons_count()), the_empty_list);
+  object *temp = cons(make_fixnum(get_cons_count()), g->empty_list);
   push_root(&temp);
   temp = cons(make_symbol("cons"), temp);
 
-  object *result = cons(temp, the_empty_list);
+  object *result = cons(temp, g->empty_list);
   push_root(&result);
 
-  temp = cons(make_fixnum(get_alloc_count()), the_empty_list);
+  temp = cons(make_fixnum(get_alloc_count()), g->empty_list);
   temp = cons(make_symbol("alloc"), temp);
   result = cons(temp, result);
 
@@ -835,7 +835,7 @@ void owrite(FILE * out, object * obj) {
     return;
   }
 
-  if(is_hashtab(obj) && obj == the_global_environment) {
+  if(is_hashtab(obj) && obj == g->env) {
     fprintf(out, "#<global-environment-hashtab>");
     return;
   }
@@ -909,19 +909,19 @@ void owrite(FILE * out, object * obj) {
      * should be safe to assume that if obj's head is one of
      * these things then that obj has a cadr
      */
-    if(head == quote_symbol) {
+    if(head == g->quote_symbol) {
       fprintf(out, "'");
       owrite(out, cadr(obj));
     }
-    else if(head == unquote_symbol) {
+    else if(head == g->unquote_symbol) {
       fprintf(out, ",");
       owrite(out, cadr(obj));
     }
-    else if(head == unquotesplicing_symbol) {
+    else if(head == g->unquotesplicing_symbol) {
       fprintf(out, ",@");
       owrite(out, cadr(obj));
     }
-    else if(head == quasiquote_symbol) {
+    else if(head == g->quasiquote_symbol) {
       fprintf(out, "`");
       owrite(out, cadr(obj));
     }
@@ -986,7 +986,7 @@ object *debug_write(char *msg, object * obj, int level) {
 }
 
 char is_falselike(object * obj) {
-  return obj == false || is_the_empty_list(obj);
+  return obj == g->false || is_the_empty_list(obj);
 }
 
 #ifdef NODEBUG
@@ -1003,7 +1003,7 @@ object *interp(object * exp, object * env) {
   push_root(&exp);
   push_root(&env);
 
-  object *prim_call_stack = make_vector(the_empty_list, 10);
+  object *prim_call_stack = make_vector(g->empty_list, 10);
   long prim_stack_top = 0;
 
   push_root(&prim_call_stack);
@@ -1064,10 +1064,10 @@ interp_restart:
   }
   else {
     object *head = car(exp);
-    if(head == quote_symbol) {
+    if(head == g->quote_symbol) {
       INTERP_RETURN(second(exp));
     }
-    else if(head == begin_symbol) {
+    else if(head == g->begin_symbol) {
       exp = cdr(exp);
       if(is_the_empty_list(exp)) {
 	throw_interp("begin must be followed by exp");
@@ -1082,7 +1082,7 @@ interp_restart:
       exp = car(exp);
       goto interp_restart;
     }
-    else if(head == set_symbol) {
+    else if(head == g->set_symbol) {
       object *args = cdr(exp);
       object *val = interp1(second(args), env, level + 1, prim_call_stack,
 			    prim_stack_top);
@@ -1094,7 +1094,7 @@ interp_restart:
 
       INTERP_RETURN(val);
     }
-    else if(head == if_symbol) {
+    else if(head == g->if_symbol) {
       object *args = cdr(exp);
       object *predicate =
 	interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
@@ -1102,7 +1102,7 @@ interp_restart:
       if(is_falselike(predicate)) {
 	/* else is optional, if none return #f */
 	if(is_the_empty_list(cdr(cdr(args)))) {
-	  INTERP_RETURN(false);
+	  INTERP_RETURN(g->false);
 	}
 	else {
 	  exp = third(args);
@@ -1113,9 +1113,9 @@ interp_restart:
       }
       goto interp_restart;
     }
-    else if(head == lambda_symbol) {
+    else if(head == g->lambda_symbol) {
       object *args = cdr(exp);
-      object *body = cons(begin_symbol, cdr(args));
+      object *body = cons(g->begin_symbol, cdr(args));
       push_root(&body);
 
       object *proc = make_compound_proc(first(args),
@@ -1193,9 +1193,9 @@ interp_restart:
       }
       else if(is_compound_proc(fn)) {
 	/* compounds take their arguments as a linked list */
-	object *evald_args = the_empty_list;
-	object *result = the_empty_list;
-	object *last = the_empty_list;
+	object *evald_args = g->empty_list;
+	object *result = g->empty_list;
+	object *last = g->empty_list;
 	push_root(&evald_args);
 	push_root(&result);
 
@@ -1204,12 +1204,12 @@ interp_restart:
 	    interp1(first(args), env, level + 1, prim_call_stack,
 		    prim_stack_top);
 
-	  if(evald_args == the_empty_list) {
-	    evald_args = cons(result, the_empty_list);
+	  if(evald_args == g->empty_list) {
+	    evald_args = cons(result, g->empty_list);
 	    last = evald_args;
 	  }
 	  else {
-	    set_cdr(last, cons(result, the_empty_list));
+	    set_cdr(last, cons(result, g->empty_list));
 	    last = cdr(last);
 	  }
 	  args = cdr(args);
@@ -1249,7 +1249,7 @@ interp_restart:
 void interp_definer(char *sym, object *value) {
   push_root(&value);
   object * symbol = make_symbol(sym);
-  define_global_variable(symbol, value, the_global_environment);
+  define_global_variable(symbol, value, g->env);
   pop_root(&value);
 }
 
@@ -1378,10 +1378,10 @@ void init_prim_environment(definer defn) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  defn(SYMBOL(stdin_symbol), make_input_port(stdin));
-  defn(SYMBOL(stdout_symbol), make_output_port(stdout));
-  defn(SYMBOL(stderr_symbol), make_output_port(stderr));
-  defn(SYMBOL(exit_hook_symbol), the_empty_list);
+  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin));
+  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout));
+  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr));
+  defn(SYMBOL(g->exit_hook_symbol), g->empty_list);
 }
 
 void init() {
@@ -1389,59 +1389,57 @@ void init() {
 
   g->debug_enabled = 0;
 
-  the_empty_list = alloc_object(0);
-  the_empty_list->type = THE_EMPTY_LIST;
-  the_empty_list->data.pair.car = the_empty_list;
-  the_empty_list->data.pair.cdr = the_empty_list;
-  push_root(&the_empty_list);
+  g->empty_list = alloc_object(0);
+  g->empty_list->type = THE_EMPTY_LIST;
+  g->empty_list->data.pair.car = g->empty_list;
+  g->empty_list->data.pair.cdr = g->empty_list;
+  push_root(&(g->empty_list));
 
-  the_empty_vector = alloc_object(0);
-  the_empty_vector->type = VECTOR;
-  VSIZE(the_empty_vector) = 0;
-  push_root(&the_empty_vector);
+  g->empty_vector = alloc_object(0);
+  g->empty_vector->type = VECTOR;
+  VSIZE(g->empty_vector) = 0;
+  push_root(&(g->empty_vector));
 
-  false = alloc_object(0);
-  false->type = BOOLEAN;
-  false->data.boolean.value = 0;
-  push_root(&false);
+  g->false = alloc_object(0);
+  g->false->type = BOOLEAN;
+  g->false->data.boolean.value = 0;
+  push_root(&(g->false));
 
-  true = alloc_object(0);
-  true->type = BOOLEAN;
-  true->data.boolean.value = 1;
-  push_root(&true);
+  g->true = alloc_object(0);
+  g->true->type = BOOLEAN;
+  g->true->data.boolean.value = 1;
+  push_root(&(g->true));
 
-  symbol_table = the_empty_list;
-  push_root(&symbol_table);
+  g->symbol_table = g->empty_list;
+  push_root(&(g->symbol_table));
 
-  unquote_symbol = make_symbol("unquote");
-  unquotesplicing_symbol = make_symbol("unquotesplicing");
-  quote_symbol = make_symbol("quote");
-  quasiquote_symbol = make_symbol("quasiquote");
-  set_symbol = make_symbol("set!");
-  if_symbol = make_symbol("if");
-  begin_symbol = make_symbol("begin");
-  lambda_symbol = make_symbol("lambda");
-  macro_symbol = make_symbol("macro");
-  stdin_symbol = make_symbol("stdin");
-  stdout_symbol = make_symbol("stdout");
-  stderr_symbol = make_symbol("stderr");
-  exit_hook_symbol = make_symbol("exit-hook");
+  g->unquote_symbol = make_symbol("unquote");
+  g->unquotesplicing_symbol = make_symbol("unquotesplicing");
+  g->quote_symbol = make_symbol("quote");
+  g->quasiquote_symbol = make_symbol("quasiquote");
+  g->set_symbol = make_symbol("set!");
+  g->if_symbol = make_symbol("if");
+  g->begin_symbol = make_symbol("begin");
+  g->lambda_symbol = make_symbol("lambda");
+  g->macro_symbol = make_symbol("macro");
+  g->stdin_symbol = make_symbol("stdin");
+  g->stdout_symbol = make_symbol("stdout");
+  g->stderr_symbol = make_symbol("stderr");
+  g->exit_hook_symbol = make_symbol("exit-hook");
 
-  eof_object = alloc_object(0);
-  eof_object->type = EOF_OBJECT;
-  push_root(&eof_object);
+  g->eof_object = alloc_object(0);
+  g->eof_object->type = EOF_OBJECT;
+  push_root(&(g->eof_object));
 
-  the_empty_environment = the_empty_list;
-  the_global_environment = make_hashtab(100);
-  push_root(&the_global_environment);
-  interp_definer("*global-environment*",
-		 the_global_environment);
+  g->empty_env = g->empty_list;
+  g->env = make_hashtab(100);
+  push_root(&(g->env));
+  interp_definer("*global-environment*", g->env);
 
 
-  vm_global_environment = make_hashtab(100);
-  push_root(&vm_global_environment);
-  vm_definer("*global-environment*",
-	     vm_global_environment);
+  g->vm_env = make_hashtab(100);
+  push_root(&(g->vm_env));
+  vm_definer("*global-environment*", g->vm_env);
 
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
@@ -1453,13 +1451,12 @@ void init() {
 
   vm_init();
 
-  interp_definer("*vm-global-environment*",
-		 vm_global_environment);
+  interp_definer("*vm-global-environment*", g->vm_env);
 }
 
 void destroy_interp() {
-  pop_root(&the_global_environment);
-  the_global_environment = the_empty_list;
+  pop_root(&(g->env));
+  g->env = g->empty_list;
 }
 
 
@@ -1474,7 +1471,7 @@ void primitive_repl() {
   object *input;
   while((input = obj_read(stdin)) != NULL) {
     push_root(&input);
-    print_obj(interp(input, the_empty_environment));
+    print_obj(interp(input, g->empty_env));
     pop_root(&input);
   }
 }

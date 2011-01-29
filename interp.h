@@ -18,7 +18,6 @@
 #define INTERP_H
 
 #include "types.h"
-#include "symbols.h"
 
 /* pre-declarations */
 
@@ -38,7 +37,7 @@ object *cdr(object *pair);
 #define THIRD (VARRAY(args)[stack_top-(n_args-2)])
 #define FOURTH (VARRAY(args)[stack_top-(n_args-3)])
 
-#define AS_BOOL(x) (x ? true : false)
+#define AS_BOOL(x) (x ? g->true : g->false)
 
 /* used to convert cons arg lists into vector arg lists */
 object *dispatch_primitive(object * arg_list, long num_args);

@@ -25,7 +25,6 @@
 #endif
 
 #include "types.h"
-#include "symbols.h"
 #include "read.h"
 #include "gc.h"
 /*temp*/
@@ -210,7 +209,7 @@ object *read_pair(read_buffer * in) {
 
   c = read_getc(in);
   if(c == ')') {
-    return the_empty_list;
+    return g->empty_list;
   }
   read_ungetc(c, in);
 
@@ -264,11 +263,11 @@ object *read_vector(read_buffer * in) {
 
   c = read_getc(in);
   if(c == ')') {
-    return the_empty_vector;
+    return g->empty_vector;
   }
   read_ungetc(c, in);
 
-  current = cons(lisp_read(in), the_empty_list);
+  current = cons(lisp_read(in), g->empty_list);
   push_root(&current);
   list_head = current;
   push_root(&list_head);
@@ -283,7 +282,7 @@ object *read_vector(read_buffer * in) {
     read_ungetc(c, in);
 
     current = lisp_read(in);
-    set_cdr(list_tail, cons(current, the_empty_list));
+    set_cdr(list_tail, cons(current, g->empty_list));
     list_tail = cdr(list_tail);
 
     if(eat_whitespace(in) == EOF)
@@ -376,9 +375,9 @@ object *lisp_read(read_buffer * in) {
     c = read_getc(in);
     switch (c) {
     case 't':
-      return true;
+      return g->true;
     case 'f':
-      return false;
+      return g->false;
     case '\\':
       return read_character(in);
     case '(':
@@ -387,7 +386,7 @@ object *lisp_read(read_buffer * in) {
       /* Treat like a comment. */
       while(((c = read_getc(in)) != EOF) && (c != '\n'))
 	continue;
-      return false;
+      return g->false;
     default:
       return throw_read("unknown boolean or character literal '%c' \n", c);
     }
@@ -449,17 +448,17 @@ object *lisp_read(read_buffer * in) {
   else if(c == '\'') {
     object *quoted = lisp_read(in);
     push_root(&quoted);
-    quoted = cons(quoted, the_empty_list);
-    quoted = cons(quote_symbol, quoted);
+    quoted = cons(quoted, g->empty_list);
+    quoted = cons(g->quote_symbol, quoted);
     pop_root(&quoted);
     return quoted;
   }
   else if(c == ',') {
     char next_char = read_getc(in);
-    object *qsym = unquote_symbol;
+    object *qsym = g->unquote_symbol;
 
     if(next_char == '@') {
-      qsym = unquotesplicing_symbol;
+      qsym = g->unquotesplicing_symbol;
     }
     else {
       read_ungetc(next_char, in);
@@ -467,7 +466,7 @@ object *lisp_read(read_buffer * in) {
 
     object *unquoted = lisp_read(in);
     push_root(&unquoted);
-    unquoted = cons(unquoted, the_empty_list);
+    unquoted = cons(unquoted, g->empty_list);
     unquoted = cons(qsym, unquoted);
     pop_root(&unquoted);
     return unquoted;
@@ -475,8 +474,8 @@ object *lisp_read(read_buffer * in) {
   else if(c == '`') {
     object *qquoted = lisp_read(in);
     push_root(&qquoted);
-    qquoted = cons(qquoted, the_empty_list);
-    qquoted = cons(quasiquote_symbol, qquoted);
+    qquoted = cons(qquoted, g->empty_list);
+    qquoted = cons(g->quasiquote_symbol, qquoted);
     pop_root(&qquoted);
     return qquoted;
   }

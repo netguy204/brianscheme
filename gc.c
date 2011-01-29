@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "types.h"
-#include "symbols.h"
 #include "hashtab.h"
 #include "pool.h"
 #include "gc.h"

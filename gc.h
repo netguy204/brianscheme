@@ -74,6 +74,31 @@ typedef struct global_state {
   char debug_enabled;
   long stack_top;
 
+  /* symbols */
+  object *empty_list;
+  object *empty_vector;
+  object *false;
+  object *true;
+  object *symbol_table;
+  object *quote_symbol;
+  object *quasiquote_symbol;
+  object *unquote_symbol;
+  object *unquotesplicing_symbol;
+  object *set_symbol;
+  object *if_symbol;
+  object *begin_symbol;
+  object *lambda_symbol;
+  object *macro_symbol;
+  object *stdin_symbol;
+  object *stdout_symbol;
+  object *stderr_symbol;
+  object *eof_object;
+  object *exit_hook_symbol;
+
+  object *empty_env;
+  object *env;
+  object *vm_env;
+
 } global_state;
 
 extern global_state *g;

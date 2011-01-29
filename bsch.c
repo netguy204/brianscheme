@@ -90,8 +90,8 @@ char *pathcat(char *a, char *b) {
 
 void insert_strlist(char **strv, char *name) {
   char **strs = strv;
-  object* list = the_empty_list;
-  object* str = the_empty_list;
+  object* list = g->empty_list;
+  object* str = g->empty_list;
   push_root(&list);
   push_root(&str);
   while (*strs != NULL) strs++;
@@ -134,7 +134,7 @@ object * load_library(char *libname) {
   object *result = NULL;
   while((form = obj_read(stdlib)) != NULL) {
     push_root(&form);
-    result = interp(form, the_empty_environment);
+    result = interp(form, g->empty_env);
     pop_root(&form);
   }
 
@@ -144,7 +144,7 @@ object * load_library(char *libname) {
 
 object * compile_library(char *libname) {
   object *compile_file = make_symbol("compile-file");
-  object *compiler = get_hashtab(vm_global_environment, compile_file, NULL);
+  object *compiler = get_hashtab(g->vm_env, compile_file, NULL);
   if(compiler == NULL) {
     fprintf(stderr, "compile-file is not defined\n");
     exit(4);
@@ -152,7 +152,7 @@ object * compile_library(char *libname) {
     compiler = cdr(compiler);
   }
 
-  object *form = the_empty_list;
+  object *form = g->empty_list;
   push_root(&form);
   form = cons(make_string(libname), form);
   object *result = apply(compiler, form);

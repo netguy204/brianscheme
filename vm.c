@@ -19,7 +19,6 @@
 
 #include "vm.h"
 #include "types.h"
-#include "symbols.h"
 #include "interp.h"
 #include "read.h"
 #include "gc.h"
@@ -78,7 +77,7 @@ object *bytecodes[INVALID_BYTECODE];
 
 object *symbol_to_code(object *sym) {
   opcode_table(generate_sym_to_code);
-  return false;
+  return g->false;
 }
 
 DEFUN1(symbol_to_code_proc) {
@@ -95,7 +94,7 @@ DEFUN1(symbol_to_code_proc) {
 
 DEFUN1(code_to_symbol_proc) {
   opcode_table(generate_code_to_sym)
-    return false;
+    return g->false;
 }
 
 #define VM_ASSERT(test, msg, ...)		\
@@ -114,7 +113,7 @@ void vector_push(object * stack, object * thing, long top) {
 			    * VSIZE(stack));
     int ii;
     for(ii = old_size; ii < VSIZE(stack); ++ii) {
-      VARRAY(stack)[ii] = the_empty_list;
+      VARRAY(stack)[ii] = g->empty_list;
     }
   }
   VARRAY(stack)[top++] = thing;
@@ -122,7 +121,7 @@ void vector_push(object * stack, object * thing, long top) {
 
 object *vector_pop(object * stack, long top) {
   object *old = VARRAY(stack)[--top];
-  VARRAY(stack)[top] = the_empty_list;
+  VARRAY(stack)[top] = g->empty_list;
   return old;
 }
 
@@ -185,9 +184,9 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
      won't have built one for us */
 
   env = CENV(fn);
-  env = cons(the_empty_vector, env);
+  env = cons(g->empty_vector, env);
 
-  top = the_empty_list;
+  top = g->empty_list;
 
   push_root(&stack);
   push_root(&fn);
@@ -227,7 +226,7 @@ vm_begin:
 
       /* resize the top frame if we need to */
       if(num_args > VSIZE(car(env))) {
-	set_car(env, make_vector(the_empty_list, num_args));
+	set_car(env, make_vector(g->empty_list, num_args));
       }
 
       object *vector = car(env);
@@ -249,7 +248,7 @@ vm_begin:
 
       /* resize the top frame if we need to */
       if(array_size > VSIZE(car(env))) {
-	set_car(env, make_vector(the_empty_list, array_size));
+	set_car(env, make_vector(g->empty_list, array_size));
       }
 
       object *vector = car(env);
@@ -257,7 +256,7 @@ vm_begin:
 
       /* push the excess args onto the last position, top is
          protected */
-      vdata[array_size - 1] = the_empty_list;
+      vdata[array_size - 1] = g->empty_list;
       for(ii = 0; ii < n_args - req_args; ++ii) {
 	VPOP(top, stack, stack_top);
 	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
@@ -315,7 +314,7 @@ vm_begin:
       /* generate a fresh frame for the callee */
       env = CENV(fn);
 
-      top = make_vector(the_empty_list, n_args + 1);
+      top = make_vector(g->empty_list, n_args + 1);
       env = cons(top, env);
 
       goto vm_fn_begin;
@@ -437,8 +436,7 @@ vm_begin:
       if(is_pair(var)) {
 	val = var;
       } else {
-	val = lookup_global_value(VARRAY(const_array)[ARG1],
-				  vm_global_environment);
+	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
 	VARRAY(const_array)[ARG1] = val;
       }
 
@@ -448,13 +446,12 @@ vm_begin:
   case _gset_:{
       object *var = VARRAY(const_array)[ARG1];
       object *val = VARRAY(stack)[stack_top - 1];
-      object *slot = get_hashtab(vm_global_environment,
-				 var, NULL);
+      object *slot = get_hashtab(g->vm_env, var, NULL);
       if(slot) {
 	set_cdr(slot, val);
       } else {
 	val = cons(var, val);
-	define_global_variable(var, val, vm_global_environment);
+	define_global_variable(var, val, g->vm_env);
       }
     }
     break;
@@ -467,7 +464,7 @@ vm_begin:
     /* need to copy the stack into the current stack */
     stack_top = LONG(new_stack_top);
 
-    stack = make_vector(the_empty_list, stack_top);
+    stack = make_vector(g->empty_list, stack_top);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
       VARRAY(stack)[idx] = VARRAY(top)[idx];
@@ -475,11 +472,11 @@ vm_begin:
   }
     break;
   case _cc_: {
-    object *cc_env = make_vector(the_empty_list, 2);
+    object *cc_env = make_vector(g->empty_list, 2);
     push_root(&cc_env);
 
     /* copy the stack */
-    object *new_stack = make_vector(the_empty_list, stack_top);
+    object *new_stack = make_vector(g->empty_list, stack_top);
     long idx;
     for(idx = 0; idx < stack_top; ++idx) {
       VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
@@ -489,7 +486,7 @@ vm_begin:
     VARRAY(cc_env)[0] = new_stack;
     VARRAY(cc_env)[1] = make_fixnum(stack_top);
 
-    cc_env = cons(cc_env, the_empty_list);
+    cc_env = cons(cc_env, g->empty_list);
 
     object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
     pop_root(&cc_env);
@@ -508,7 +505,7 @@ vm_begin:
 
       object **addr = &VARRAY(stack)[stack_top-1];
 
-      *addr = cons(the_empty_list, *addr);
+      *addr = cons(g->empty_list, *addr);
       object *num = make_fixnum(ARG1 * 3);
       set_car(*addr, num);
     }
@@ -553,7 +550,7 @@ void vm_definer(char *sym, object *value) {
   push_root(&value);
   object * symbol = make_symbol(sym);
   value = cons(symbol, value);
-  define_global_variable(symbol, value, vm_global_environment);
+  define_global_variable(symbol, value, g->vm_env);
   pop_root(&value);
 }
 
@@ -571,7 +568,7 @@ void vm_init(void) {
   vm_definer("set-cc-bytecode!",
 	     make_primitive_proc(set_cc_bytecode));
 
-  g->cc_bytecode = the_empty_list;
+  g->cc_bytecode = g->empty_list;
   push_root(&(g->cc_bytecode));
 }
 
