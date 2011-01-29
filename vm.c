@@ -556,6 +556,7 @@ DEFUN1(set_profiling_proc) {
   } else {
     profiling_enabled = 1;
   }
+  return FIRST;
 }
 
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);

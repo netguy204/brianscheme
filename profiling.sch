@@ -24,22 +24,24 @@ exist"
 	(begin
 	  (assq-set! alist key (+ (cdr val) incr))
 	  alist)
-	(cons (cons key 0) alist))))
+	(cons (cons key incr) alist))))
 
 (define (merge-alists a1 a2)
   (let ((result nil))
+    ;; insert things from a1, combining with a2 when possible
     (dolist (item1 a1)
-	    (let* ((v2p (assoc (car item1) a2))
-		   (v2 (if v2p
-			   (cdr v2p)
-			   0)))
-	      (push! (cons (car item1) (+ (cdr item1)
-					  v2))
-		     result)))
+      (let* ((v2p (assoc (car item1) a2))
+	     (v2 (if v2p (cdr v2p) 0)))
+	(push! (cons (car item1)
+		     (+ (cdr item1) v2))
+	       result)))
+
+    ;; then insert things from a2 that are unique to that list
     (dolist (item2 a2)
-	    (let ((v1 (assoc (car item2) a1)))
-	      (unless v1
-		      (push! item2 result))))
+      (let ((v1 (assoc (car item2) a1)))
+	(unless v1
+	  (push! item2 result))))
+
     result))
 
 (define (count-calls-out fn)
@@ -47,13 +49,28 @@ exist"
 	(notepad nil))
     (dolist (instr (%compiled->instructions fn))
 	    (cond
-	     ((is instr '(fn gvar))
+	     ((is instr 'fn)
+	      ;; recurse into closures
+	      (set! result
+		    (merge-alists
+		     result
+		     (count-calls-out (arg1 instr))))
+	      ;; note the closure
+	      (set! notepad (arg1 instr)))
+
+	     ((is instr 'gvar)
+	      ;; if it's been cached, save the name
 	      (if (pair? (arg1 instr))
 		  (set! notepad (car (arg1 instr)))
-		  (set! nodepad arg1)))
+		  (set! notepad (arg1 instr))))
+
 	     ((is instr 'incprof)
 	      (set! result (alist-incr! result notepad (arg1 instr))))))
     result))
 
 (define-syntax (profile-exp exp)
-  (let ((call-counts ()))))
+  `(begin
+     (set-profiling! #t)
+     ,exp
+     (set-profiling! #f)))
+
