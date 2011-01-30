@@ -513,6 +513,14 @@ DEFUN1(umask_proc) {
   return make_fixnum(umask(LONG(FIRST)));
 }
 
+DEFUN1(mkdir_proc) {
+  int r = mkdir(STRING(FIRST), LONG(SECOND));
+  if (r == 0)
+    return g->true;
+  return g->false;
+
+}
+
 /* getumask has a thread-safety issue. */
 DEFUN1(getumask_proc) {
   mode_t mode = umask(0);

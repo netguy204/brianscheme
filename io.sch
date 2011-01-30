@@ -21,6 +21,11 @@
   (assert-types (mode integer?))
   (%umask mode))
 
+(define (mkdir file . modearg)
+  (let ((mode (car-else modearg 493)))
+    (assert-types (file string?) (mode integer?))
+    (%mkdir file mode)))
+
 (define (rename-file oldname newname)
   "Rename/move a file."
   (assert-types (oldname string?) (newname string?))
