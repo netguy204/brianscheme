@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
@@ -783,6 +784,10 @@ DEFUN1(clock_proc) {
   return make_fixnum(clock());
 }
 
+DEFUN1(getpid_proc) {
+  return make_fixnum(getpid());
+}
+
 DEFUN1(clocks_per_sec_proc) {
   return make_fixnum(CLOCKS_PER_SEC);
 }
@@ -1388,6 +1393,7 @@ void init_prim_environment(definer defn) {
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
   add_procedure("clock", clock_proc);
+  add_procedure("getpid", getpid_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("set-debug!", debug_proc);
   add_procedure("compound-body", compound_body_proc);

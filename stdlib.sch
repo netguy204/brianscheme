@@ -37,6 +37,7 @@
 (require 'conditions)
 (require 'io)
 (require 'math)
+(require 'random)
 (require 'string)
 (require 'point-free)
 (require 'clos)

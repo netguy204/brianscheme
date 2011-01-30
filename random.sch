@@ -4,7 +4,6 @@
 ; 32-bit and 64-bit machines.
 
 (require 'clos)
-(require 'ffi)
 
 (define *mask-16* (- (expt 2 16) 1))
 (define *mask-31* (- (expt 2 31) 1))
