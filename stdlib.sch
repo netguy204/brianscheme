@@ -34,12 +34,6 @@
 (define (apply* proc . args)
   (apply proc (apply list* args)))
 
-(define (save-image file . args)
-  "Save image to FILE. If given a second argument, run that on load."
-  (assert-types (file string?))
-  (define *image-start* (car-else args repl-or-script))
-  (%save-image file))
-
 (require 'conditions)
 (require 'io)
 (require 'math)
@@ -47,6 +41,7 @@
 (require 'point-free)
 (require 'clos)
 (require 'clos-repl)
+(require 'image)
 (provide 'stdlib)
 
 (define (repl-or-script)
