@@ -98,10 +98,10 @@ exist"
     result))
 
 (define (prof:sym-is-compiled? sym)
-  (compiled-procedure? (cdr (global-ref sym))))
+  (compiled-procedure? (global-ref sym)))
 
 (define (prof:count-calls-for-sym sym)
-  (cons sym (prof:count-calls-out (cdr (global-ref sym)))))
+  (cons sym (prof:count-calls-out (global-ref sym))))
 
 (define (prof:count-all-calls)
   (let ((compiled-syms (filter prof:sym-is-compiled? (all-symbols))))
@@ -119,7 +119,7 @@ exist"
     ;; pre-populate table with known symbols
     (dolist (proc-sym (filter prof:sym-is-compiled? (all-symbols)))
       (hashtab-set! table
-		    (cdr (global-ref proc-sym))
+		    (global-ref proc-sym)
 		    proc-sym))
 
     ;; resolve anonymous closures to distinct ints and named closures

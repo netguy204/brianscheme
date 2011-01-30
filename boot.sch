@@ -980,7 +980,11 @@ returns true"
 (define (global-ref sym)
   "returns the global value of sym. error if not defined"
   (let* ((sentinal (gensym))
-	 (result (hashtab-ref *global-environment* sym sentinal)))
+	 (result (if-compiling
+		  ;; the compiled environment is slightly different
+		  (cdr (hashtab-ref *global-environment* sym
+				    (cons nil sentinal)))
+		  (hashtab-ref *global-environment* sym sentinal))))
     (if (eq? result sentinal)
 	(throw-error "symbol" sym "is not defined globally")
 	result)))
@@ -988,7 +992,8 @@ returns true"
 (define (macro? sym)
   "is a given symbol defined as a global macro?"
   (and (bound? sym)
-       (syntax-procedure? (global-ref sym))))
+       (or (syntax-procedure? (global-ref sym))
+	   (compiled-syntax-procedure? (global-ref sym)))))
 
 (define (macroexpand0 form)
   "expand expression form by evaluating the macro at its head"
@@ -997,20 +1002,27 @@ returns true"
 	(apply (global-ref fn) (cdr form))
 	form)))
 
-(define (macroexpand form)
-  "macroexpand the expression in form fully"
+(define (macroexpand x)
+  "fully expand all macros in form"
   (cond
-   ((not (pair? form)) form)
+   ((symbol? x) x)
+   ((atom? x) x)
    (else
-    (let ((expansion (macroexpand0 form)))
-      (if (equal? expansion form)
-	  (if (pair? (cdr expansion))
-	      ;; head is fully expanded. now expand the rest
-	      (cons (first expansion) (map macroexpand (rest expansion)))
-	      expansion)
-	  ;; head may be able to expand further
-	  (macroexpand expansion))))))
-
+    (case (first x)
+      (quote x)
+      (begin `(begin . ,(map macroexpand (cdr x))))
+      (set! `(set! ,(second x)
+		   ,(macroexpand (third x))))
+      (if `(if ,(macroexpand (second x))
+	       ,(macroexpand (third x))
+	       ,(macroexpand (fourth x))))
+      (lambda `(lambda ,(second x)
+		 . ,(map macroexpand (cddr x))))
+      (else
+       (if (comp-macro? (first x))
+	   (macroexpand (macroexpand0 x))
+	   `(,(macroexpand (first x)) .
+	     ,(map macroexpand (cdr x)))))))))
 
 (define-syntax (time . body)
   "display the time required to execute body"

@@ -253,7 +253,7 @@ int main(int argc, char ** argv) {
     insert_strlist(bs_paths, "*load-path*", 0);
     insert_strlist(argv + optind, "*args*", 0);
 
-    /* Fire up a REPL. */
+    /* Fire up a REPL, or whatever the user had in mind. */
     apply(cdr(get_hashtab(g->vm_env, make_symbol("*image-start*"), NULL)),
 	  g->empty_list);
     exit(0);
