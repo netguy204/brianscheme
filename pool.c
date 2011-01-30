@@ -43,16 +43,11 @@ void* new_mmap(size_t size) {
 /* Used internally to allocate more pool space. */
 static subpool_t *create_subpool_node (size_t size);
 
-pool_t *create_pool (size_t init_size, size_t init_alloc, void **init)
+pool_t *create_pool (size_t min_alloc, size_t init_alloc, void **init)
 {
-  /* if init_size == 0, user didn't want to choose one */
-  if (init_size == 0)
-    {
-      init_size = default_pool_size;
-    }
   /* Make sure it aligns as a page. */
   size_t ps = sysconf(_SC_PAGE_SIZE);
-  init_size = (init_size / ps) * ps;
+  size_t init_size = (default_pool_size / ps) * ps;
 
   /* allocate first subpool and use it for the pool */
   subpool_t *first = create_subpool_node (init_size);
@@ -60,6 +55,7 @@ pool_t *create_pool (size_t init_size, size_t init_alloc, void **init)
   first->free_start += sizeof (pool_t);
   new_pool->pools = first;
   new_pool->first = new_pool->pools;
+  new_pool->min_alloc = min_alloc;
 
   if (init_alloc > 0 && init != NULL)
     *init = pool_alloc(new_pool, init_alloc);
@@ -74,6 +70,8 @@ void *pool_alloc (pool_t * source_pool, size_t size)
   subpool_t *cur, *last;
   void *chunk = NULL;
   size_t s = sizeof(size_t);
+  if (size <= source_pool->min_alloc)
+    size = source_pool->min_alloc;
 
   cur = source_pool->first;
   if (cur->misses > miss_limit)

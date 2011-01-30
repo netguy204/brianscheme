@@ -308,7 +308,7 @@ void gc_boot(void) {
 
 void gc_init(void) {
   void *global;
-  pool_t *pool = create_pool(0, sizeof(global_state), &global);
+  pool_t *pool = create_pool(sizeof(object), sizeof(global_state), &global);
   g = global;
 
   g->global_pool = pool;

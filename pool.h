@@ -41,15 +41,16 @@ typedef struct subpool_t
 
 typedef struct pool_t
 {
+  size_t min_alloc;		/* min allocation size */
   subpool_t *pools;		/* first element in linked list */
   subpool_t *first;		/* first good subpool in list */
 } pool_t;
 
-/* Create a pool with a given initial size. If init_size is 0, the
- * default size is used. Given a positive init_alloc it will initially
- * allocate that many bytes and store it in init. When loading a pool,
- * this same pointer is returned. */
-pool_t *create_pool (size_t init_size, size_t init_alloc, void **init);
+/* Create a pool with a given minimal allocation size. Given a
+ * positive init_alloc it will initially allocate that many bytes and
+ * store it in init. When loading a pool, this same pointer is
+ * returned. */
+pool_t *create_pool (size_t min_alloc, size_t init_alloc, void **init);
 
 /* Returns a pointer to the allocated size bytes from the given
  * pool. Returns NULL if malloc() fails. */
