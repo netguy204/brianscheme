@@ -535,6 +535,33 @@ DEFUN1(rename_proc) {
   return g->false;
 }
 
+DEFUN1(opendir_proc) {
+  DIR *in = opendir(STRING(FIRST));
+  if(in == NULL) {
+    return g->eof_object;
+  }
+  return make_dir_stream(in);
+}
+
+/* This function has thread-safety issues. */
+DEFUN1(readdir_proc) {
+  DIR *in = DIR_STREAM(FIRST);
+  struct dirent *r = readdir(in);
+  if(r == NULL) {
+    return g->eof_object;
+  }
+  return make_string(r->d_name);
+}
+
+DEFUN1(closedir_proc) {
+  closedir(DIR_STREAM(FIRST));
+  return g->true;
+}
+
+DEFUN1(is_dir_stream_proc) {
+  return AS_BOOL(is_dir_stream(FIRST));
+}
+
 DEFUN1(gc_proc) {
   return make_fixnum(baker_collect());
 }
@@ -1386,6 +1413,11 @@ void init_prim_environment(definer defn) {
   add_procedure("getumask", getumask_proc);
   add_procedure("%mkdir", mkdir_proc);
   add_procedure("%rename-file", rename_proc);
+
+  add_procedure("directory-stream?", is_dir_stream_proc);
+  add_procedure("%opendir", opendir_proc);
+  add_procedure("%readdir", readdir_proc);
+  add_procedure("%closedir", closedir_proc);
 
   add_procedure("write-port", write_proc);
   add_procedure("read-port", read_proc);

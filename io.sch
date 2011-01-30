@@ -30,3 +30,32 @@
   "Rename/move a file."
   (assert-types (oldname string?) (newname string?))
   (%rename-file oldname newname))
+
+(define (opendir dir)
+  "Open a directory-stream for reading."
+  (assert-types (dir string?))
+  (%opendir dir))
+
+(define (readdir stream)
+  "Read the next entry in the directory stream."
+  (assert-types (stream directory-stream?))
+  (%readdir stream))
+
+(define (closedir stream)
+  "Close the directory stream."
+  (assert-types (stream directory-stream?))
+  (%closedir stream))
+
+(define (dir name)
+  "Return list of files in directory."
+  (let ((dir (opendir name)))
+    (letrec ((iter (lambda (file)
+                      (if (eof-object? file)
+                          '()
+                          (if (or (equal? file ".")
+                                  (equal? file ".."))
+                              (iter (readdir dir))
+                              (cons file (iter (readdir dir))))))))
+      (let ((res (iter (readdir dir))))
+        (closedir dir)
+        res))))

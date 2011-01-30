@@ -304,7 +304,8 @@
    ((input-port? x)  <input-port>)
    ((output-port? x) <output-port>)
    ((syntax-procedure? x) <syntax-procedure>)
-   ((procedure? x)   <procedure>)))
+   ((procedure? x)   <procedure>)
+   ((directory-stream? x) <directory-stream>)))
 
 
 ;
@@ -960,6 +961,7 @@
 (define <alien>       (make-primitive-class nil '<alien>))
 (define <input-port>  (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
+(define <directory-stream> (make-primitive-class nil '<directory-stream>))
 
 
 ; now we can override this since all of our primitive classes
