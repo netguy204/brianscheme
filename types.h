@@ -257,6 +257,10 @@ char is_eof_object(object *obj);
 
 char is_atom(object *obj);
 
+object *make_primitive_exception(object *contents);
+
+char is_primitive_exception(object *obj);
+
 /* the type for a function that is given a symbol and an object and
    establishes a corresponding binding. The interpreted environment
    and the compiled environment need all the same primitives but the

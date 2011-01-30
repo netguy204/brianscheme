@@ -24,6 +24,10 @@
 #include "gc.h"
 #include "ffi.h"
 
+/* the compiled function that is invoked when the vm encounters an
+   error */
+object *vm_error_restart;
+
 char profiling_enabled;
 
 #define ARG1 (codes[pc-2])
@@ -559,6 +563,11 @@ DEFUN1(set_profiling_proc) {
   return FIRST;
 }
 
+DEFUN1(set_error_restart_proc) {
+  vm_error_restart = FIRST;
+  return FIRST;
+}
+
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
 #define generate_bytecodes(opcode)				  \
   bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
@@ -591,13 +600,14 @@ void vm_add_roots(void) {
 void vm_init(void) {
   vm_boot();
 
-  g->error_sym = make_symbol("error");
-
   vm_definer("set-macro!",
 	     make_primitive_proc(vm_tag_macro_proc));
 
   vm_definer("set-cc-bytecode!",
 	     make_primitive_proc(set_cc_bytecode));
+
+  vm_definer("set-error-restart!",
+	     make_primitive_proc(set_error_restart_proc));
 
   g->cc_bytecode = g->empty_list;
   push_root(&(g->cc_bytecode));

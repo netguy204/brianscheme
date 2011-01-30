@@ -371,3 +371,13 @@ object *make_symbol(char *value) {
 char is_atom(object * obj) {
   return !is_pair(obj) || is_the_empty_list(obj);
 }
+
+object *make_primitive_exception(object *contents) {
+  return cons(g->error_sym, contents);
+}
+
+char is_primitive_exception(object *obj) {
+  return is_pair(obj) &&
+    CAR(obj) == g->error_sym;
+}
+
