@@ -222,13 +222,15 @@ int main(int argc, char ** argv) {
   if (print_help)
     print_usage (EXIT_SUCCESS);
 
-#ifdef SFX
-  /* Always load an image. */
-  off_t img_off = find_image();
-  image = "/proc/self/exe";
-#else
   off_t img_off = 0;
+#ifdef SFX
+  if (image == NULL) {
+    /* Always load an image. */
+    img_off = find_image();
+    image = "/proc/self/exe";
+  }
 #endif
+
   if (image) {
     int r = load_image(image, img_off);
     if (r != 0) {
