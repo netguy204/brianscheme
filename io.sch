@@ -15,3 +15,8 @@
   "Change mode of filename in string FILE to MODE."
   (assert-types (file string?) (mode integer?))
   (%chmod file mode))
+
+(define (rename-file oldname newname)
+  "Rename/move a file."
+  (assert-types (oldname string?) (newname string?))
+  (%rename-file oldname newname))

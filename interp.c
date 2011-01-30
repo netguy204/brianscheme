@@ -508,6 +508,13 @@ DEFUN1(chmod_proc) {
   return g->false;
 }
 
+DEFUN1(rename_proc) {
+  int r = rename(STRING(FIRST), STRING(SECOND));
+  if (r == 0)
+    return g->true;
+  return g->false;
+}
+
 DEFUN1(gc_proc) {
   return make_fixnum(baker_collect());
 }
@@ -1351,6 +1358,7 @@ void init_prim_environment(definer defn) {
   add_procedure("close-output-port", close_output_port_proc);
   add_procedure("close-input-port", close_input_port_proc);
   add_procedure("%chmod", chmod_proc);
+  add_procedure("%rename-file", rename_proc);
 
   add_procedure("write-port", write_proc);
   add_procedure("read-port", read_proc);
