@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdarg.h>
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -31,21 +30,6 @@
 #include "ffi.h"
 
 static const int DEBUG_LEVEL = 1;
-
-object *throw_interp(char *msg, ...) {
-  char buffer[1024];
-  va_list args;
-  va_start(args, msg);
-  vsnprintf(buffer, 1024, msg, args);
-  va_end(args);
-
-  object *msg_obj = make_string(buffer);
-  push_root(&msg_obj);
-  object *ex = make_primitive_exception(msg_obj);
-  pop_root(&msg_obj);
-
-  return ex;
-}
 
 /* dealing with environments */
 object *enclosing_environment(object * env) {
@@ -87,7 +71,7 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
 object *lookup_global_value(object * var, object * env) {
   object *res = get_hashtab(env, var, NULL);
   if(res == NULL) {
-    return throw_interp("lookup failed. variable %s is unbound", STRING(var));
+    return throw_message("lookup failed. variable %s is unbound", STRING(var));
   }
 
   return res;
@@ -389,14 +373,14 @@ DEFUN1(cons_proc) {
 DEFUN1(car_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    return throw_interp("car expects list");
+    return throw_message("car expects list");
   return car(first);
 }
 
 DEFUN1(cdr_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    return throw_interp("cdr expects list");
+    return throw_message("cdr expects list");
   return cdr(FIRST);
 }
 
@@ -557,7 +541,7 @@ DEFUN1(save_image_proc) {
   object *file = FIRST;
   int r = save_image(STRING(file));
   if (r < 0)
-    return throw_interp("could not save image");
+    return throw_message("could not save image");
   return g->true;
 }
 
@@ -610,7 +594,7 @@ object *apply(object *fn, object *evald_args) {
   }
 
   owrite(stderr, fn);
-  return throw_interp("cannot apply non-function");
+  return throw_message("cannot apply non-function");
 }
 
 DEFUN1(apply_proc) {
@@ -700,7 +684,7 @@ DEFUN1(number_to_string_proc) {
     snprintf(buffer, 100, "%.15lg", DOUBLE(FIRST));
   }
   else {
-    return throw_interp("obj is not a number");
+    return throw_message("obj is not a number");
   }
   return make_string(buffer);
 }
@@ -882,7 +866,7 @@ object *owrite(FILE * out, object * obj) {
   object *head;
 
   if(obj == NULL) {
-    return throw_interp("object is primitive #<NULL>");
+    return throw_message("object is primitive #<NULL>");
   }
 
   if(is_hashtab(obj) && obj == g->env) {
@@ -1040,7 +1024,7 @@ object *owrite(FILE * out, object * obj) {
     fprintf(out, "#<alien-object %llX>", (unsigned long long)ALIEN_PTR(obj));
     break;
   default:
-    return throw_interp("cannot write unknown type: %d\n", obj->type);
+    return throw_message("cannot write unknown type: %d\n", obj->type);
   }
   return g->true;
 }
@@ -1120,7 +1104,7 @@ interp_restart:
     else if(head == g->begin_symbol) {
       exp = cdr(exp);
       if(is_the_empty_list(exp)) {
-	INTERP_RETURN(throw_interp("begin must be followed by exp"));
+	INTERP_RETURN(throw_message("begin must be followed by exp"));
       }
 
       while(!is_the_empty_list(cdr(exp))) {
@@ -1283,13 +1267,13 @@ interp_restart:
 	pop_root(&fn);
 
 	owrite(stderr, fn);
-	INTERP_RETURN(throw_interp("\ncannot apply non-function\n"));
+	INTERP_RETURN(throw_message("\ncannot apply non-function\n"));
       }
     }
   }
 
   owrite(stderr, exp);
-  INTERP_RETURN(throw_interp(": can't evaluate\n"));
+  INTERP_RETURN(throw_message(": can't evaluate\n"));
 }
 
 

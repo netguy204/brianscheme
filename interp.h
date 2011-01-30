@@ -40,14 +40,21 @@ object *cdr(object *pair);
 #define AS_BOOL(x) (x ? g->true : g->false)
 
 /* used to convert cons arg lists into vector arg lists */
+
 object *dispatch_primitive(object * arg_list, long num_args);
 
 /* environments */
+
 object *enclosing_environment(object *env);
+
 object *first_frame(object *env);
+
 object *make_frame(object *variables, object *values);
+
 object *frame_variables(object *frame);
+
 object *frame_values(object *frame);
+
 void add_binding_to_frame(object *var, object *val,
 			  object *frame);
 object *extend_environment(object *vars, object *vals,

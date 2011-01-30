@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "types.h"
 #include "gc.h"
@@ -391,5 +392,20 @@ object *make_primitive_exception(object *contents) {
 char is_primitive_exception(object *obj) {
   return is_pair(obj) &&
     CAR(obj) == g->error_sym;
+}
+
+object *throw_message(char *msg, ...) {
+  char buffer[1024];
+  va_list args;
+  va_start(args, msg);
+  vsnprintf(buffer, 1024, msg, args);
+  va_end(args);
+
+  object *msg_obj = make_string(buffer);
+  push_root(&msg_obj);
+  object *ex = make_primitive_exception(msg_obj);
+  pop_root(&msg_obj);
+
+  return ex;
 }
 

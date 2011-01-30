@@ -268,6 +268,9 @@ object *make_primitive_exception(object *contents);
 
 char is_primitive_exception(object *obj);
 
+object *throw_message(char *msg, ...);
+
+
 /* the type for a function that is given a symbol and an object and
    establishes a corresponding binding. The interpreted environment
    and the compiled environment need all the same primitives but the
