@@ -34,6 +34,7 @@
 (define (apply* proc . args)
   (apply proc (apply list* args)))
 
+(require 'cl-defun)
 (require 'conditions)
 (require 'io)
 (require 'math)
