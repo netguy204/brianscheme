@@ -20,8 +20,17 @@
 ; appropriate to start building up the rest of the language niceties
 ; that weren't essential for bootstrapping.
 
+;; define a brutal restart handler. clos-repl or a user script
+;; candefine a more friendly one later
+(set-error-restart!
+ (lambda (ex)
+   (display "VM got exception: " stderr)
+   (display (cdr ex) stderr)
+   (write-char #\newline stderr)
+   (exit 1)))
+
 (display "Building stdlib..." stderr)
-(write-char #\newline stdout)
+(write-char #\newline stderr)
 
 (define (list* . args)
   (letrec ((chase

@@ -96,6 +96,7 @@ typedef struct global_state {
   object *stderr_symbol;
   object *eof_object;
   object *exit_hook_symbol;
+  object *vm_error_restart;
 
   object *empty_env;
   object *env;
