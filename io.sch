@@ -16,6 +16,11 @@
   (assert-types (file string?) (mode integer?))
   (%chmod file mode))
 
+(define (umask mode)
+  "Set the current process umask."
+  (assert-types (mode integer?))
+  (%umask mode))
+
 (define (rename-file oldname newname)
   "Rename/move a file."
   (assert-types (oldname string?) (newname string?))

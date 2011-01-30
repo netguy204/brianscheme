@@ -509,6 +509,17 @@ DEFUN1(chmod_proc) {
   return g->false;
 }
 
+DEFUN1(umask_proc) {
+  return make_fixnum(umask(LONG(FIRST)));
+}
+
+/* getumask has a thread-safety issue. */
+DEFUN1(getumask_proc) {
+  mode_t mode = umask(0);
+  umask(mode);
+  return make_fixnum(mode);
+}
+
 DEFUN1(rename_proc) {
   int r = rename(STRING(FIRST), STRING(SECOND));
   if (r == 0)
@@ -1363,6 +1374,9 @@ void init_prim_environment(definer defn) {
   add_procedure("close-output-port", close_output_port_proc);
   add_procedure("close-input-port", close_input_port_proc);
   add_procedure("%chmod", chmod_proc);
+  add_procedure("%umask", umask_proc);
+  add_procedure("getumask", getumask_proc);
+  add_procedure("%mkdir", mkdir_proc);
   add_procedure("%rename-file", rename_proc);
 
   add_procedure("write-port", write_proc);
