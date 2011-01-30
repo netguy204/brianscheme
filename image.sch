@@ -19,7 +19,8 @@
   (define *after-image-start* toplevel)
   (%save-image file)
   (if executable
-      (create-exec-image file)))
+      (create-exec-image file)
+      #t))
 
 (define (create-exec-image file)
   "Turn the saved image FILE into a standalone executable."
