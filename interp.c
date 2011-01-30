@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <math.h>
+#include <sys/stat.h>
 
 #include "types.h"
 #include "interp.h"
@@ -498,6 +499,13 @@ DEFUN1(close_input_port_proc) {
   FILE *in = INPUT(FIRST);
   fclose(in);
   return g->true;
+}
+
+DEFUN1(chmod_proc) {
+  int r = chmod(STRING(FIRST), LONG(SECOND));
+  if (r == 0)
+    return g->true;
+  return g->false;
 }
 
 DEFUN1(gc_proc) {
@@ -1342,6 +1350,7 @@ void init_prim_environment(definer defn) {
   add_procedure("open-input-port", open_input_port_proc);
   add_procedure("close-output-port", close_output_port_proc);
   add_procedure("close-input-port", close_input_port_proc);
+  add_procedure("%chmod", chmod_proc);
 
   add_procedure("write-port", write_proc);
   add_procedure("read-port", read_proc);

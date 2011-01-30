@@ -10,3 +10,8 @@
            (let ((,res (begin ,@body)))
              (close-input-port ,var)
              ,res)))))
+
+(define (chmod file mode)
+  "Change mode of filename in string FILE to MODE."
+  (assert-types (file string?) (mode integer?))
+  (%chmod file mode))
