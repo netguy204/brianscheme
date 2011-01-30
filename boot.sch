@@ -544,67 +544,9 @@ body. always executes at least once"
   "execute body max times with idx going from 0 to max-1"
   `(do-times (lambda (,idx) . ,body) ,max))
 
-
-;; The exit-hook variable is looked up (in the current environment)
-;; and invoked if set whenever the (exit) primitive function is
-;; executed. The interpreter also invokes this hook when it's about to
-;; abort due to an error condition.
-;;
-;; We'll install a hook that prints a backtrace and dumps the user
-;; into a debug repl so that can try to figure out what went wrong
-;; before things go down for good.
-;;
-;; Whenever the hook returns the interpreter will make the exit system
-;; call for real and everything will disappear.
-(define (print-backtrace)
-  "print the backtrace from where we are. tail recursion hides some data"
-  (letrec ((iter (lambda (rest)
-		   (unless (null? rest)
-			   (display (car rest))
-			   (iter (cdr rest))))))
-
-    (let ((cs (car callstack)))
-      (iter (cdr (cdr cs))))))
-
-(define (debug-repl)
-  "repl that allows last-gasp debugging of a dying interpreter"
-  ;(display "debug-repl>")
-  (let ((result (eval (read-port stdin))))
-    (write-port result stdout)
-    (newline)
-    (unless (eq? result 'quit)
-	    (debug-repl))))
-
-(define (exit-hook)
-  "called as the last step of handling a hard interpreter exception"
-  ;; turn off debug so that we don't get a lot of extra noise between
-  ;; the real failure and the launch of the debug-repl.
-  (set-debug! #f)
-
-  ;; disable the exit-hook in case the thing that kicked us off was an
-  ;; exception during writing out something that's going to appear in
-  ;; the backtrace
-  ;(set! exit-hook nil)
-
-  ;; now dump an approximation of the backtrace (it's missing all
-  ;; tail-calls) and launch a debug repl.
-  ;(print-backtrace)
-  ;(display "evaluate 'quit to exit")
-  (debug-repl))
-
-;; We want to also provide a way to exit without invoking the exit
-;; hook. It seems natural to call this exit so we'll redefine the old
-;; one and replace it.
-(define throw-exit exit)
-
 (define (throw-error . objs)
   (apply error objs)
-  (throw-exit 1))
-
-(define (exit val)
-  "exit without activating the exit hook"
-  (set! exit-hook nil)
-  (throw-exit val))
+  (exit 1))
 
 (define (every-pair? pred lst)
   "true if binary-pred is true for every pair as it slides down the
