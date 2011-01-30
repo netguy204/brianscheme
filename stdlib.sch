@@ -31,6 +31,15 @@
 		    (else (cons (car args) (chase (cdr args))))))))
     (chase args)))
 
+(define (plist-get list key)
+  "Return property value in plist."
+  (second (member key list)))
+
+(define (plist-set! list key value)
+  "Set property value in plist."
+  (let ((rest (member key list)))
+    (set-cdr! rest (cons value (cddr rest)))))
+
 (define (apply* proc . args)
   (apply proc (apply list* args)))
 
