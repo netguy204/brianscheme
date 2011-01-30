@@ -1,7 +1,7 @@
 (define (save-image file . args)
   "Save image to FILE. If given a second argument, run that on load."
   (assert-types (file string?))
-  (define *image-start* (car-else args repl-or-script))
+  (define *after-image-start* (car-else args repl-or-script))
   (%save-image file))
 
 (define (create-exec-image file)
@@ -21,3 +21,13 @@
       (close-output-port out)
       (chmod outfile 493)
       (rename-file outfile file))))
+
+;; this list of hooks will be executed before the user image load
+;; handler is run
+(set! *load-hooks* nil)
+
+(define (*image-start*)
+  (dolist (hook *load-hooks*)
+    (hook))
+
+  (*after-image-start*))

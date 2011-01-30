@@ -164,12 +164,18 @@ freed later."
       call-result)))
 
 (define-syntax (with-library handle-and-name . body)
-  "load a dynamic library while body is in scope"
-  `(let ((,(first handle-and-name)
-	  (ffi:dlopen ,(second handle-and-name))))
-     (let ((result (begin . ,body)))
-       (ffi:dlclose ,(first handle-and-name))
-       result)))
+  "provide a handle to a dynamic library while body is in scope. The
+body will be re-executed with a new handle whenever the image is
+reloaded."
+  `(let ((loader
+	  (lambda ()
+	    (let ((,(first handle-and-name)
+		   (ffi:dlopen ,(second handle-and-name))))
+	      (let ((result (begin . ,body)))
+		result)))))
+
+     (push! loader *load-hooks*)
+     (loader)))
 
 ;; simple example of using ffi to resolve symbols
 ;; already loaded by ld
