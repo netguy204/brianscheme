@@ -1418,6 +1418,7 @@ void interp_add_roots(void) {
   push_root(&(g->eof_object));
   push_root(&(g->env));
   push_root(&(g->vm_env));
+  push_root(&(g->error_sym));
 }
 
 void init() {
@@ -1462,7 +1463,8 @@ void init() {
   g->stdout_symbol = make_symbol("stdout");
   g->stderr_symbol = make_symbol("stderr");
   g->exit_hook_symbol = make_symbol("exit-hook");
-  g->error_sym = make_symbol("error");
+  g->error_sym = make_uninterned_symbol("error");
+  push_root(&(g->error_sym));
 
   g->eof_object = alloc_object(0);
   g->eof_object->type = EOF_OBJECT;
