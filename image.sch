@@ -1,8 +1,10 @@
-(define (save-image file . args)
+(define (save-image file (executable #f) (toplevel repl-or-script))
   "Save image to FILE. If given a second argument, run that on load."
   (assert-types (file string?))
-  (define *after-image-start* (car-else args repl-or-script))
-  (%save-image file))
+  (define *after-image-start* toplevel)
+  (%save-image file)
+  (if executable
+      (create-exec-image file)))
 
 (define (create-exec-image file)
   "Turn the saved image FILE into a standalone executable."
