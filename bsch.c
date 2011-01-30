@@ -224,7 +224,7 @@ int main(int argc, char ** argv) {
 
   off_t img_off = 0;
 #ifdef SFX
-  if (image == NULL) {
+  if (image == NULL && bootstrap) {
     /* Always load an image. */
     img_off = find_image();
     image = "/proc/self/exe";
