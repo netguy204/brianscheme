@@ -18,6 +18,7 @@
 #define TYPES_H
 
 #include <stdio.h>
+#include <dirent.h>
 #include "hashtab.h"
 
 /* first implementing the classic tagged type. This specific
@@ -28,7 +29,7 @@ typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM, FLOATNUM,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
 	      COMPILED_SYNTAX_PROC, VECTOR, COMPILED_PROC,
-	      HASH_TABLE, ALIEN, META_PROC} object_type;
+	      HASH_TABLE, ALIEN, META_PROC, DIR_STREAM} object_type;
 
 typedef struct object {
   char color;
@@ -96,6 +97,9 @@ typedef struct object {
       struct object *proc;
       struct object *data;
     } meta_proc;
+    struct {
+      DIR *stream;
+    } dir;
   } data;
 } object;
 
@@ -214,6 +218,7 @@ long get_cons_count();
 #define BOOLEAN(x) (x->data.boolean.value)
 #define INPUT(x) (x->data.input_port.stream)
 #define OUTPUT(x) (x->data.output_port.stream)
+#define DIR_STREAM(x) (x->data.dir.stream)
 #define COMPOUND_BODY(x) (x->data.compound_proc.body)
 #define COMPOUND_PARMS_AND_ENV(x) (x->data.compound_proc.parms_and_env)
 #define COMPOUND_PARAMS(x) (CAR(COMPOUND_PARMS_AND_ENV(x)))
@@ -251,8 +256,10 @@ char is_compiled_proc(object *obj);
 
 object *make_input_port(FILE *stream);
 object *make_output_port(FILE *stream);
+object *make_dir_stream(DIR *stream);
 char is_input_port(object *obj);
 char is_output_port(object *obj);
+char is_dir_stream(object *obj);
 char is_eof_object(object *obj);
 
 char is_atom(object *obj);

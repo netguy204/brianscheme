@@ -213,6 +213,10 @@
   (write-stream strm "#<output-port>"))
 
 (define-method (print-object (strm <output-stream>)
+			     (prim <directory-stream>))
+  (write-stream strm "#<directory-stream>"))
+
+(define-method (print-object (strm <output-stream>)
 			     (prim <alien>))
   (write-stream strm "#<alien>"))
 

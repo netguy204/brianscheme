@@ -1,5 +1,0 @@
-#!/bin/bash
-
-export BS_ROOT=$(dirname $(which bsch))
-
-bsch -l $BS_ROOT/boot.img $*

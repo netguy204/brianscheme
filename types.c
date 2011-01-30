@@ -316,6 +316,10 @@ char is_output_port(object * obj) {
   return obj->type == OUTPUT_PORT;
 }
 
+char is_dir_stream(object * obj) {
+  return obj->type == DIR_STREAM;
+}
+
 char is_eof_object(object * obj) {
   return obj == g->eof_object;
 }
@@ -325,6 +329,14 @@ object *make_output_port(FILE * stream) {
 
   obj->type = OUTPUT_PORT;
   obj->data.output_port.stream = stream;
+  return obj;
+}
+
+object *make_dir_stream(DIR * stream) {
+  object *obj = alloc_object(0);
+
+  obj->type = DIR_STREAM;
+  obj->data.dir.stream = stream;
   return obj;
 }
 
