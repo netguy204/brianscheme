@@ -63,6 +63,29 @@
   "expand form using a macro found in the compiled environment"
   (apply (comp-global-ref (car form)) (cdr form)))
 
+(define (comp-macroexpand x)
+  "fully expand all macros in form"
+  (cond
+   ((symbol? x) x)
+   ((atom? x) x)
+   (else
+    (case (first x)
+      (quote x)
+      (begin `(begin . ,(map comp-macroexpand (cdr x))))
+      (set! `(set! ,(second x)
+		   ,(comp-macroexpand (third x))))
+      (if `(if ,(comp-macroexpand (second x))
+	       ,(comp-macroexpand (third x))
+	       ,(comp-macroexpand (fourth x))))
+      (lambda `(lambda ,(second x)
+		 . ,(map comp-macroexpand (cddr x))))
+      (else
+       (if (comp-macro? (first x))
+	   (comp-macroexpand (comp-macroexpand0 x))
+	   `(,(comp-macroexpand (first x)) .
+	     ,(map comp-macroexpand (cdr x)))))))))
+
+
 (define (comp x env val? more?)
   "compile an expression in the given environment optionally caring
 about its value and optionally with more forms following"
@@ -89,7 +112,6 @@ about its value and optionally with more forms following"
 					       (rest (rest x)) env)))
 			   (seq (gen 'fn f)
 				(unless more? (gen 'return))))))
-	   (macro (throw-error "macro is not builtin. use set-macro!"))
 
 	   ;; generate an invocation
 	   (else
