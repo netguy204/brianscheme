@@ -72,6 +72,11 @@
   (assert-types (cmd string?))
   (%system cmd))
 
+(define (getenv var)
+  "Get an environmental variable."
+  (assert-types (var string?))
+  (%getenv var))
+
 (require 'cl-defun)
 (require 'conditions)
 (require 'io)

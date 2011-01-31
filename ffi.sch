@@ -182,7 +182,6 @@ reloaded."
 (with-library (handle nil)
   (let ((lputs (ffi:dlsym handle "puts"))
 	(lfork (ffi:dlsym handle "fork"))
-	(lgetenv (ffi:dlsym handle "getenv"))
 	(lsleep (ffi:dlsym handle "sleep"))
 	(lusleep (ffi:dlsym handle "usleep"))
 	(lputchar (ffi:dlsym handle "putchar"))
@@ -195,14 +194,6 @@ reloaded."
 
     (define (test-fn closure)
       (ffi:funcall ltest-fn 'ffi-void closure))
-
-    (define (getenv var)
-      (let ((result
-	     (ffi:funcall lgetenv 'ffi-pointer
-			  (ffi:string-to-alien var))))
-	(if (= (ffi:alien-to-int result) 0)
-	    #f
-	    (ffi:alien-to-string result))))
 
     (define (fork)
       (ffi:funcall lfork 'ffi-uint))

@@ -539,6 +539,13 @@ DEFUN1(system_proc) {
   return AS_BOOL(system(STRING(FIRST)) == 0);
 }
 
+DEFUN1(getenv_proc) {
+  char *val = getenv(STRING(FIRST));
+  if (val == NULL)
+    return g->false;
+  return make_string(val);
+}
+
 DEFUN1(save_image_proc) {
   baker_collect();
 
@@ -1428,6 +1435,7 @@ void init_prim_environment(definer defn) {
   add_procedure("apply", apply_proc);
   add_procedure("gc", gc_proc);
   add_procedure("%system", system_proc);
+  add_procedure("%getenv", getenv_proc);
   add_procedure("%save-image", save_image_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
