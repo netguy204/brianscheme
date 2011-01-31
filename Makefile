@@ -53,6 +53,9 @@ test: bsch
 TAGS: bsch.c $(SOURCES) $(HEADERS)
 	find . -name "*.[chCH]" -print | etags -
 
+run: bsch
+	./bsch
+
 clean:
 	rm -f *.o $(TARGETS) $(IMAGE)
 
@@ -63,4 +66,4 @@ indent:
 linecount:
 	wc -l *.[ch] *.sch clos/*.sch examples/*.sch tests/*.sch
 
-.PHONY: test image clean indent linecount check-syntax
+.PHONY: test image clean indent linecount run
