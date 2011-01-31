@@ -69,3 +69,8 @@
             (begin
               (closedir dir)
               #t)))))
+
+(define (port-dump in out)
+  "Quickly dump the contents of one port into the other port."
+  (assert-types (in input-port?) (out output-port?))
+  (%port-dump in out))

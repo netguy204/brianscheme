@@ -638,6 +638,18 @@ DEFUN1(unread_char_proc) {
   return g->true;
 }
 
+DEFUN1(port_dump_proc) {
+  FILE *in = INPUT(FIRST);
+  FILE *out = OUTPUT(SECOND);
+  char buffer[4096];
+  size_t r;
+  do {
+    r = fread(buffer, 1, 4096, in);
+    fwrite(buffer, 1, r, out);
+  } while (r > 0);
+  return g->true;
+}
+
 DEFUN1(char_to_integer_proc) {
   return make_fixnum(CHAR(FIRST));
 }
@@ -1406,6 +1418,7 @@ void init_prim_environment(definer defn) {
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
   add_procedure("unread-char", unread_char_proc);
+  add_procedure("%port-dump", port_dump_proc);
 
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
