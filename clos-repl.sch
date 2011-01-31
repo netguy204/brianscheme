@@ -16,13 +16,21 @@
    (raise (cons 'vm-error ex))))
 
 (define (clos-repl)
-    (let* ((exp (read-port stdin))
+    (let* ((exp (with-exception-handler
+		 (lambda (ex)
+		   (write-stream stderr-stream "clos-repl, reader-error: ")
+		   (print-object stderr-stream ex)
+		   (newline)
+		   (clos-repl))
+
+		 (lambda () (read-port stdin))))
+
 	   (res (with-exception-handler
 		 (lambda (ex)
 		   (write-stream stderr-stream "clos-repl: ")
 		   (print-object stderr-stream ex)
 		   (newline)
-		   'error)
+		   (clos-repl))
 
 		 (lambda () (eval exp)))))
 
@@ -34,4 +42,3 @@
       (newline)
       (clos-repl)))
 
-(define exit-hook clos-repl)

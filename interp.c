@@ -947,6 +947,11 @@ object *owrite(FILE * out, object * obj) {
      * to car on nil
      */
     if(head == g->quote_symbol) {
+      if(is_the_empty_list(cdr(obj))) {
+	fprintf(out, "(quote)");
+	return g->true;
+      }
+
       fprintf(out, "'");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
@@ -954,6 +959,11 @@ object *owrite(FILE * out, object * obj) {
       }
     }
     else if(head == g->unquote_symbol) {
+      if(is_the_empty_list(cdr(obj))) {
+	fprintf(out, "(unquote)");
+	return g->true;
+      }
+
       fprintf(out, ",");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
@@ -961,6 +971,11 @@ object *owrite(FILE * out, object * obj) {
       }
     }
     else if(head == g->unquotesplicing_symbol) {
+      if(is_the_empty_list(cdr(obj))) {
+	fprintf(out, "(unquote-splicing)");
+	return g->true;
+      }
+
       fprintf(out, ",@");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
@@ -968,6 +983,11 @@ object *owrite(FILE * out, object * obj) {
       }
     }
     else if(head == g->quasiquote_symbol) {
+      if(is_the_empty_list(cdr(obj))) {
+	fprintf(out, "(quasiquote)");
+	return g->true;
+      }
+
       fprintf(out, "`");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
