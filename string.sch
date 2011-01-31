@@ -12,10 +12,10 @@
       (inc! len))
     len))
 
-(define (substring str start end)
+(define (substring str start . end)
   "Return given substring from start (inclusive) to end (exclusive)."
   (let* ((strlen (string-length str))
-	 (end (or end strlen))
+	 (end (car-else end strlen))
 	 (len (- end start)))
     (if (or (> len strlen) (> end strlen) (> start (- strlen 1)))
 	(throw-error "out of string bounds" str start end))
