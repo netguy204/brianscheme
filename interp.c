@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdarg.h>
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -31,40 +30,6 @@
 #include "ffi.h"
 
 static const int DEBUG_LEVEL = 1;
-
-void eval_exit_hook() {
-  /* try to find an exit hook in the vm environment first */
-  object *exit_hook =
-    get_hashtab(g->vm_env, g->exit_hook_symbol, NULL);
-
-  if(exit_hook == NULL) {
-    /* this happens if the interpreter has been destroyed but there
-       isn't an exit hook in the g->vm_env */
-    if(is_the_empty_list(g->env)) { return; }
-
-    exit_hook =
-      get_hashtab(g->env, g->exit_hook_symbol, g->empty_list);
-  } else {
-    exit_hook = cdr(exit_hook);
-  }
-
-  if(exit_hook != g->empty_list) {
-    object *exp = cons(exit_hook, g->empty_list);
-    push_root(&exp);
-    interp(exp, g->empty_env);
-    pop_root(&exp);
-  }
-}
-
-void throw_interp(char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-
-  eval_exit_hook();
-  exit(1);
-}
 
 /* dealing with environments */
 object *enclosing_environment(object * env) {
@@ -106,8 +71,7 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
 object *lookup_global_value(object * var, object * env) {
   object *res = get_hashtab(env, var, NULL);
   if(res == NULL) {
-    throw_interp("lookup failed. variable %s is unbound\n", STRING(var));
-    return NULL;
+    return throw_message("lookup failed. variable %s is unbound", STRING(var));
   }
 
   return res;
@@ -409,14 +373,14 @@ DEFUN1(cons_proc) {
 DEFUN1(car_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    throw_interp("car expects list\n");
+    return throw_message("car expects list");
   return car(first);
 }
 
 DEFUN1(cdr_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    throw_interp("cdr expects list\n");
+    return throw_message("cdr expects list");
   return cdr(FIRST);
 }
 
@@ -577,7 +541,7 @@ DEFUN1(save_image_proc) {
   object *file = FIRST;
   int r = save_image(STRING(file));
   if (r < 0)
-    throw_interp("could not save image");
+    return throw_message("could not save image");
   return g->true;
 }
 
@@ -630,8 +594,7 @@ object *apply(object *fn, object *evald_args) {
   }
 
   owrite(stderr, fn);
-  throw_interp("\ncannot apply non-function\n");
-  return g->false;
+  return throw_message("cannot apply non-function");
 }
 
 DEFUN1(apply_proc) {
@@ -721,7 +684,7 @@ DEFUN1(number_to_string_proc) {
     snprintf(buffer, 100, "%.15lg", DOUBLE(FIRST));
   }
   else {
-    throw_interp("obj is not a number");
+    return throw_message("obj is not a number");
   }
   return make_string(buffer);
 }
@@ -803,7 +766,6 @@ DEFUN1(vector_length_proc) {
 }
 
 DEFUN1(exit_proc) {
-  eval_exit_hook();
   exit((int)LONG(FIRST));
   return g->false;
 }
@@ -875,38 +837,41 @@ DEFUN1(get_meta_obj_proc) {
   return METAPROC(FIRST);
 }
 
-void write_pair(FILE * out, object * pair) {
+object *write_pair(FILE * out, object * pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
 
-  owrite(out, car_obj);
+  object * result = owrite(out, car_obj);
+  if(is_primitive_exception(result)) {
+    return result;
+  }
+
   if(is_pair(cdr_obj)) {
     fprintf(out, " ");
-    write_pair(out, cdr_obj);
+    return write_pair(out, cdr_obj);
   }
   else if(is_the_empty_list(cdr_obj)) {
-    return;
+    return g->true;
   }
   else {
     fprintf(out, " . ");
-    owrite(out, cdr_obj);
+    return owrite(out, cdr_obj);
   }
 }
 
-void owrite(FILE * out, object * obj) {
+object *owrite(FILE * out, object * obj) {
   long ii;
   char c;
   char *str;
   object *head;
 
   if(obj == NULL) {
-    fprintf(out, "#<NULL>");
-    return;
+    return throw_message("object is primitive #<NULL>");
   }
 
   if(is_hashtab(obj) && obj == g->env) {
     fprintf(out, "#<global-environment-hashtab>");
-    return;
+    return g->true;
   }
 
   switch (obj->type) {
@@ -967,36 +932,54 @@ void owrite(FILE * out, object * obj) {
       if(ii > 0) {
 	putc(' ', out);
       }
-      owrite(out, VARRAY(obj)[ii]);
+      object * result = owrite(out, VARRAY(obj)[ii]);
+      if(is_primitive_exception(result)) {
+	return result;
+      }
     }
     putc(')', out);
     break;
   case PAIR:
     head = car(obj);
-    /* only the reader produces these and the reader always
-     * makes them like (thing affected-thing) therefore it
-     * should be safe to assume that if obj's head is one of
-     * these things then that obj has a cadr
+    /*
+     * It's not actually safe to cadr these objects because the user
+     * could have typed in something like (quote) which would cause us
+     * to car on nil
      */
     if(head == g->quote_symbol) {
       fprintf(out, "'");
-      owrite(out, cadr(obj));
+      object *result = owrite(out, cadr(obj));
+      if(is_primitive_exception(result)) {
+	return result;
+      }
     }
     else if(head == g->unquote_symbol) {
       fprintf(out, ",");
-      owrite(out, cadr(obj));
+      object *result = owrite(out, cadr(obj));
+      if(is_primitive_exception(result)) {
+	return result;
+      }
     }
     else if(head == g->unquotesplicing_symbol) {
       fprintf(out, ",@");
-      owrite(out, cadr(obj));
+      object *result = owrite(out, cadr(obj));
+      if(is_primitive_exception(result)) {
+	return result;
+      }
     }
     else if(head == g->quasiquote_symbol) {
       fprintf(out, "`");
-      owrite(out, cadr(obj));
+      object *result = owrite(out, cadr(obj));
+      if(is_primitive_exception(result)) {
+	return result;
+      }
     }
     else {
       fprintf(out, "(");
-      write_pair(out, obj);
+      object *result = write_pair(out, obj);
+      if(is_primitive_exception(result)) {
+	return result;
+      }
       fprintf(out, ")");
     }
     break;
@@ -1016,10 +999,15 @@ void owrite(FILE * out, object * obj) {
     fprintf(out, "#<syntax-procedure>");
     break;
   case META_PROC:
+  {
     fprintf(out, "#<meta: ");
-    owrite(out, METAPROC(obj));
+    object *result = owrite(out, METAPROC(obj));
+    if(is_primitive_exception(result)) {
+      return result;
+    }
     fprintf(out, ">");
     break;
+  }
   case HASH_TABLE:
     fprintf(out, "#<hash-table>");
     break;
@@ -1036,37 +1024,16 @@ void owrite(FILE * out, object * obj) {
     fprintf(out, "#<alien-object %llX>", (unsigned long long)ALIEN_PTR(obj));
     break;
   default:
-    throw_interp("cannot write unknown type: %d\n", obj->type);
+    return throw_message("cannot write unknown type: %d\n", obj->type);
   }
-}
-
-object *debug_write(char *msg, object * obj, int level) {
-  if(g->debug_enabled) {
-    int ii;
-    for(ii = 0; ii < level; ++ii) {
-      fprintf(stderr, " ");
-    }
-
-    fprintf(stderr, "%s: ", msg);
-    owrite(stderr, obj);
-    fprintf(stderr, "\n");
-  }
-  return obj;
+  return g->true;
 }
 
 char is_falselike(object * obj) {
   return obj == g->false || is_the_empty_list(obj);
 }
 
-#ifdef NODEBUG
 #define DN(msg, obj, level, n) obj
-#else
-#define DN(msg, obj, level, n)			\
-  (DEBUG_LEVEL >= n ? debug_write(msg, obj, level) : obj);
-#endif
-
-#define D1(msg, obj, level) DN(msg, obj, level, 1);
-#define D2(msg, obj, level) DN(msg, obj, level, 2);
 
 object *interp(object * exp, object * env) {
   push_root(&exp);
@@ -1106,7 +1073,6 @@ object *expand_macro(object * macro, object * args, object * env, int level,
 #define INTERP_RETURN(result)			\
   do {						\
     object *temp = result;			\
-    D1("result", temp, level);			\
     if(env_protected) {				\
       pop_root(&env);				\
     }						\
@@ -1123,7 +1089,6 @@ object *interp1(object * exp, object * env, int level,
   char env_protected = 0;
 
 interp_restart:
-  D1("interpreting", exp, level);
 
   if(is_symbol(exp)) {
     INTERP_RETURN(lookup_variable_value(exp, env));
@@ -1139,8 +1104,7 @@ interp_restart:
     else if(head == g->begin_symbol) {
       exp = cdr(exp);
       if(is_the_empty_list(exp)) {
-	throw_interp("begin must be followed by exp");
-	INTERP_RETURN(NULL);
+	INTERP_RETURN(throw_message("begin must be followed by exp"));
       }
 
       while(!is_the_empty_list(cdr(exp))) {
@@ -1303,15 +1267,13 @@ interp_restart:
 	pop_root(&fn);
 
 	owrite(stderr, fn);
-	throw_interp("\ncannot apply non-function\n");
-	INTERP_RETURN(NULL);
+	INTERP_RETURN(throw_message("\ncannot apply non-function\n"));
       }
     }
   }
 
   owrite(stderr, exp);
-  throw_interp(": can't evaluate\n");
-  INTERP_RETURN(NULL);
+  INTERP_RETURN(throw_message(": can't evaluate\n"));
 }
 
 
@@ -1472,6 +1434,7 @@ void interp_add_roots(void) {
   push_root(&(g->eof_object));
   push_root(&(g->env));
   push_root(&(g->vm_env));
+  push_root(&(g->error_sym));
 }
 
 void init() {
@@ -1516,6 +1479,8 @@ void init() {
   g->stdout_symbol = make_symbol("stdout");
   g->stderr_symbol = make_symbol("stderr");
   g->exit_hook_symbol = make_symbol("exit-hook");
+  g->error_sym = make_uninterned_symbol("error");
+  push_root(&(g->error_sym));
 
   g->eof_object = alloc_object(0);
   g->eof_object->type = EOF_OBJECT;

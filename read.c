@@ -39,15 +39,6 @@ typedef struct {
   char *history;
 } read_buffer;
 
-object *throw_read(char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-  exit(1);
-  return NULL;
-}
-
 char *xstrdup(char *str) {
   char *newstr = xmalloc(strlen(str) + 1);
   strncpy(newstr, str, strlen(str) + 1);
@@ -154,21 +145,23 @@ int eat_whitespace(read_buffer * in) {
   return c;
 }
 
-void eat_expected_string(read_buffer * in, char *str) {
+object *eat_expected_string(read_buffer * in, char *str) {
   int c;
   while(*str != '\0') {
     c = read_getc(in);
     if(c != *str) {
-      throw_read("unexpected character '%c'\n", c);
+      return throw_message("unexpected character '%c'", c);
     }
     str++;
   }
+  return g->true;
 }
 
-void peek_expected_delimiter(read_buffer * in) {
+object *peek_expected_delimiter(read_buffer * in) {
   if(!is_delimiter(peek(in))) {
-    throw_read("character not followed by delimiter\n");
+    return throw_message("character not followed by delimiter");
   }
+  return g->true;
 }
 
 object *lisp_read(read_buffer * in);
@@ -179,23 +172,33 @@ object *read_character(read_buffer * in) {
   c = read_getc(in);
   switch (c) {
   case EOF:
-    return throw_read("incomplete character literal\n");
+    return throw_message("incomplete character literal");
   case 's':
     if(peek(in) == 'p') {
-      eat_expected_string(in, "pace");
-      peek_expected_delimiter(in);
+      object *result = eat_expected_string(in, "pace");
+      if(is_primitive_exception(result)) return result;
+
+      result = peek_expected_delimiter(in);
+      if(is_primitive_exception(result)) return result;
+
       return make_character(' ');
     }
     break;
   case 'n':
     if(peek(in) == 'e') {
-      eat_expected_string(in, "ewline");
-      peek_expected_delimiter(in);
+      object *result = eat_expected_string(in, "ewline");
+      if(is_primitive_exception(result)) return result;
+
+      result = peek_expected_delimiter(in);
+      if(is_primitive_exception(result)) return result;
+
       return make_character('\n');
     }
     break;
   }
-  peek_expected_delimiter(in);
+  object *result = peek_expected_delimiter(in);
+  if(is_primitive_exception(result)) return result;
+
   return make_character(c);
 }
 
@@ -205,7 +208,7 @@ object *read_pair(read_buffer * in) {
   object *cdr_obj;
 
   if(eat_whitespace(in) == EOF)
-    return throw_read("unexpected EOF\n");
+    return throw_message("unexpected EOF");
 
   c = read_getc(in);
   if(c == ')') {
@@ -214,23 +217,28 @@ object *read_pair(read_buffer * in) {
   read_ungetc(c, in);
 
   car_obj = lisp_read(in);
+  if(is_primitive_exception(car_obj)) return car_obj;
+
   push_root(&car_obj);
 
   if(eat_whitespace(in) == EOF)
-    return throw_read("unexpected EOF\n");
+    return throw_message("unexpected EOF");
 
   c = read_getc(in);
   if(c == '.') {
-    peek_expected_delimiter(in);
+    object *temp = peek_expected_delimiter(in);
+    if(is_primitive_exception(temp)) return temp;
 
     cdr_obj = lisp_read(in);
+    if(is_primitive_exception(cdr_obj)) return cdr_obj;
+
     push_root(&cdr_obj);
 
     if(eat_whitespace(in) == EOF)
-      return throw_read("unexpected EOF\n");
+      return throw_message("unexpected EOF");
     c = read_getc(in);
     if(c != ')') {
-      return throw_read("improper list missing trailing paren\n");
+      return throw_message("improper list missing trailing paren");
     }
 
     object *result = cons(car_obj, cdr_obj);
@@ -243,6 +251,8 @@ object *read_pair(read_buffer * in) {
     read_ungetc(c, in);
 
     cdr_obj = read_pair(in);
+    if(is_primitive_exception(cdr_obj)) return cdr_obj;
+
     push_root(&cdr_obj);
 
     object *result = cons(car_obj, cdr_obj);
@@ -259,7 +269,7 @@ object *read_vector(read_buffer * in) {
   object *current;
 
   if(eat_whitespace(in) == EOF)
-    return throw_read("unexpected EOF\n");
+    return throw_message("unexpected EOF");
 
   c = read_getc(in);
   if(c == ')') {
@@ -267,7 +277,10 @@ object *read_vector(read_buffer * in) {
   }
   read_ungetc(c, in);
 
-  current = cons(lisp_read(in), g->empty_list);
+  object *val = lisp_read(in);
+  if(is_primitive_exception(val)) return val;
+
+  current = cons(val, g->empty_list);
   push_root(&current);
   list_head = current;
   push_root(&list_head);
@@ -276,17 +289,19 @@ object *read_vector(read_buffer * in) {
   list_tail = list_head;
 
   if(eat_whitespace(in) == EOF)
-    return throw_read("unexpected EOF\n");
+    return throw_message("unexpected EOF");
   c = read_getc(in);
   while(c != ')') {
     read_ungetc(c, in);
 
     current = lisp_read(in);
+    if(is_primitive_exception(current)) return current;
+
     set_cdr(list_tail, cons(current, g->empty_list));
     list_tail = cdr(list_tail);
 
     if(eat_whitespace(in) == EOF)
-      return throw_read("unexpected EOF\n");
+      return throw_message("unexpected EOF");
     c = read_getc(in);
   }
 
@@ -324,7 +339,7 @@ object *string_to_number(char *buffer) {
 	floatnum = 1;
       }
       else {
-	return throw_read("number contained multiple decimal points\n");
+	return throw_message("number contained multiple decimal points");
       }
     }
   }
@@ -343,7 +358,7 @@ object *read_number(char c, read_buffer * in) {
 
   while(idx < 128 && (c == '-' || c == '.' || isdigit(c))) {
     if(idx == 127) {
-      return throw_read("too many digits in number");
+      return throw_message("too many digits in number");
     }
 
     buffer[idx++] = c;
@@ -354,7 +369,7 @@ object *read_number(char c, read_buffer * in) {
     read_ungetc(c, in);
   }
   else {
-    return throw_read("number was not followed by delimiter");
+    return throw_message("number was not followed by delimiter");
   }
 
   buffer[idx] = '\0';
@@ -388,7 +403,7 @@ object *lisp_read(read_buffer * in) {
 	continue;
       return g->false;
     default:
-      return throw_read("unknown boolean or character literal '%c' \n", c);
+      return throw_message("unknown boolean or character literal '%c' \n", c);
     }
   }
   else if(isdigit(c) || (c == '-' && (isdigit(peek(in))))) {
@@ -401,11 +416,11 @@ object *lisp_read(read_buffer * in) {
 	buffer[i++] = c;
       }
       else {
-	return throw_read("symbol exceeded %d chars", BUFFER_MAX);
+	return throw_message("symbol exceeded %d chars", BUFFER_MAX);
       }
       c = read_getc(in);
       if(c == EOF) {
-	return throw_read("unexpected EOF\n");
+	return throw_message("unexpected EOF");
       }
     }
     if(is_delimiter(c)) {
@@ -414,7 +429,7 @@ object *lisp_read(read_buffer * in) {
       return make_symbol(buffer);
     }
     else {
-      return throw_read("symbol not followed by delimiter. found %c\n", c);
+      return throw_message("symbol not followed by delimiter. found %c", c);
     }
   }
   else if(c == '"') {
@@ -430,13 +445,13 @@ object *lisp_read(read_buffer * in) {
 	}
       }
       if(c == EOF) {
-	return throw_read("string literal not terminated\n");
+	return throw_message("string literal not terminated");
       }
       if(i < BUFFER_MAX - 1) {
 	buffer[i++] = c;
       }
       else {
-	return throw_read("string exceeded buffer length %d", BUFFER_MAX);
+	return throw_message("string exceeded buffer length %d", BUFFER_MAX);
       }
     }
     buffer[i] = '\0';
@@ -447,6 +462,8 @@ object *lisp_read(read_buffer * in) {
   }
   else if(c == '\'') {
     object *quoted = lisp_read(in);
+    if(is_primitive_exception(quoted)) return quoted;
+
     push_root(&quoted);
     quoted = cons(quoted, g->empty_list);
     quoted = cons(g->quote_symbol, quoted);
@@ -465,6 +482,8 @@ object *lisp_read(read_buffer * in) {
     }
 
     object *unquoted = lisp_read(in);
+    if(is_primitive_exception(unquoted)) return unquoted;
+
     push_root(&unquoted);
     unquoted = cons(unquoted, g->empty_list);
     unquoted = cons(qsym, unquoted);
@@ -473,6 +492,8 @@ object *lisp_read(read_buffer * in) {
   }
   else if(c == '`') {
     object *qquoted = lisp_read(in);
+    if(is_primitive_exception(qquoted)) return qquoted;
+
     push_root(&qquoted);
     qquoted = cons(qquoted, g->empty_list);
     qquoted = cons(g->quasiquote_symbol, qquoted);
@@ -483,6 +504,6 @@ object *lisp_read(read_buffer * in) {
     return NULL;
   }
   else {
-    return throw_read("bad input. Unexpected '%c'\n", c);
+    return throw_message("bad input. Unexpected '%c'", c);
   }
 }

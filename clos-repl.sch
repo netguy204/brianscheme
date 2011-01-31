@@ -9,6 +9,12 @@
 		    stdout-stream)))
     (print-object stream obj)))
 
+;; define a VM exception handler that uses our higher level condition
+;; system
+(set-error-restart!
+ (lambda (ex)
+   (raise (cons 'vm-error (cdr ex)))))
+
 (define (clos-repl)
     (let* ((exp (read-port stdin))
 	   (res (with-exception-handler

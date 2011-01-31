@@ -40,14 +40,21 @@ object *cdr(object *pair);
 #define AS_BOOL(x) (x ? g->true : g->false)
 
 /* used to convert cons arg lists into vector arg lists */
+
 object *dispatch_primitive(object * arg_list, long num_args);
 
 /* environments */
+
 object *enclosing_environment(object *env);
+
 object *first_frame(object *env);
+
 object *make_frame(object *variables, object *values);
+
 object *frame_variables(object *frame);
+
 object *frame_values(object *frame);
+
 void add_binding_to_frame(object *var, object *val,
 			  object *frame);
 object *extend_environment(object *vars, object *vals,
@@ -65,7 +72,7 @@ void interp_add_roots(void);
 void interp_definer(char *sym, object *val);
 void destroy_interp();
 
-void owrite(FILE *out, object *obj);
+object *owrite(FILE *out, object *obj);
 char is_falselike(object *obj);
 object *expand_macro(object *macro, object *args,
 		     object *env, int level, object * stack, long stack_top);
@@ -73,6 +80,7 @@ object *interp(object *exp, object *env);
 object *interp1(object *exp, object *env, int level, object * stack, long stack_top);
 object *apply(object *fn, object *args);
 object *debug_write(char * msg, object *obj, int level);
+
 void print_obj(object *obj);
 void primitive_repl();
 

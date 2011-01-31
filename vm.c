@@ -100,12 +100,30 @@ DEFUN1(code_to_symbol_proc) {
     return g->false;
 }
 
-#define VM_ASSERT(test, msg, ...)		\
+#define VM_ERROR_RESTART(obj)			\
   do {						\
-    if(!(test)) {				\
-      fprintf(stderr, msg, ##__VA_ARGS__);	\
-      VM_RETURN(g->error_sym);			\
-    }						\
+    VPUSH(obj, stack, stack_top);		\
+    fn = g->vm_error_restart;			\
+    pc = 0;					\
+    n_args = 1;					\
+    env = CENV(g->vm_error_restart);		\
+    top = make_vector(g->empty_list, 2);	\
+    env = cons(top, env);			\
+    goto vm_fn_begin;				\
+  } while(0)
+
+#define VM_ASSERT(test, msg, ...)			\
+  do {							\
+    if(!(test)) {					\
+      char * buffer = MALLOC(1024);			\
+      snprintf(buffer, 1024, msg, ##__VA_ARGS__);	\
+      object *msg_obj = make_string(buffer);		\
+      push_root(&msg_obj);				\
+      FREE(buffer);					\
+      object *ex = make_primitive_exception(msg_obj);	\
+      pop_root(&msg_obj);				\
+      VM_ERROR_RESTART(ex);				\
+    }							\
   } while(0)
 
 void vector_push(object * stack, object * thing, long top) {
@@ -199,8 +217,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
 vm_fn_begin:
   if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
     owrite(stderr, fn);
-    fprintf(stderr, ": object is not compiled-procedure\n");
-    return g->error_sym;
+    VM_ASSERT(0, "object is not compiled-procedure\n");
   }
 
   long num_codes = LONG(car(BYTECODE(fn)));
@@ -211,7 +228,7 @@ vm_fn_begin:
 
 vm_begin:
   if(pc >= num_codes) {
-    VM_ASSERT(0, "pc flew off the end of memory");
+    VM_ASSERT(0, "pc %ld flew off the end of memory %ld", pc, num_codes);
   }
 
   opcode = codes[pc];
@@ -221,8 +238,9 @@ vm_begin:
 
   switch (opcode) {
   case _args_:{
-    VM_ASSERT(n_args == ARG1, "wrong number of args. expected %ld, got %ld\n",
-	      ARG1, n_args);
+      VM_ASSERT(n_args == ARG1,
+		"wrong number of args. expected %ld, got %ld\n",
+		ARG1, n_args);
 
       int ii;
       int num_args = ARG1;
@@ -243,7 +261,7 @@ vm_begin:
     }
     break;
   case _argsdot_:{
-    VM_ASSERT(n_args >= ARG1, "wrong number of args");
+      VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
       int ii;
       long req_args = ARG1;
@@ -335,6 +353,11 @@ vm_begin:
 	VPOP(temp, stack, stack_top);
       }
 
+      if(is_primitive_exception(top)) {
+	object *temp = top;
+	VM_ERROR_RESTART(temp);
+      }
+
       VPUSH(top, stack, stack_top);
 
       RETURN_OPCODE_INSTRUCTIONS;
@@ -395,6 +418,11 @@ vm_begin:
 	  VPOP(temp, stack, stack_top);
 	}
 
+	if(is_primitive_exception(top)) {
+	  object *temp = top;
+	  VM_ERROR_RESTART(temp);
+	}
+
 	VPUSH(top, stack, stack_top);
 
 	RETURN_OPCODE_INSTRUCTIONS;
@@ -440,6 +468,9 @@ vm_begin:
 	val = var;
       } else {
 	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
+	if(is_primitive_exception(val)) {
+	  VM_ERROR_RESTART(val);
+	}
 	VARRAY(const_array)[ARG1] = val;
       }
 
@@ -529,9 +560,7 @@ vm_begin:
     }
     break;
   default:{
-      fprintf(stderr, "don't know how to process opcode %d\n",
-	      (int)opcode);
-      VM_ASSERT(0, "strange opcode");
+      VM_ASSERT(0, "don't know how to process opcode %d", (int)opcode);
     }
   }
 
@@ -556,6 +585,11 @@ DEFUN1(set_profiling_proc) {
   } else {
     profiling_enabled = 1;
   }
+  return FIRST;
+}
+
+DEFUN1(set_error_restart_proc) {
+  g->vm_error_restart = FIRST;
   return FIRST;
 }
 
@@ -586,12 +620,11 @@ void vm_boot(void) {
 
 void vm_add_roots(void) {
   push_root(&(g->cc_bytecode));
+  push_root(&(g->vm_error_restart));
 }
 
 void vm_init(void) {
   vm_boot();
-
-  g->error_sym = make_symbol("error");
 
   vm_definer("set-macro!",
 	     make_primitive_proc(vm_tag_macro_proc));
@@ -599,8 +632,14 @@ void vm_init(void) {
   vm_definer("set-cc-bytecode!",
 	     make_primitive_proc(set_cc_bytecode));
 
+  vm_definer("set-error-restart!",
+	     make_primitive_proc(set_error_restart_proc));
+
   g->cc_bytecode = g->empty_list;
   push_root(&(g->cc_bytecode));
+
+  g->vm_error_restart = g->empty_list;
+  push_root(&(g->vm_error_restart));
 
   profiling_enabled = 0;
 }
