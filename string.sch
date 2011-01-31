@@ -25,3 +25,9 @@
       (dotimes (i len)
         (string-set! substr i (string-ref str (+ i start))))
       substr)))
+
+(define (string->list str)
+  "Turn a string into a character list."
+  (if (= 0 (string-length str))
+      '()
+      (cons (string-ref str 0) (string->list (substring str 1)))))
