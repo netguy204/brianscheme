@@ -25,7 +25,7 @@
 (set-error-restart!
  (lambda (ex)
    (display "VM got exception: " stderr)
-   (display (cdr ex) stderr)
+   (display ex stderr)
    (write-char #\newline stderr)
    (exit 1)))
 

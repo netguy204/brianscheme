@@ -13,7 +13,7 @@
 ;; system
 (set-error-restart!
  (lambda (ex)
-   (raise (cons 'vm-error ex))))
+   (raise (list 'vm-error ex))))
 
 (define (clos-repl)
     (let* ((exp (with-exception-handler
