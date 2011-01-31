@@ -294,8 +294,6 @@ DEFUN1(ffi_address_of) {
   return make_alien(ptr, g->empty_list);
 }
 
-char *strdup(const char *string);
-
 DEFUN1(string_to_alien) {
   char *str = STRING(FIRST);
   return make_alien(strdup(str), g->free_ptr_fn);
