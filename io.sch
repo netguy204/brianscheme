@@ -59,3 +59,13 @@
       (let ((res (iter (readdir dir))))
         (closedir dir)
         res))))
+
+(define (file-exists? name)
+  "Return #t if file exists, otherwise false."
+  (or (file-exists?0 name)
+      (let ((dir (opendir name)))
+        (if (eof-object? dir)
+            #f
+            (begin
+              (closedir dir)
+              #t)))))

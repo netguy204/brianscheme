@@ -601,8 +601,8 @@ list"
   "read from a port"
   (read-port port))
 
-(define (file-exists? name)
-  "Return #t if file exists, otherwise false."
+(define (file-exists?0 name)
+  "Return #t if file (and only files) exists, otherwise false."
   (let ((port (open-input-port name)))
     (if (eof-object? port)
         #f
@@ -612,13 +612,13 @@ list"
 
 (define (find-library name . paths)
   "Find the given library in the load path."
-  (if (file-exists? name)
+  (if (file-exists?0 name)
       name
       (let ((paths (car-else paths *load-path*)))
         (if (null? paths)
             #f
             (let ((file (prim-concat (car paths) (prim-concat "/" name))))
-              (if (file-exists? file)
+              (if (file-exists?0 file)
                   file
                   (find-library name (cdr paths))))))))
 
