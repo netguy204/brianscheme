@@ -33,6 +33,14 @@
 (define bs-dir ".bs"
   "Location of issue database.")
 
+(define (process-args-img)
+  "Process arguments as an image."
+  (bs-exec (first *args*) (cdr *args*)))
+
+(define (process-args)
+  "Process arguments as a script."
+  (bs-exec (second *args*) (cddr *args*)))
+
 (define (bs-exec cmd args)
   "Execute user command."
   (cond
@@ -55,9 +63,8 @@
   (display "usage: bs [bs-opts] command [cmd-opts]\n\n")
   (display "help    Print this help information\n")
   (display "init    Create an empty issue database\n")
-  (display "list    Print list of current issues.")
-  (display "new     Create a new issue.")
-  (display "\n"))
+  (display "list    Print list of current issues.\n")
+  (display "new     Create a new issue.\n"))
 
 (define (bs-list args)
   "List the current issues."
