@@ -535,6 +535,10 @@ DEFUN1(eval_proc) {
   return interp(exp, g->empty_env);
 }
 
+DEFUN1(system_proc) {
+  return AS_BOOL(system(STRING(FIRST)) == 0);
+}
+
 DEFUN1(save_image_proc) {
   baker_collect();
 
@@ -1423,6 +1427,7 @@ void init_prim_environment(definer defn) {
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
   add_procedure("gc", gc_proc);
+  add_procedure("%system", system_proc);
   add_procedure("%save-image", save_image_proc);
 
   add_procedure("char->integer", char_to_integer_proc);

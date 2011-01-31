@@ -67,6 +67,11 @@
       (push! (vector-ref vector idx) result))
     (reverse result)))
 
+(define (system cmd)
+  "Run command using the system's shell."
+  (assert-types (cmd string?))
+  (%system cmd))
+
 (require 'cl-defun)
 (require 'conditions)
 (require 'io)
