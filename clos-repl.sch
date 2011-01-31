@@ -13,7 +13,7 @@
 ;; system
 (set-error-restart!
  (lambda (ex)
-   (raise (cons 'vm-error (cdr ex)))))
+   (raise (cons 'vm-error ex))))
 
 (define (clos-repl)
     (let* ((exp (read-port stdin))

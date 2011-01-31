@@ -118,11 +118,8 @@ DEFUN1(code_to_symbol_proc) {
       char * buffer = MALLOC(1024);			\
       snprintf(buffer, 1024, msg, ##__VA_ARGS__);	\
       object *msg_obj = make_string(buffer);		\
-      push_root(&msg_obj);				\
       FREE(buffer);					\
-      object *ex = make_primitive_exception(msg_obj);	\
-      pop_root(&msg_obj);				\
-      VM_ERROR_RESTART(ex);				\
+      VM_ERROR_RESTART(msg_obj);			\
     }							\
   } while(0)
 
@@ -355,7 +352,7 @@ vm_begin:
 
       if(is_primitive_exception(top)) {
 	object *temp = top;
-	VM_ERROR_RESTART(temp);
+	VM_ERROR_RESTART(cdr(temp));
       }
 
       VPUSH(top, stack, stack_top);
@@ -420,7 +417,7 @@ vm_begin:
 
 	if(is_primitive_exception(top)) {
 	  object *temp = top;
-	  VM_ERROR_RESTART(temp);
+	  VM_ERROR_RESTART(cdr(temp));
 	}
 
 	VPUSH(top, stack, stack_top);
@@ -469,7 +466,7 @@ vm_begin:
       } else {
 	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
 	if(is_primitive_exception(val)) {
-	  VM_ERROR_RESTART(val);
+	  VM_ERROR_RESTART(cdr(val));
 	}
 	VARRAY(const_array)[ARG1] = val;
       }

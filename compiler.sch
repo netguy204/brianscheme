@@ -394,14 +394,6 @@ about its value and optionally with more forms following"
       'label
       (first instr)))
 
-(define (map-vector fn vector)
-  (let* ((len (vector-length vector))
-	 (result (make-vector len nil)))
-    (dotimes (idx len)
-      (vector-set! result idx
-		   (fn (vector-ref vector idx))))
-    result))
-
 (define (instrs-to-bytes instr-vector)
   (let* ((len (vector-length instr-vector))
 	 (result (ffi:make-longs (%fixnum-mul 3 len))))

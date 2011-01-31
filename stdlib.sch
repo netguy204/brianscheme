@@ -52,6 +52,21 @@
 (define (apply* proc . args)
   (apply proc (apply list* args)))
 
+(define (map-vector fn vector)
+  (let* ((len (vector-length vector))
+	 (result (make-vector len nil)))
+    (dotimes (idx len)
+      (vector-set! result idx
+		   (fn (vector-ref vector idx))))
+    result))
+
+(define (vector->list vector)
+  (let ((result nil)
+	(len (vector-length vector)))
+    (dotimes (idx len)
+      (push! (vector-ref vector idx) result))
+    (reverse result)))
+
 (require 'cl-defun)
 (require 'conditions)
 (require 'io)
