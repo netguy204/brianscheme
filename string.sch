@@ -17,7 +17,7 @@
   (let* ((strlen (string-length str))
 	 (end (car-else end strlen))
 	 (len (- end start)))
-    (if (or (> len strlen) (> end strlen) (> start (- strlen 1)))
+    (if (or (> len strlen) (> end strlen) (> start strlen))
 	(throw-error "out of string bounds" str start end))
     (if (> start end)
 	(throw-error "invalid substring" start end))
