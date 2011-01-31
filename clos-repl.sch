@@ -16,29 +16,29 @@
    (raise (list 'vm-error ex))))
 
 (define (clos-repl)
-    (let* ((exp (with-exception-handler
-		 (lambda (ex)
-		   (write-stream stderr-stream "clos-repl, reader-error: ")
-		   (print-object stderr-stream ex)
-		   (newline)
-		   (clos-repl))
+  (letrec ((repl-loop
+	    (lambda ()
+	      (let* ((exp (read-port stdin))
+		     (res (eval exp)))
 
-		 (lambda () (read-port stdin))))
+		(when (eof-object? res)
+		      (newline)
+		      (exit 0))
 
-	   (res (with-exception-handler
-		 (lambda (ex)
-		   (write-stream stderr-stream "clos-repl: ")
-		   (print-object stderr-stream ex)
-		   (newline)
-		   (clos-repl))
+		(print-object stdout-stream res)
+		(newline)
+		(repl-loop)))))
 
-		 (lambda () (eval exp)))))
+    (with-exception-handler
+     (lambda (ex)
+       (write-stream stderr-stream "clos-repl: ")
+       (print-object stderr-stream ex)
+       (newline)
+       (repl-loop))
 
-      (when (eof-object? res)
-	    (newline)
-	    (exit 0))
+     (lambda () (repl-loop)))))
 
-      (print-object stdout-stream res)
-      (newline)
-      (clos-repl)))
+
+
+
 
