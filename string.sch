@@ -31,3 +31,7 @@
   (if (= 0 (string-length str))
       '()
       (cons (string-ref str 0) (string->list (substring str 1)))))
+
+(define (string=? . args)
+  "Return #t if all strings arguments are equal?."
+  (every-pair? equal? args))
