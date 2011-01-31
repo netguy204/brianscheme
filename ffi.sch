@@ -186,7 +186,6 @@ reloaded."
 	(lusleep (ffi:dlsym handle "usleep"))
 	(lputchar (ffi:dlsym handle "putchar"))
 	(lwait (ffi:dlsym handle "wait"))
-	(lgetpid (ffi:dlsym handle "getpid"))
 	(ltime (ffi:dlsym handle "time"))
 	(ltest-fn (ffi:dlsym handle "test_fn")))
 
@@ -203,9 +202,6 @@ reloaded."
 
     (define (usleep useconds)
       (ffi:funcall lusleep 'ffi-uint useconds))
-
-    (define (getpid)
-      (ffi:funcall lgetpid 'ffi-uint))
 
     ;; this definition is a bit trickier because we're
     ;; dealing with a pointer to a primitive
