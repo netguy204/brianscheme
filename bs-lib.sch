@@ -26,12 +26,17 @@
 ;;
 ;; bs close ISSUE
 ;;    Set an issue to closed.
+;;
+;; bs commit MSG
+;;    Commit all database changes into repository.
 
 ;;     There will be an option switch for all commands to immediately
 ;;  commit the database change into Git.
 
 (define bs-dir ".bs"
   "Location of issue database.")
+
+(define default-msg "Update bs database.")
 
 (define (process-args-img)
   "Process arguments as an image."
@@ -44,10 +49,11 @@
 (define (bs-exec cmd args)
   "Execute user command."
   (cond
-   ((equal? cmd "help") (bs-help args))
-   ((equal? cmd "init") (bs-init args))
-   ((equal? cmd "list") (bs-list args))
-   ((equal? cmd "new")  (bs-new  args))
+   ((equal? cmd "help")   (bs-help   args))
+   ((equal? cmd "init")   (bs-init   args))
+   ((equal? cmd "list")   (bs-list   args))
+   ((equal? cmd "new")    (bs-new    args))
+   ((equal? cmd "commit") (bs-commit args))
    ((eq? cmd nil) (bs-help args))
    (#t (begin
          (display "Unknown command ")
@@ -64,7 +70,8 @@
   (display "help    Print this help information\n")
   (display "init    Create an empty issue database\n")
   (display "list    Print list of current issues.\n")
-  (display "new     Create a new issue.\n"))
+  (display "new     Create a new issue.\n")
+  (display "commit  Commit database to Git.\n"))
 
 (define (bs-list args)
   "List the current issues."
@@ -76,6 +83,10 @@
   (let ((id (number->string (create-id))))
     (write-issue (list 'id id 'user "user" 'title (car args) 'status 'open))
     (display (string-append "Created issue " id "\n"))))
+
+(define (bs-commit args)
+  "Commit current database to the repository."
+  (commit (car-else args default-msg)))
 
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
@@ -107,3 +118,32 @@
     (if (< id 1000)
         (create-id)
         id)))
+
+(define (to-string-arg s)
+  "Convert object into something usable as a command line argument."
+  (string-append
+   (cond
+    ((string? s) s)
+    ((symbol? s) (symbol->string s)))
+   " "))
+
+(define (string-prot s)
+  "Protect string for use in the shell."
+  (string-append "\"" s "\""))
+
+(define (argcat . args)
+  "Concatenate strings for use in a command line."
+  (or (reduce (lambda (a b) (string-append a " " b)) (map string-prot args))
+      ""))
+
+(define-syntax (git cmd . args)
+  "Run a git command."
+  `(system (string-append "git " ,(symbol->string cmd) " "
+                          (argcat ,@args) " > /dev/null")))
+
+(define (commit msg)
+  "Commit all current changes into the git repository."
+  (unless (and (git reset)
+               (git add bs-dir)
+               (git commit "-qm" msg))
+    (display "No database changes to commit.\n")))
