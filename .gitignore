@@ -1,4 +1,6 @@
 *.o
 bsch
-test
+bsch.preboot
+bschsfx
+boot.img
 TAGS
