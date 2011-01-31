@@ -71,12 +71,12 @@
 (require 'conditions)
 (require 'io)
 (require 'math)
-(require 'random)
 (require 'string)
 (require 'point-free)
 (require 'clos)
 (require 'clos-repl)
 (require 'image)
+(require 'random)
 (provide 'stdlib)
 
 (define (repl-or-script)

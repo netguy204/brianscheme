@@ -120,7 +120,11 @@
   (let ((rng (car-else state *random-state*)))
     (copy rng)))
 
-(define *random-state* (make-random-state (make-seed)))
+(define (init-*random-state*)
+  "Initialize *random-state*."
+  (define *random-state* (make-random-state (make-seed))))
+(init-*random-state*)
+(push! init-*random-state* *load-hooks*)
 
 (define (random n . state)
   "Generate a random number between 0 and n."
