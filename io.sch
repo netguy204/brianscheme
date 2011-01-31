@@ -74,3 +74,13 @@
   "Quickly dump the contents of one port into the other port."
   (assert-types (in input-port?) (out output-port?))
   (%port-dump in out))
+
+(define (open-input-pipe name)
+  "Open a process for reading it's output (popen)."
+  (assert-types (name string?))
+  (%open-input-pipe name))
+
+(define (open-output-pipe name)
+  "Open a process to write to it (popen)."
+  (assert-types (name string?))
+  (%open-output-pipe name))

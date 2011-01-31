@@ -442,12 +442,16 @@ DEFUN1(open_output_port_proc) {
   if(out == NULL) {
     return g->eof_object;
   }
-  return make_output_port(out);
+  return make_output_port(out, 0);
 }
 
 DEFUN1(close_output_port_proc) {
-  FILE *out = OUTPUT(FIRST);
-  fclose(out);
+  object *obj = FIRST;
+  FILE *out = OUTPUT(obj);
+  if (is_output_port_pipe(obj))
+    pclose(out);
+  else
+    fclose(out);
   return g->true;
 }
 
@@ -457,13 +461,35 @@ DEFUN1(open_input_port_proc) {
   if(in == NULL) {
     return g->eof_object;
   }
-  return make_input_port(in);
+  return make_input_port(in, 0);
 }
 
 DEFUN1(close_input_port_proc) {
-  FILE *in = INPUT(FIRST);
-  fclose(in);
+  object *obj = FIRST;
+  FILE *in = INPUT(obj);
+  if (is_input_port_pipe(obj))
+    pclose(in);
+  else
+    fclose(in);
   return g->true;
+}
+
+DEFUN1(open_input_pipe_proc) {
+  object *name = FIRST;
+  FILE *in = popen(STRING(name), "r");
+  if(in == NULL) {
+    return g->eof_object;
+  }
+  return make_input_port(in, 1);
+}
+
+DEFUN1(open_output_pipe_proc) {
+  object *name = FIRST;
+  FILE *in = popen(STRING(name), "w");
+  if(in == NULL) {
+    return g->eof_object;
+  }
+  return make_output_port(in, 1);
 }
 
 DEFUN1(chmod_proc) {
@@ -1413,6 +1439,8 @@ void init_prim_environment(definer defn) {
   add_procedure("open-input-port", open_input_port_proc);
   add_procedure("close-output-port", close_output_port_proc);
   add_procedure("close-input-port", close_input_port_proc);
+  add_procedure("%open-output-pipe", open_output_pipe_proc);
+  add_procedure("%open-input-pipe", open_input_pipe_proc);
   add_procedure("%chmod", chmod_proc);
   add_procedure("%umask", umask_proc);
   add_procedure("getumask", getumask_proc);
@@ -1466,9 +1494,9 @@ void init_prim_environment(definer defn) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin));
-  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout));
-  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr));
+  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin, 0));
+  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout, 0));
+  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr, 0));
   defn(SYMBOL(g->exit_hook_symbol), g->empty_list);
 }
 

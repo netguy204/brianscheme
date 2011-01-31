@@ -301,11 +301,12 @@ char is_compiled_proc(object * obj) {
   return obj->type == COMPILED_PROC;
 }
 
-object *make_input_port(FILE * stream) {
+object *make_input_port(FILE * stream, char is_pipe) {
   object *obj = alloc_object(0);
 
   obj->type = INPUT_PORT;
   obj->data.input_port.stream = stream;
+  obj->data.input_port.is_pipe = is_pipe;
   return obj;
 }
 
@@ -317,6 +318,14 @@ char is_output_port(object * obj) {
   return obj->type == OUTPUT_PORT;
 }
 
+char is_output_port_pipe(object * obj) {
+  return obj->data.output_port.is_pipe;
+}
+
+char is_input_port_pipe(object * obj) {
+  return obj->data.input_port.is_pipe;
+}
+
 char is_dir_stream(object * obj) {
   return obj->type == DIR_STREAM;
 }
@@ -325,11 +334,12 @@ char is_eof_object(object * obj) {
   return obj == g->eof_object;
 }
 
-object *make_output_port(FILE * stream) {
+object *make_output_port(FILE * stream, char is_pipe) {
   object *obj = alloc_object(0);
 
   obj->type = OUTPUT_PORT;
   obj->data.output_port.stream = stream;
+  obj->data.output_port.is_pipe = is_pipe;
   return obj;
 }
 

@@ -82,9 +82,11 @@ typedef struct object {
     } compiled_proc;
     struct {
       FILE *stream;
+      char is_pipe;
     } input_port;
     struct {
       FILE *stream;
+      char is_pipe;
     } output_port;
     struct {
       struct object *releaser;
@@ -254,11 +256,13 @@ object *make_compiled_proc(object *bytecode, object *env);
 
 char is_compiled_proc(object *obj);
 
-object *make_input_port(FILE *stream);
-object *make_output_port(FILE *stream);
+object *make_input_port(FILE *stream, char is_pipe);
+object *make_output_port(FILE *stream, char is_pipe);
 object *make_dir_stream(DIR *stream);
 char is_input_port(object *obj);
 char is_output_port(object *obj);
+char is_output_port_pipe(object * obj);
+char is_input_port_pipe(object * obj);
 char is_dir_stream(object *obj);
 char is_eof_object(object *obj);
 

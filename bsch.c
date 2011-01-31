@@ -247,9 +247,9 @@ int main(int argc, char ** argv) {
     vm_boot();
 
     /* need to patch up some things that move between boots */
-    patch_object(g->stdin_symbol, make_input_port(stdin));
-    patch_object(g->stdout_symbol, make_output_port(stdout));
-    patch_object(g->stderr_symbol, make_output_port(stderr));
+    patch_object(g->stdin_symbol, make_input_port(stdin, 0));
+    patch_object(g->stdout_symbol, make_output_port(stdout, 0));
+    patch_object(g->stderr_symbol, make_output_port(stderr, 0));
 
     /* Stick arguments and BS_PATH in global environment. */
     insert_strlist(bs_paths, "*load-path*", 0);
