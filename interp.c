@@ -1064,7 +1064,7 @@ object *owrite(FILE * out, object * obj) {
     fprintf(out, "#<eof>");
     break;
   case ALIEN:
-    fprintf(out, "#<alien-object %llX>", (unsigned long long)ALIEN_PTR(obj));
+    fprintf(out, "#<alien-object %p>", ALIEN_PTR(obj));
     break;
   default:
     return throw_message("cannot write unknown type: %d\n", obj->type);
