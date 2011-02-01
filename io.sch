@@ -98,3 +98,8 @@
   "Flush output port buffer."
   (assert-types (out output-port?))
   (%flush-output out))
+
+(define (write-string str out)
+  "Write a string to the output port."
+  (dotimes (i (string-length str))
+    (write-char (string-ref str i) out)))
