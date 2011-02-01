@@ -61,4 +61,13 @@
      ((eof-object? ch) "")
      ((whitespace? ch) "")
      ((paren? ch) (begin (unread-char ch port) ""))
+     ((eq? ch #\\) (string-append (char->string (read:escaped port))
+				  (read:slurp-atom port)))
      (#t (string-append (char->string ch) (read:slurp-atom port))))))
+
+(define (read:escaped port)
+  "Read an escaped character, and throw an error on EOF."
+  (let ((ch (read-char port)))
+    (if (eof-object? ch)
+	(throw-error "unexpected eof during escape" "\\")
+	ch)))
