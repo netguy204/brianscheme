@@ -30,8 +30,9 @@
 ;; bs commit MSG
 ;;    Commit all database changes into repository.
 
-;;     There will be an option switch for all commands to immediately
-;;  commit the database change into Git.
+;;     By default almost all commands will immediately commit the
+;;  database change into Git. There will be an option switch to not do
+;;  this.
 
 (define bs-dir ".bs"
   "Location of issue database.")
