@@ -12,12 +12,12 @@
       (inc! len))
     len))
 
-(define (substring str start end)
+(define (substring str start . end)
   "Return given substring from start (inclusive) to end (exclusive)."
   (let* ((strlen (string-length str))
-	 (end (or end strlen))
+	 (end (car-else end strlen))
 	 (len (- end start)))
-    (if (or (> len strlen) (> end strlen) (> start (- strlen 1)))
+    (if (or (> len strlen) (> end strlen) (> start strlen))
 	(throw-error "out of string bounds" str start end))
     (if (> start end)
 	(throw-error "invalid substring" start end))
@@ -25,3 +25,17 @@
       (dotimes (i len)
         (string-set! substr i (string-ref str (+ i start))))
       substr)))
+
+(define (string->list str)
+  "Turn a string into a character list."
+  (if (= 0 (string-length str))
+      '()
+      (cons (string-ref str 0) (string->list (substring str 1)))))
+
+(define (string=? . args)
+  "Return #t if all strings arguments are equal?."
+  (every-pair? equal? args))
+
+(define (char->string char)
+  "Return a string containing only char."
+  (make-string 1 char))

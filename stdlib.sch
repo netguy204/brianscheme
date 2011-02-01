@@ -67,6 +67,16 @@
       (push! (vector-ref vector idx) result))
     (reverse result)))
 
+(define (system cmd)
+  "Run command using the system's shell."
+  (assert-types (cmd string?))
+  (%system cmd))
+
+(define (getenv var)
+  "Get an environmental variable."
+  (assert-types (var string?))
+  (%getenv var))
+
 (require 'cl-defun)
 (require 'conditions)
 (require 'io)

@@ -154,7 +154,7 @@
    (define (gensym)
      (set! next-gensym (%fixnum-add next-gensym 1))
      (string->uninterned-symbol
-      (prim-concat "#" (number->string next-gensym)))))
+      (%prim-concat "#" (number->string next-gensym)))))
  0)
 
 ;; We used map in our definition of let0 so we had better go ahead and
@@ -610,6 +610,11 @@ list"
           (close-input-port port)
           #t))))
 
+(define (prim-concat str1 str2)
+  (if (and (string? str1) (string? str2))
+      (%prim-concat str1 str2)
+      (throw-error "expected strings" str1 str2)))
+
 (define (find-library name . paths)
   "Find the given library in the load path."
   (if (file-exists?0 name)
@@ -640,7 +645,7 @@ list"
 (let ((required nil))
   (letrec ((sym-to-name (lambda (name)
 			  (if (symbol? name)
-			      (prim-concat (symbol->string name) ".sch")
+			      (%prim-concat (symbol->string name) ".sch")
 			      name))))
     (define (require name)
       "load file name if it hasn't already been loaded"
@@ -981,18 +986,18 @@ returns true"
        ,result)))
 
 (define (struct-constructor-name name)
-  (string->symbol (prim-concat "make-" (symbol->string name))))
+  (string->symbol (%prim-concat "make-" (symbol->string name))))
 
 (define (struct-predicate-name name)
-  (string->symbol (prim-concat (symbol->string name) "?")))
+  (string->symbol (%prim-concat (symbol->string name) "?")))
 
 (define (struct-slot-getter-name name slot)
-  (string->symbol (reduce prim-concat (list (symbol->string name)
+  (string->symbol (reduce %prim-concat (list (symbol->string name)
                                             "-" (symbol->string slot)
                                             "-ref"))))
 
 (define (struct-slot-setter-name name slot)
-  (string->symbol (reduce prim-concat (list (symbol->string name)
+  (string->symbol (reduce %prim-concat (list (symbol->string name)
                                             "-" (symbol->string slot)
                                             "-set!"))))
 

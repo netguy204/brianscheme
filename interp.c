@@ -442,12 +442,19 @@ DEFUN1(open_output_port_proc) {
   if(out == NULL) {
     return g->eof_object;
   }
-  return make_output_port(out);
+  return make_output_port(out, 0);
 }
 
 DEFUN1(close_output_port_proc) {
-  FILE *out = OUTPUT(FIRST);
-  fclose(out);
+  object *obj = FIRST;
+  if (!is_output_port_opened(obj))
+    return g->false;
+  FILE *out = OUTPUT(obj);
+  if (is_output_port_pipe(obj))
+    pclose(out);
+  else
+    fclose(out);
+  set_output_port_opened(obj, 0);
   return g->true;
 }
 
@@ -457,13 +464,38 @@ DEFUN1(open_input_port_proc) {
   if(in == NULL) {
     return g->eof_object;
   }
-  return make_input_port(in);
+  return make_input_port(in, 0);
 }
 
 DEFUN1(close_input_port_proc) {
-  FILE *in = INPUT(FIRST);
-  fclose(in);
+  object *obj = FIRST;
+  if (!is_input_port_opened(obj))
+    return g->false;
+  FILE *in = INPUT(obj);
+  if (is_input_port_pipe(obj))
+    pclose(in);
+  else
+    fclose(in);
+  set_input_port_opened(obj, 0);
   return g->true;
+}
+
+DEFUN1(open_input_pipe_proc) {
+  object *name = FIRST;
+  FILE *in = popen(STRING(name), "r");
+  if(in == NULL) {
+    return g->eof_object;
+  }
+  return make_input_port(in, 1);
+}
+
+DEFUN1(open_output_pipe_proc) {
+  object *name = FIRST;
+  FILE *in = popen(STRING(name), "w");
+  if(in == NULL) {
+    return g->eof_object;
+  }
+  return make_output_port(in, 1);
 }
 
 DEFUN1(chmod_proc) {
@@ -533,6 +565,17 @@ DEFUN1(gc_proc) {
 DEFUN1(eval_proc) {
   object *exp = FIRST;
   return interp(exp, g->empty_env);
+}
+
+DEFUN1(system_proc) {
+  return AS_BOOL(system(STRING(FIRST)) == 0);
+}
+
+DEFUN1(getenv_proc) {
+  char *val = getenv(STRING(FIRST));
+  if (val == NULL)
+    return g->false;
+  return make_string(val);
 }
 
 DEFUN1(save_image_proc) {
@@ -636,6 +679,10 @@ DEFUN1(unread_char_proc) {
 
   ungetc(CHAR(ch), INPUT(port));
   return g->true;
+}
+
+DEFUN1(flush_output_proc) {
+  return AS_BOOL(fflush(OUTPUT(FIRST)) == 0);
 }
 
 DEFUN1(port_dump_proc) {
@@ -1053,7 +1100,7 @@ object *owrite(FILE * out, object * obj) {
     fprintf(out, "#<eof>");
     break;
   case ALIEN:
-    fprintf(out, "#<alien-object %llX>", (unsigned long long)ALIEN_PTR(obj));
+    fprintf(out, "#<alien-object %p>", ALIEN_PTR(obj));
     break;
   default:
     return throw_message("cannot write unknown type: %d\n", obj->type);
@@ -1402,6 +1449,8 @@ void init_prim_environment(definer defn) {
   add_procedure("open-input-port", open_input_port_proc);
   add_procedure("close-output-port", close_output_port_proc);
   add_procedure("close-input-port", close_input_port_proc);
+  add_procedure("%open-output-pipe", open_output_pipe_proc);
+  add_procedure("%open-input-pipe", open_input_pipe_proc);
   add_procedure("%chmod", chmod_proc);
   add_procedure("%umask", umask_proc);
   add_procedure("getumask", getumask_proc);
@@ -1418,11 +1467,14 @@ void init_prim_environment(definer defn) {
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
   add_procedure("unread-char", unread_char_proc);
+  add_procedure("%flush-output", flush_output_proc);
   add_procedure("%port-dump", port_dump_proc);
 
   add_procedure("eval", eval_proc);
   add_procedure("apply", apply_proc);
   add_procedure("gc", gc_proc);
+  add_procedure("%system", system_proc);
+  add_procedure("%getenv", getenv_proc);
   add_procedure("%save-image", save_image_proc);
 
   add_procedure("char->integer", char_to_integer_proc);
@@ -1437,7 +1489,7 @@ void init_prim_environment(definer defn) {
   add_procedure("string->uninterned-symbol",
 		string_to_uninterned_symbol_proc);
 
-  add_procedure("prim-concat", concat_proc);
+  add_procedure("%prim-concat", concat_proc);
 
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
@@ -1453,9 +1505,9 @@ void init_prim_environment(definer defn) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin));
-  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout));
-  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr));
+  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin, 0));
+  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout, 0));
+  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr, 0));
   defn(SYMBOL(g->exit_hook_symbol), g->empty_list);
 }
 

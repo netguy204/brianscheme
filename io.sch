@@ -74,3 +74,32 @@
   "Quickly dump the contents of one port into the other port."
   (assert-types (in input-port?) (out output-port?))
   (%port-dump in out))
+
+(define (open-input-pipe name)
+  "Open a process for reading it's output (popen)."
+  (assert-types (name string?))
+  (%open-input-pipe name))
+
+(define (open-output-pipe name)
+  "Open a process to write to it (popen)."
+  (assert-types (name string?))
+  (%open-output-pipe name))
+
+(define (read-line in)
+  "Read the next line from the input port."
+  (letrec ((iter (lambda (str next)
+                    (if (or (eq? next #\newline) (eof-object? next))
+                        str
+                        (iter (string-append str (char->string next))
+                              (read-char in))))))
+    (iter "" (read-char in))))
+
+(define (flush-output out)
+  "Flush output port buffer."
+  (assert-types (out output-port?))
+  (%flush-output out))
+
+(define (write-string str out)
+  "Write a string to the output port."
+  (dotimes (i (string-length str))
+    (write-char (string-ref str i) out)))

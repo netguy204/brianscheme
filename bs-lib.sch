@@ -26,12 +26,20 @@
 ;;
 ;; bs close ISSUE
 ;;    Set an issue to closed.
+;;
+;; bs commit MSG
+;;    Commit all database changes into repository.
 
-;;     There will be an option switch for all commands to immediately
-;;  commit the database change into Git.
+;;     By default almost all commands will immediately commit the
+;;  database change into Git. There will be an option switch to not do
+;;  this.
 
 (define bs-dir ".bs"
   "Location of issue database.")
+
+(define bs-config (string-append (or (getenv "HOME") "") "/.bsconfig"))
+
+(define default-msg "Update bs database.")
 
 (define (process-args-img)
   "Process arguments as an image."
@@ -41,13 +49,17 @@
   "Process arguments as a script."
   (bs-exec (second *args*) (cddr *args*)))
 
+;; Command processing
+
 (define (bs-exec cmd args)
   "Execute user command."
+  (load-config)
   (cond
-   ((equal? cmd "help") (bs-help args))
-   ((equal? cmd "init") (bs-init args))
-   ((equal? cmd "list") (bs-list args))
-   ((equal? cmd "new")  (bs-new  args))
+   ((equal? cmd "help")   (bs-help   args))
+   ((equal? cmd "init")   (bs-init   args))
+   ((equal? cmd "list")   (bs-list   args))
+   ((equal? cmd "new")    (bs-new    args))
+   ((equal? cmd "commit") (bs-commit args))
    ((eq? cmd nil) (bs-help args))
    (#t (begin
          (display "Unknown command ")
@@ -64,7 +76,8 @@
   (display "help    Print this help information\n")
   (display "init    Create an empty issue database\n")
   (display "list    Print list of current issues.\n")
-  (display "new     Create a new issue.\n"))
+  (display "new     Create a new issue.\n")
+  (display "commit  Commit database to Git.\n"))
 
 (define (bs-list args)
   "List the current issues."
@@ -74,8 +87,14 @@
 (define (bs-new args)
   "Create a new issue."
   (let ((id (number->string (create-id))))
-    (write-issue (list 'id id 'user "user" 'title (car args) 'status 'open))
+    (write-issue (list 'id id 'user *full* 'title (car args) 'status 'open))
     (display (string-append "Created issue " id "\n"))))
+
+(define (bs-commit args)
+  "Commit current database to the repository."
+  (commit (car-else args default-msg)))
+
+;; Issue handling
 
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
@@ -88,9 +107,7 @@
   "Print out the issue summary in one line."
   (when (eq? (plist-get issue 'status) 'open)
     (display (plist-get issue 'id))
-    (display "    ")
-    (display (plist-get issue 'user))
-    (display "    ")
+    (display "  ")
     (display (plist-get issue 'title))
     (display "\n")))
 
@@ -107,3 +124,54 @@
     (if (< id 1000)
         (create-id)
         id)))
+
+;; Committing
+
+(define (string-prot s)
+  "Protect string for use in the shell."
+  (string-append "\"" s "\""))
+
+(define (argcat . args)
+  "Concatenate strings for use in a command line."
+  (or (reduce (lambda (a b) (string-append a " " b)) (map string-prot args))
+      ""))
+
+(define-syntax (git cmd . args)
+  "Run a git command."
+  `(system (string-append "git " ,(symbol->string cmd) " "
+                          (argcat ,@args) " > /dev/null")))
+
+(define (commit msg)
+  "Commit all current changes into the git repository."
+  (unless (and (git reset)
+               (git add bs-dir)
+               (git commit "-qm" msg))
+    (display "No database changes to commit.\n")))
+
+;; Environment
+
+(define (load-config)
+  "Load configuration into global variables."
+  (let ((config (get-config)))
+    (define *user* (plist-get config 'user))
+    (define *email* (plist-get config 'email))
+    (define *full* (string-append *user* " <" *email* ">"))
+    config))
+
+(define (get-config)
+  "Fetch configuration."
+  (if (file-exists? bs-config)
+      (call-with-input-file bs-config read-port)
+      (get-git-config)))
+
+(define (get-git-config)
+  "Derive a config from Git."
+  (let* ((name-in (open-input-pipe "git config user.name"))
+         (mail-in (open-input-pipe "git config user.email"))
+         (res (list 'user (read-line name-in) 'email (read-line mail-in))))
+    (close-input-port name-in)
+    (close-input-port mail-in)
+    (if (or (= 0 (string-length (plist-get res 'user)))
+            (= 0 (string-length (plist-get res 'email))))
+        (list 'user "unknown" 'email "unknown")
+        res)))
