@@ -1,4 +1,4 @@
-(define *whitespace-characters* (string->list " \n\t"))
+(define *whitespace-characters* (string->list " \n	"))
 
 (define (whitespace? ch)
   "Return #t if character is whitespace."
