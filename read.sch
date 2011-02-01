@@ -15,6 +15,13 @@
   (or (eq? ch #\()
       (eq? ch #\))))
 
+(define (read-char-safe port)
+  "Throw an error if read returns eof-object."
+  (let ((ch (read-char port)))
+    (if (eof-object? ch)
+	(throw-error "unexpected eof" "eof")
+	ch)))
+
 ;; Reader macros
 
 (define *macro-characters* '()
@@ -54,13 +61,11 @@ of a token.")
   (cdr (assq ch *dispatch-macro-characters*)))
 
 (define-macro-character (#\# port)
-  (let* ((ch (read-char port))
+  (let* ((ch (read-char-safe port))
 	 (fn (get-dispatch-macro-character ch)))
-    (if (eof-object? ch)
-	(throw-error "unexpected eof in dispatch macro" "#")
-	(if (not fn)
-	    (throw-error "unknown dispatch # macro" ch)
-	    (fn port)))))
+    (if (not fn)
+	(throw-error "unknown dispatch # macro" ch)
+	(fn port))))
 
 (define-syntax (define-dispatch-macro-character char-and-port . body)
   "Define-style syntax for creating dispatch reader macros on #."
@@ -81,9 +86,8 @@ of a token.")
 
 (define-macro-character (#\, port)
   "Unquote reader macro."
-  (let ((ch (read-char port)))
+  (let ((ch (read-char-safe port)))
     (cond
-     ((eof-object? ch) (throw-error "unexpected eof in unquote" ","))
      ((eq? #\@ ch) (list 'unquotesplicing (read:read port)))
      (#t (begin (unread-char ch port)
 		(list 'unquote (read:read port)))))))
@@ -169,7 +173,5 @@ of a token.")
 
 (define (read:escaped port)
   "Read an escaped character, and throw an error on EOF."
-  (let ((ch (read-char port)))
-    (if (eof-object? ch)
-	(throw-error "unexpected eof during escape" "\\")
-	ch)))
+  (let ((ch (read-char-safe port)))
+    ch))
