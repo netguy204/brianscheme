@@ -15,12 +15,23 @@
   (or (eq? ch #\()
       (eq? ch #\))))
 
+(define (digit? ch)
+  "Return #t if character is a digit."
+  (member? ch (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)))
+
 (define (read-char-safe port)
   "Throw an error if read returns eof-object."
   (let ((ch (read-char port)))
     (if (eof-object? ch)
 	(throw-error "unexpected eof" "eof")
 	ch)))
+
+(define (count-member el lst)
+  "Count the number of times an element appears in a list."
+  (let ((mem (member el lst)))
+    (if mem
+	(+ 1 (count-member el (cdr mem)))
+	0)))
 
 ;; Reader macros
 
@@ -134,8 +145,6 @@ of a token.")
 
 ;; Read functions
 
-(define read:from-token string->symbol) ; TODO
-
 (define (read:read port)
   "Read an s-expression or object from the port."
   (let ((token (read:token port)))
@@ -190,3 +199,21 @@ of a token.")
      ((eq? ch #\n) #\newline)
      ((eq? ch #\t) #\tab)
      (#t ch))))
+
+(define (read:from-token str)
+  "Turn the token in the string into either an integer, real, or symbol."
+  (let* ((lst (string->list str))
+	 (signed (or (eq? (car lst) #\-) (eq? (car lst) #\+))))
+    (cond
+     ((and (or (and signed
+		    (every? digit? (cdr lst))
+		    (not (null? (cdr lst))))
+	       (and (not signed)
+		    (every? digit? lst)))
+	   (string->number str)))	; integer
+     ((and (or (and signed (every? digit? (delq #\. (cdr lst))))
+	       (and (not signed) (every? digit? (delq #\. lst))))
+	   (= 1 (count-member #\. lst))
+	   (every? digit? (delq #\. (cdr lst))))
+      (string->number str))		; real
+     (#t (string->symbol str)))))	; everything else is a symbol
