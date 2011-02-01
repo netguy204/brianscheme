@@ -47,6 +47,19 @@ of a token.")
   "Quote reader macro."
   (list 'quote (read:read port)))
 
+(define-macro-character (#\` port)
+  "Quasiquote reader macro."
+  (list 'quasiquote (read:read port)))
+
+(define-macro-character (#\, port)
+  "Unquote reader macro."
+  (let ((ch (read-char port)))
+    (cond
+     ((eof-object? ch) (throw-error "unexpected eof in unquote" ","))
+     ((eq? #\@ ch) (list 'unquotesplicing (read:read port)))
+     (#t (begin (unread-char ch port)
+		(list 'unquote (read:read port)))))))
+
 ;; Token predicates
 
 (define (read:lp? token)
