@@ -57,7 +57,10 @@ run: bsch
 	./bsch
 
 clean:
-	rm -f *.o $(TARGETS) $(IMAGE)
+	rm -f *.o $(TARGETS) $(IMAGE) bs
+
+bs: bsch bs-lib.sch
+	./bsch bs-build.sch
 
 INDENT_FLAGS = -npro -npsl -npcs -nsaf -nsai -nsaw -br -brf -brs -ncs
 indent:
