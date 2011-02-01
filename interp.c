@@ -674,8 +674,8 @@ DEFUN1(read_char_proc) {
 }
 
 DEFUN1(unread_char_proc) {
-  object *port = FIRST;
-  object *ch = SECOND;
+  object *ch = FIRST;
+  object *port = SECOND;
 
   ungetc(CHAR(ch), INPUT(port));
   return g->true;
@@ -1466,7 +1466,7 @@ void init_prim_environment(definer defn) {
   add_procedure("read-port", read_proc);
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
-  add_procedure("unread-char", unread_char_proc);
+  add_procedure("%unread-char", unread_char_proc);
   add_procedure("%flush-output", flush_output_proc);
   add_procedure("%port-dump", port_dump_proc);
 

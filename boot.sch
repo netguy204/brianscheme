@@ -729,7 +729,7 @@ not be quoted or escaped."
 
 (define (peek-char port)
   (let ((ch (read-char port)))
-    (unread-char port ch)
+    (%unread-char ch port)
     ch))
 
 (define (atom? obj)

@@ -103,3 +103,8 @@
   "Write a string to the output port."
   (dotimes (i (string-length str))
     (write-char (string-ref str i) out)))
+
+(define (unread-char ch port)
+  "Put a single character back into the read buffer."
+  (assert-types (ch char?) (port input-port?))
+  (%unread-char ch port))
