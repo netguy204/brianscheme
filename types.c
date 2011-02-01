@@ -307,6 +307,7 @@ object *make_input_port(FILE * stream, char is_pipe) {
   obj->type = INPUT_PORT;
   obj->data.input_port.stream = stream;
   obj->data.input_port.is_pipe = is_pipe;
+  obj->data.input_port.opened = 1;
   return obj;
 }
 
@@ -326,6 +327,22 @@ char is_input_port_pipe(object * obj) {
   return obj->data.input_port.is_pipe;
 }
 
+char is_output_port_opened(object * obj) {
+  return obj->data.output_port.opened;
+}
+
+char is_input_port_opened(object * obj) {
+  return obj->data.input_port.opened;
+}
+
+void set_output_port_opened(object * obj, char opened) {
+  obj->data.output_port.opened = opened;
+}
+
+void set_input_port_opened(object * obj, char opened) {
+  obj->data.input_port.opened = opened;
+}
+
 char is_dir_stream(object * obj) {
   return obj->type == DIR_STREAM;
 }
@@ -340,6 +357,7 @@ object *make_output_port(FILE * stream, char is_pipe) {
   obj->type = OUTPUT_PORT;
   obj->data.output_port.stream = stream;
   obj->data.output_port.is_pipe = is_pipe;
+  obj->data.output_port.opened = 1;
   return obj;
 }
 

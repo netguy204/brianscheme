@@ -83,10 +83,12 @@ typedef struct object {
     struct {
       FILE *stream;
       char is_pipe;
+      char opened;
     } input_port;
     struct {
       FILE *stream;
       char is_pipe;
+      char opened;
     } output_port;
     struct {
       struct object *releaser;
@@ -263,6 +265,10 @@ char is_input_port(object *obj);
 char is_output_port(object *obj);
 char is_output_port_pipe(object * obj);
 char is_input_port_pipe(object * obj);
+char is_output_port_opened(object * obj);
+char is_input_port_opened(object * obj);
+void set_output_port_opened(object * obj, char opened);
+void set_input_port_opened(object * obj, char opened);
 char is_dir_stream(object *obj);
 char is_eof_object(object *obj);
 

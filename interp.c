@@ -447,11 +447,14 @@ DEFUN1(open_output_port_proc) {
 
 DEFUN1(close_output_port_proc) {
   object *obj = FIRST;
+  if (!is_output_port_opened(obj))
+    return g->false;
   FILE *out = OUTPUT(obj);
   if (is_output_port_pipe(obj))
     pclose(out);
   else
     fclose(out);
+  set_output_port_opened(obj, 0);
   return g->true;
 }
 
@@ -466,11 +469,14 @@ DEFUN1(open_input_port_proc) {
 
 DEFUN1(close_input_port_proc) {
   object *obj = FIRST;
+  if (!is_input_port_opened(obj))
+    return g->false;
   FILE *in = INPUT(obj);
   if (is_input_port_pipe(obj))
     pclose(in);
   else
     fclose(in);
+  set_input_port_opened(obj, 0);
   return g->true;
 }
 
