@@ -60,6 +60,10 @@ of a token.")
      (#t (begin (unread-char ch port)
 		(list 'unquote (read:read port)))))))
 
+(define-macro-character (#\" port)
+  "String reader macro."
+  (read:slurp-atom port 'stop? (lambda (ch) (eq? #\" ch))))
+
 ;; Token predicates
 
 (define (read:lp? token)
@@ -79,7 +83,7 @@ of a token.")
 
 ;; Read functions
 
-(define read:from-token identity) ; TODO
+(define read:from-token string->symbol) ; TODO
 
 (define (read:read port)
   "Read an s-expression or object from the port."
@@ -103,23 +107,25 @@ of a token.")
   "Read the next token from the port."
   (let ((ch (read-char port)))
     (cond
+     ((eof-object? ch) (cons 'eof ch))
+     ((macro-character? ch) (cons 'obj ((get-macro-character ch) port)))
+     ((whitespace? ch) (read:token port))
      ((eq? #\( ch) (cons 'lp ch))
      ((eq? #\) ch) (cons 'rp ch))
-     ((whitespace? ch) (read:token port))
-     ((eof-object? ch) (cons 'eof ch))
-     (#t (cons 'obj (read:slurp-atom port ch))))))
+     (#t (cons 'obj (begin (unread-char ch port)
+			   (read:from-token (read:slurp-atom port))))))))
 
-(define (read:slurp-atom port . init)
+(define (read:slurp-atom port (stop? whitespace?))
   "Read until the next whitespace."
-  (let ((ch (car-else init (read-char port))))
+  (let ((ch (read-char port)))
     (cond
      ((eof-object? ch) "")
-     ((whitespace? ch) "")
+     ((stop? ch) "")
      ((paren? ch) (begin (unread-char ch port) ""))
      ((eq? ch #\\) (string-append (char->string (read:escaped port))
-				  (read:slurp-atom port)))
-     ((macro-character? ch) ((get-macro-character ch) port))
-     (#t (string-append (char->string ch) (read:slurp-atom port))))))
+				  (read:slurp-atom port 'stop? stop?)))
+     (#t (string-append (char->string ch)
+			(read:slurp-atom port 'stop? stop?))))))
 
 (define (read:escaped port)
   "Read an escaped character, and throw an error on EOF."
