@@ -65,6 +65,18 @@ of a token.")
 (set-dispatch-macro-character! #\t (always #t))
 (set-dispatch-macro-character! #\f (always #f))
 
+(define-syntax (define-dispatch-macro-character char-and-port . body)
+  "Define-style syntax for creating dispatch reader macros on #."
+  (let ((char (first char-and-port))
+	(port (second char-and-port)))
+    `(set-dispatch-macro-character! ,char
+				    (lambda (,port)
+				      ,@body))))
+
+(define-dispatch-macro-character (#\( port)
+  "Read in a vector."
+  (apply vector (read:list port)))
+
 ;; Define some reader macros
 
 (define-macro-character (#\' port)
