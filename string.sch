@@ -35,3 +35,7 @@
 (define (string=? . args)
   "Return #t if all strings arguments are equal?."
   (every-pair? equal? args))
+
+(define (char->string char)
+  "Return a string containing only char."
+  (make-string 1 char))
