@@ -193,7 +193,7 @@ of a token.")
      ((eof-object? ch) (if allow-eof "" (throw-error "unexpected eof" "")))
      ((stop? ch) "")
      ((and allow-eof (eq? ch #\;)) (begin (read:eat-comment port) ""))
-     ((paren? ch) (begin (unread-char ch port) ""))
+     ((and allow-eof (paren? ch)) (begin (unread-char ch port) ""))
      ((eq? ch #\\) (string-append (char->string (read:escaped port))
 				  (read:slurp-atom port 'stop? stop?
 						   'allow-eof allow-eof)))
