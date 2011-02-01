@@ -62,9 +62,6 @@ of a token.")
 	    (throw-error "unknown dispatch # macro" ch)
 	    (fn port)))))
 
-(set-dispatch-macro-character! #\t (always #t))
-(set-dispatch-macro-character! #\f (always #f))
-
 (define-syntax (define-dispatch-macro-character char-and-port . body)
   "Define-style syntax for creating dispatch reader macros on #."
   (let ((char (first char-and-port))
@@ -72,11 +69,6 @@ of a token.")
     `(set-dispatch-macro-character! ,char
 				    (lambda (,port)
 				      ,@body))))
-
-(define-dispatch-macro-character (#\( port)
-  "Read in a vector."
-  (apply vector (read:list port)))
-
 ;; Define some reader macros
 
 (define-macro-character (#\' port)
@@ -99,6 +91,13 @@ of a token.")
 (define-macro-character (#\" port)
   "String reader macro."
   (read:slurp-atom port 'stop? (lambda (ch) (eq? #\" ch))))
+
+(set-dispatch-macro-character! #\t (always #t))
+(set-dispatch-macro-character! #\f (always #f))
+
+(define-dispatch-macro-character (#\( port)
+  "Read in a vector."
+  (apply vector (read:list port)))
 
 ;; Token predicates
 
