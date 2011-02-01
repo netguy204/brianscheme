@@ -146,6 +146,7 @@ of a token.")
      ((eof-object? ch) (cons 'eof ch))
      ((macro-character? ch) (cons 'obj ((get-macro-character ch) port)))
      ((whitespace? ch) (read:token port))
+     ((eq? ch #\;) (begin (read:eat-comment port) (read:token port)))
      ((eq? #\( ch) (cons 'lp ch))
      ((eq? #\) ch) (cons 'rp ch))
      (#t (cons 'obj (begin (unread-char ch port)
@@ -157,11 +158,15 @@ of a token.")
     (cond
      ((eof-object? ch) "")
      ((stop? ch) "")
+     ((eq? ch #\;) (begin (read:eat-comment port) ""))
      ((paren? ch) (begin (unread-char ch port) ""))
      ((eq? ch #\\) (string-append (char->string (read:escaped port))
 				  (read:slurp-atom port 'stop? stop?)))
      (#t (string-append (char->string ch)
 			(read:slurp-atom port 'stop? stop?))))))
+
+(define read:eat-comment read-line
+  "Consume stream until the end of the line.")
 
 (define (read:escaped port)
   "Read an escaped character, and throw an error on EOF."
