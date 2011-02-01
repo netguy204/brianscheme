@@ -184,7 +184,7 @@ of a token.")
      ((eq? ch #\;) (begin (read:eat-comment port) (read:token port)))
      ((eq? #\( ch) (cons 'lp ch))
      ((eq? #\) ch) (cons 'rp ch))
-     ((and (eq? #\. ch) (eq? #\space (peek-char port))) (cons 'dot ch))
+     ((and (eq? #\. ch) (whitespace? (peek-char port))) (cons 'dot ch))
      (#t (cons 'obj (begin (unread-char ch port)
 			   (read:from-token (read:slurp-atom port))))))))
 
