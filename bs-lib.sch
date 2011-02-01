@@ -53,6 +53,7 @@
 
 (define (bs-exec cmd args)
   "Execute user command."
+  (load-config)
   (cond
    ((equal? cmd "help")   (bs-help   args))
    ((equal? cmd "init")   (bs-init   args))
@@ -86,7 +87,7 @@
 (define (bs-new args)
   "Create a new issue."
   (let ((id (number->string (create-id))))
-    (write-issue (list 'id id 'user "user" 'title (car args) 'status 'open))
+    (write-issue (list 'id id 'user *full* 'title (car args) 'status 'open))
     (display (string-append "Created issue " id "\n"))))
 
 (define (bs-commit args)
@@ -106,9 +107,7 @@
   "Print out the issue summary in one line."
   (when (eq? (plist-get issue 'status) 'open)
     (display (plist-get issue 'id))
-    (display "    ")
-    (display (plist-get issue 'user))
-    (display "    ")
+    (display "  ")
     (display (plist-get issue 'title))
     (display "\n")))
 
@@ -150,6 +149,14 @@
     (display "No database changes to commit.\n")))
 
 ;; Environment
+
+(define (load-config)
+  "Load configuration into global variables."
+  (let ((config (get-config)))
+    (define *user* (plist-get config 'user))
+    (define *email* (plist-get config 'email))
+    (define *full* (string-append *user* " <" *email* ">"))
+    config))
 
 (define (get-config)
   "Fetch configuration."
