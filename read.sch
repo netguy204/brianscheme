@@ -1,3 +1,9 @@
+;;; read.sch --- a flexible BS reader
+
+;; This reader takes over for the C reader, being much more flexible.
+
+;; General functions
+
 (define *whitespace-characters* (string->list " \n	"))
 
 (define (whitespace? ch)
@@ -9,7 +15,39 @@
   (or (eq? ch #\()
       (eq? ch #\))))
 
-(define read:from-token identity)
+;; Reader macros
+
+(define *macro-characters* '()
+  "Characters that dispatch reader macros when read at the beginning
+of a token.")
+
+(define (set-macro-character! ch fn)
+  "Add reader macro for the given character."
+  (set! *macro-characters* (assq-set! *macro-characters* ch fn)))
+
+(define-syntax (define-macro-character char-and-port . body)
+  "Define-style syntax for creating reader macros."
+  (let ((char (first char-and-port))
+	(port (second char-and-port)))
+    `(set-macro-character! ,char
+			   (lambda (,port)
+			     ,@body))))
+
+(define (macro-character? ch)
+  "Return #t if character is a macro character."
+  (assq ch *macro-characters*))
+
+(define (get-macro-character ch)
+  "Return the macro character function for the character."
+  (cdr (assq ch *macro-characters*)))
+
+;; Define some reader macros
+
+(define-macro-character (#\' port)
+  "Quote reader macro."
+  (list 'quote (read:read port)))
+
+;; Token predicates
 
 (define (read:lp? token)
   "Is token the left parenthesis?"
@@ -25,6 +63,10 @@
 
 (define (read:eof? token)
   (eq? (car token) 'eof))
+
+;; Read functions
+
+(define read:from-token identity) ; TODO
 
 (define (read:read port)
   "Read an s-expression or object from the port."
@@ -63,6 +105,7 @@
      ((paren? ch) (begin (unread-char ch port) ""))
      ((eq? ch #\\) (string-append (char->string (read:escaped port))
 				  (read:slurp-atom port)))
+     ((macro-character? ch) ((get-macro-character ch) port))
      (#t (string-append (char->string ch) (read:slurp-atom port))))))
 
 (define (read:escaped port)
