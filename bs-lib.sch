@@ -36,6 +36,8 @@
 (define bs-dir ".bs"
   "Location of issue database.")
 
+(define bs-config (string-append (or (getenv "HOME") "") "/.bsconfig"))
+
 (define default-msg "Update bs database.")
 
 (define (process-args-img)
@@ -147,3 +149,23 @@
                (git add bs-dir)
                (git commit "-qm" msg))
     (display "No database changes to commit.\n")))
+
+;; Environment
+
+(define (get-config)
+  "Fetch configuration."
+  (if (file-exists? bs-config)
+      (call-with-input-file bs-config read-port)
+      (get-git-config)))
+
+(define (get-git-config)
+  "Derive a config from Git."
+  (let* ((name-in (open-input-pipe "git config user.name"))
+         (mail-in (open-input-pipe "git config user.email"))
+         (res (list 'user (read-line name-in) 'email (read-line mail-in))))
+    (close-input-port name-in)
+    (close-input-port mail-in)
+    (if (or (= 0 (string-length (plist-get res 'user)))
+            (= 0 (string-length (plist-get res 'email))))
+        (list 'user "unknown" 'email "unknown")
+        res)))
