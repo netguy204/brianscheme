@@ -93,3 +93,8 @@
                         (iter (string-append str (char->string next))
                               (read-char in))))))
     (iter "" (read-char in))))
+
+(define (flush-output out)
+  "Flush output port buffer."
+  (assert-types (out output-port?))
+  (%flush-output out))

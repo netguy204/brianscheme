@@ -681,6 +681,10 @@ DEFUN1(unread_char_proc) {
   return g->true;
 }
 
+DEFUN1(flush_output_proc) {
+  return AS_BOOL(fflush(OUTPUT(FIRST)) == 0);
+}
+
 DEFUN1(port_dump_proc) {
   FILE *in = INPUT(FIRST);
   FILE *out = OUTPUT(SECOND);
@@ -1463,6 +1467,7 @@ void init_prim_environment(definer defn) {
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
   add_procedure("unread-char", unread_char_proc);
+  add_procedure("%flush-output", flush_output_proc);
   add_procedure("%port-dump", port_dump_proc);
 
   add_procedure("eval", eval_proc);
