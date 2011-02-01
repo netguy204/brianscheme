@@ -34,20 +34,47 @@
 ;;  database change into Git. There will be an option switch to not do
 ;;  this.
 
-(define bs-dir ".bs"
+(require 'getopt)
+
+(define *bs-dir* ".bs"
   "Location of issue database.")
 
-(define bs-config (string-append (or (getenv "HOME") "") "/.bsconfig"))
+(define *bs-config* (string-append (or (getenv "HOME") "") "/.bsconfig")
+  "Location of global config file.")
 
-(define default-msg "Update bs database.")
+(define *editor* (or (getenv "EDITOR") "nano")
+  "User's editor.")
+
+(define *default-msg* "[issue] Update bs database."
+  "Default commit message.")
+
+(define *tmp-file* ".git/BS_EDIT"
+  "Temporary EDITOR file.")
+
+(define *priorities* '(low normal high urgent)
+  "Priorities in order, 0-4.")
+
+;; Argument processing
 
 (define (process-args-img)
   "Process arguments as an image."
+  (define *argv* *args*)
   (bs-exec (first *args*) (cdr *args*)))
 
 (define (process-args)
   "Process arguments as a script."
+  (define *argv* (cdr *args*))
   (bs-exec (second *args*) (cddr *args*)))
+
+(define (optlist opts)
+  "Turn arguments into a plist."
+  (letrec ((iter (lambda (opt)
+                   (if opt
+                       (append (list (string->symbol
+                                      (char->string opt)) *optarg*)
+                               (iter (getopt opts)))
+                       '()))))
+    (iter (getopt opts))))
 
 ;; Command processing
 
@@ -67,7 +94,7 @@
 
 (define (bs-init args)
   "Initialize bs database in current directory."
-  (if (mkdir bs-dir)
+  (if (mkdir *bs-dir*)
       (display "Initialized empty issue database.\n")
       (display "Failed to initialize database.\n")))
 
@@ -81,24 +108,31 @@
 
 (define (bs-list args)
   "List the current issues."
-  (dolist (issue (dir bs-dir))
+  (dolist (issue (dir *bs-dir*))
     (print-issue-short (fetch-issue issue))))
 
 (define (bs-new args)
   "Create a new issue."
-  (let ((id (number->string (create-id))))
-    (write-issue (list 'id id 'user *full* 'title (car args) 'status 'open))
-    (display (string-append "Created issue " id "\n"))))
+  (let* ((opts (optlist "np:t:"))
+         (id (number->string (create-id)))
+         (title (or (plist-get opts 't) (edit-message)))
+         (priority (priority (plist-get opts 'p)))
+         (issue (list 'id id 'priority priority 'user *full*
+                      'title title 'status 'open)))
+    (write-issue issue)
+    (print-issue-short issue)
+    (display (string-append "Created issue " id "\n"))
+    (commit (string-append "[issue] " title))))
 
 (define (bs-commit args)
   "Commit current database to the repository."
-  (commit (car-else args default-msg)))
+  (commit (car-else args *default-msg*)))
 
 ;; Issue handling
 
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
-  (let ((port (open-input-port (string-append bs-dir "/" name))))
+  (let ((port (open-input-port (string-append *bs-dir* "/" name))))
     (if (eof-object? port)
         '()
         (read-port port))))
@@ -114,7 +148,7 @@
 (define (write-issue issue)
   "Write the given issue to the database."
   (let ((port (open-output-port
-               (string-append bs-dir "/" (plist-get issue 'id)))))
+               (string-append *bs-dir* "/" (plist-get issue 'id)))))
     (write-port issue port)
     (close-output-port port)))
 
@@ -144,7 +178,7 @@
 (define (commit msg)
   "Commit all current changes into the git repository."
   (unless (and (git reset)
-               (git add bs-dir)
+               (git add *bs-dir*)
                (git commit "-qm" msg))
     (display "No database changes to commit.\n")))
 
@@ -160,8 +194,8 @@
 
 (define (get-config)
   "Fetch configuration."
-  (if (file-exists? bs-config)
-      (call-with-input-file bs-config read-port)
+  (if (file-exists? *bs-config*)
+      (call-with-input-file *bs-config* read-port)
       (get-git-config)))
 
 (define (get-git-config)
@@ -175,3 +209,25 @@
             (= 0 (string-length (plist-get res 'email))))
         (list 'user "unknown" 'email "unknown")
         res)))
+
+(define (edit-message)
+  "Summon the EDITOR to interact with the user."
+  (close-output-port (open-output-port *tmp-file*))
+  (system (string-append *editor* " " *tmp-file*))
+  (let*  ((port (open-input-port *tmp-file*))
+          (title (read-line port)))
+    (close-output-port port)
+    title))
+
+;; Misc
+
+(define (priority p)
+  "Return the appropriate priority symbol."
+  ;; Waiting on read-string to make this useful.
+  (let ((p (if (string? p) (string->symbol p) p)))
+    (cond
+     ((null? p) (priority 1))
+     ((and (number? p) (>= p 0) (<= p (length *priorities*)))
+      (list-ref *priorities* p))
+     ((and (symbol? p) (member? p *priorities*)) p)
+     (#t (throw-error "unknown priority" p)))))
