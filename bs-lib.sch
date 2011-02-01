@@ -114,6 +114,7 @@
 (define (bs-new args)
   "Create a new issue."
   (let* ((opts (optlist "np:t:"))
+         (do-commit (not (plist-get opts 'n)))
          (id (number->string (create-id)))
          (title (or (plist-get opts 't) (edit-message)))
          (priority (priority (plist-get opts 'p)))
@@ -122,7 +123,8 @@
     (write-issue issue)
     (print-issue-short issue)
     (display (string-append "Created issue " id "\n"))
-    (commit (string-append "[issue] " title))))
+    (if do-commit
+        (commit (string-append "[issue] " title)))))
 
 (define (bs-commit args)
   "Commit current database to the repository."
