@@ -233,3 +233,7 @@ of a token.")
 	   (every? digit? (delq #\. (cdr lst))))
       (string->number str))		; real
      (#t (string->symbol str)))))	; everything else is a symbol
+
+;; Take over for old reader
+(define read read:read)
+(define read-port read:read)
