@@ -791,7 +791,10 @@ not be quoted or escaped."
       (ass-set! (lambda (assf alist key value)
                   (let ((pair (assf key alist)))
                     (if pair
-                        (set-cdr! pair value))))))
+                        (begin
+			  (set-cdr! pair value)
+			  alist)
+			(cons (cons key value) alist))))))
 
   (define (assq key list)
     "Find the first pair in list thats car is eq? to key."
