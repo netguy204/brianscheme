@@ -18,6 +18,7 @@
 (define (clos-repl)
   (letrec ((repl-loop
 	    (lambda ()
+	      (display "bs> ")
 	      (let* ((exp (read-port stdin))
 		     (res (eval exp)))
 

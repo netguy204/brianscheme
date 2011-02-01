@@ -84,7 +84,7 @@
 (require 'conditions)
 (require 'math)
 (require 'clos)
-;(require 'read)
+(require 'read)
 (require 'clos-repl)
 (require 'image)
 (require 'random)
