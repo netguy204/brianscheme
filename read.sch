@@ -125,6 +125,8 @@ of a token.")
       (begin (read:slurp-atom port) #\newline))
      ((and (eq? ch #\s) (eq? peek #\p))
       (begin (read:slurp-atom port) #\space))
+     ((and (eq? ch #\t) (eq? peek #\a))
+      (begin (read:slurp-atom port) #\tab))
      (#t ch))))
 
 ;; Token predicates
