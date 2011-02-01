@@ -23,3 +23,6 @@
 
 (define (always x)
   (lambda args x))
+
+(define (identity x)
+  x)
