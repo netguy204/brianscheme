@@ -48,6 +48,8 @@
   "Process arguments as a script."
   (bs-exec (second *args*) (cddr *args*)))
 
+;; Command processing
+
 (define (bs-exec cmd args)
   "Execute user command."
   (cond
@@ -90,6 +92,8 @@
   "Commit current database to the repository."
   (commit (car-else args default-msg)))
 
+;; Issue handling
+
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
   (let ((port (open-input-port (string-append bs-dir "/" name))))
@@ -121,13 +125,7 @@
         (create-id)
         id)))
 
-(define (to-string-arg s)
-  "Convert object into something usable as a command line argument."
-  (string-append
-   (cond
-    ((string? s) s)
-    ((symbol? s) (symbol->string s)))
-   " "))
+;; Committing
 
 (define (string-prot s)
   "Protect string for use in the shell."
