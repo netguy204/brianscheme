@@ -41,6 +41,30 @@ of a token.")
   "Return the macro character function for the character."
   (cdr (assq ch *macro-characters*)))
 
+(define *dispatch-macro-characters* '()
+  "Character macros that dispatch on #.")
+
+(define (set-dispatch-macro-character! ch fn)
+  "Add # reader macro for the given character."
+  (set! *dispatch-macro-characters*
+	(assq-set! *dispatch-macro-characters* ch fn)))
+
+(define (get-dispatch-macro-character ch)
+  "Return the macro character function for the character."
+  (cdr (assq ch *dispatch-macro-characters*)))
+
+(define-macro-character (#\# port)
+  (let* ((ch (read-char port))
+	 (fn (get-dispatch-macro-character ch)))
+    (if (eof-object? ch)
+	(throw-error "unexpected eof in dispatch macro" "#")
+	(if (not fn)
+	    (throw-error "unknown dispatch # macro" ch)
+	    (fn port)))))
+
+(set-dispatch-macro-character! #\t (always #t))
+(set-dispatch-macro-character! #\f (always #f))
+
 ;; Define some reader macros
 
 (define-macro-character (#\' port)
