@@ -119,7 +119,7 @@ of a token.")
 (define-dispatch-macro-character (#\\ port)
   "Read a character."
   (let ((ch (read-char-safe port))
-	(peek (read-char port)))
+	(peek (peek-char port)))
     (cond
      ((and (eq? ch #\n) (eq? peek #\e))
       (begin (read:slurp-atom port) #\newline))
