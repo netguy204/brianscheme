@@ -188,20 +188,51 @@ of a token.")
      (#t (cons 'obj (begin (unread-char ch port)
 			   (read:from-token (read:slurp-atom port))))))))
 
-(define (read:slurp-atom port (stop? whitespace?) (allow-eof #t))
+(define (read:make-buf (size 16))
+  "Create a new string buffer."
+  (list 0 size (make-string size)))
+
+(define (read:buf-add! buffer ch)
+  "Add character to buffer, expanding if needed."
+  (let ((next (first buffer))
+	(size (second buffer))
+	(buf (third buffer)))
+    (if (= next size)
+	(let ((newbuf (read:make-buf 'size (* size 2))))
+	  (dotimes (i size)
+	    (string-set! (third newbuf) i (string-ref buf i)))
+	  (read:buf-add! (cons next (cdr newbuf)) ch))
+	(begin
+	  (string-set! buf next ch)
+	  (list (+ 1 next) size buf)))))
+
+(define (read:buf-trim buffer)
+  "Return a trimmed string of the buffer."
+  (substring (third buffer) 0 (first buffer)))
+
+(define (read:slurp-atom port (stop? whitespace?) (allow-eof #t)
+			 (buffer #f))
   "Read until the next whitespace."
-  (let ((ch (read-char port)))
+  (let ((ch (read-char port))
+	(buffer (or buffer (read:make-buf))))
     (cond
-     ((eof-object? ch) (if allow-eof "" (throw-error "unexpected eof" "")))
-     ((stop? ch) "")
-     ((and allow-eof (eq? ch #\;)) (begin (read:eat-comment port) ""))
-     ((and allow-eof (paren? ch)) (begin (unread-char ch port) ""))
-     ((eq? ch #\\) (string-append (char->string (read:escaped port))
-				  (read:slurp-atom port 'stop? stop?
-						   'allow-eof allow-eof)))
-     (#t (string-append (char->string ch)
-			(read:slurp-atom port 'stop? stop?
-					 'allow-eof allow-eof))))))
+     ((eof-object? ch) (if allow-eof
+			   (read:buf-trim buffer)
+			   (throw-error "unexpected eof" "")))
+     ((stop? ch) (read:buf-trim buffer))
+     ((and allow-eof (eq? ch #\;)) (begin (read:eat-comment port)
+					  (read:buf-trim buffer)))
+     ((and allow-eof (paren? ch)) (begin (unread-char ch port)
+					 (read:buf-trim buffer)))
+     ((eq? ch #\\)
+      (read:slurp-atom port
+		       'stop? stop?
+		       'allow-eof allow-eof
+		       'buffer (read:buf-add! buffer (read:escaped port))))
+     (#t (read:slurp-atom port
+			  'stop? stop?
+			  'allow-eof allow-eof
+			  'buffer (read:buf-add! buffer ch))))))
 
 (define read:eat-comment read-line
   "Consume stream until the end of the line.")
