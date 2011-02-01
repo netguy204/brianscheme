@@ -84,3 +84,12 @@
   "Open a process to write to it (popen)."
   (assert-types (name string?))
   (%open-output-pipe name))
+
+(define (read-line in)
+  "Read the next line from the input port."
+  (letrec ((iter (lambda (str next)
+                    (if (or (eq? next #\newline) (eof-object? next))
+                        str
+                        (iter (string-append str (char->string next))
+                              (read-char in))))))
+    (iter "" (read-char in))))
