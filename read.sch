@@ -186,4 +186,7 @@ of a token.")
 (define (read:escaped port)
   "Read an escaped character, and throw an error on EOF."
   (let ((ch (read-char-safe port)))
-    ch))
+    (cond
+     ((eq? ch #\n) #\newline)
+     ((eq? ch #\t) #\tab)
+     (#t ch))))
