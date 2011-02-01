@@ -104,6 +104,17 @@ of a token.")
   "Read in a vector."
   (apply vector (read:list port)))
 
+(define-dispatch-macro-character (#\\ port)
+  "Read a character."
+  (let ((ch (read-char-safe port))
+	(peek (read-char port)))
+    (cond
+     ((and (eq? ch #\n) (eq? peek #\e))
+      (begin (read:slurp-atom port) #\newline))
+     ((and (eq? ch #\s) (eq? peek #\p))
+      (begin (read:slurp-atom port) #\space))
+     (#t ch))))
+
 ;; Token predicates
 
 (define (read:lp? token)
