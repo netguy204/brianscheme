@@ -98,6 +98,7 @@ of a token.")
 
 (set-dispatch-macro-character! #\t (always #t))
 (set-dispatch-macro-character! #\f (always #f))
+(set-dispatch-macro-character! #\! read-line)
 
 (define-dispatch-macro-character (#\( port)
   "Read in a vector."
