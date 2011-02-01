@@ -597,6 +597,12 @@ list"
 	(f (car l))
 	(for-each f (cdr l)))))
 
+(define-syntax (car-else obj alternate)
+  "return (car obj) if it's not null"
+  `(if (null? ,obj)
+       ,alternate
+       (car ,obj)))
+
 (define (read port)
   "read from a port"
   (read-port port))
@@ -658,12 +664,6 @@ list"
       "declare a given symbol as being satisfied"
       (push! (sym-to-name sym) required)
       sym)))
-
-(define (car-else obj alternate)
-  "return (car obj) if it's not null"
-  (if (null? obj)
-      alternate
-      (car obj)))
 
 (define (newline . port)
   "write a newline to port (defaults to stdout)"
