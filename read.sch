@@ -105,7 +105,8 @@ of a token.")
 
 (define-macro-character (#\" port)
   "String reader macro."
-  (read:slurp-atom port 'stop? (lambda (ch) (eq? #\" ch))))
+  (read:slurp-atom port 'stop? (lambda (ch) (eq? #\" ch))
+		   'allow-eof #f))
 
 (set-dispatch-macro-character! #\t (always #t))
 (set-dispatch-macro-character! #\f (always #f))
@@ -176,18 +177,20 @@ of a token.")
      (#t (cons 'obj (begin (unread-char ch port)
 			   (read:from-token (read:slurp-atom port))))))))
 
-(define (read:slurp-atom port (stop? whitespace?))
+(define (read:slurp-atom port (stop? whitespace?) (allow-eof #t))
   "Read until the next whitespace."
   (let ((ch (read-char port)))
     (cond
-     ((eof-object? ch) "")
+     ((eof-object? ch) (if allow-eof "" (throw-error "unexpected eof" "")))
      ((stop? ch) "")
      ((eq? ch #\;) (begin (read:eat-comment port) ""))
      ((paren? ch) (begin (unread-char ch port) ""))
      ((eq? ch #\\) (string-append (char->string (read:escaped port))
-				  (read:slurp-atom port 'stop? stop?)))
+				  (read:slurp-atom port 'stop? stop?
+						   'allow-eof allow-eof)))
      (#t (string-append (char->string ch)
-			(read:slurp-atom port 'stop? stop?))))))
+			(read:slurp-atom port 'stop? stop?
+					 'allow-eof allow-eof))))))
 
 (define read:eat-comment read-line
   "Consume stream until the end of the line.")
