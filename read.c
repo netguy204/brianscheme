@@ -194,6 +194,16 @@ object *read_character(read_buffer * in) {
 
       return make_character('\n');
     }
+  case 't':
+    if(peek(in) == 'a') {
+      object *result = eat_expected_string(in, "ab");
+      if(is_primitive_exception(result)) return result;
+
+      result = peek_expected_delimiter(in);
+      if(is_primitive_exception(result)) return result;
+
+      return make_character('\t');
+    }
     break;
   }
   object *result = peek_expected_delimiter(in);
@@ -442,6 +452,9 @@ object *lisp_read(read_buffer * in) {
 	}
 	else if(c == '"') {
 	  c = '"';
+	}
+	else if(c == 't') {
+	  c = '\t';
 	}
       }
       if(c == EOF) {
