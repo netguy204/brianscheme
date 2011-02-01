@@ -214,8 +214,10 @@ of a token.")
 	       (and (not signed)
 		    (every? digit? lst)))
 	   (string->number str)))	; integer
-     ((and (or (and signed (every? digit? (delq #\. (cdr lst))))
-	       (and (not signed) (every? digit? (delq #\. lst))))
+     ((and (or (and signed (every? digit? (delq #\. (cdr lst)))
+		    (not (null? (cdr lst))))
+	       (and (not signed) (every? digit? (delq #\. lst))
+		    (not (null? (delq #\. lst)))))
 	   (= 1 (count-member #\. lst))
 	   (every? digit? (delq #\. (cdr lst))))
       (string->number str))		; real
