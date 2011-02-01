@@ -1484,7 +1484,7 @@ void init_prim_environment(definer defn) {
   add_procedure("string->uninterned-symbol",
 		string_to_uninterned_symbol_proc);
 
-  add_procedure("prim-concat", concat_proc);
+  add_procedure("%prim-concat", concat_proc);
 
   add_procedure("exit", exit_proc);
   add_procedure("interpreter-stats", stats_proc);
