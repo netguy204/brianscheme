@@ -959,6 +959,9 @@ object *owrite(FILE * out, object * obj) {
     case ' ':
       fprintf(out, "space");
       break;
+    case '\t':
+      fprintf(out, "tab");
+      break;
     default:
       putc(c, out);
     }
