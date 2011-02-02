@@ -931,21 +931,13 @@
 (define <symbol>      (make-primitive-class nil '<symbol>))
 (define <boolean>     (make-primitive-class nil '<boolean>))
 (define <procedure>   (make-primitive-class <procedure-class> '<procedure>))
-
 (define <syntax-procedure>
-  (make <class>
-    'direct-supers (list <procedure>)
-    'class-name '<syntax-procedure>))
+  (make-primitive-class <procedure-class> '<syntax-procedure>))
 
 (define <compiled-procedure>
-  (make <class>
-    'direct-supers (list <procedure>)
-    'class-name '<compiled-procedure>))
-
+  (make-primitive-class <procedure-class> '<compiled-procedure>))
 (define <compiled-syntax-procedure>
-  (make <class>
-    'direct-supers (list <compiled-procedure> <syntax-procedure>)
-    'class-name '<compiled-syntax-procedure>))
+  (make-primitive-class <procedure-class> '<compiled-syntax-procedure>))
 
 (define <number>      (make-primitive-class nil '<number>))
 (define <integer>     (make <class>
