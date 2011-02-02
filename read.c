@@ -20,90 +20,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#ifndef NO_READLINE
-#include <editline.h>
-#endif
-
 #include "types.h"
 #include "read.h"
 #include "gc.h"
 /*temp*/
 #include "interp.h"
-
-char *prompt = "> ";
-
-typedef struct {
-  FILE *stream;
-  char *buffer, *p;
-  int ungetc;
-  char *history;
-} read_buffer;
-
-char *xstrdup(char *str) {
-  char *newstr = xmalloc(strlen(str) + 1);
-  strncpy(newstr, str, strlen(str) + 1);
-  return newstr;
-}
-
-/* Append the current buffer to the history. */
-void grow_history(read_buffer * in) {
-  if(in->buffer == NULL || (strlen(in->buffer) == 0))
-    return;
-  if(in->history == NULL) {
-    in->history = xstrdup(in->buffer);
-    return;
-  }
-  size_t histlen = strlen(in->history);
-  size_t bufflen = strlen(in->buffer);
-  in->history = realloc(in->history, histlen + bufflen + 2);
-  in->history[histlen] = '\n';
-  strncpy(in->history + histlen + 1, in->buffer, bufflen + 1);
-}
-
-/* Wraps calls to getc() to work on our buffer. */
-int read_getc(read_buffer * in) {
-#ifdef NO_READLINE
-  if(1) {
-#else
-  if(in->stream != stdin) {
-#endif
-    return getc(in->stream);
-  }
-  if(in->ungetc != -1) {
-    char c = in->ungetc;
-    in->ungetc = -1;
-    return c;
-  }
-  if(in->p != NULL && *in->p == '\0') {
-    in->p = NULL;
-    return '\n';
-  }
-  if(in->p == NULL) {
-    free(in->buffer);
-#ifndef NO_READLINE
-    in->buffer = in->p = readline(in->history == NULL ? prompt : "");
-#endif
-    grow_history(in);
-    if(in->buffer == NULL)
-      return EOF;
-    return read_getc(in);
-  }
-  return *in->p++;
-}
-
-/* Wraps calls to ungetc() to work on our buffer. */
-void read_ungetc(char c, read_buffer * in) {
-#ifdef NO_READLINE
-  if(1) {
-#else
-  if(in->stream != stdin) {
-#endif
-    ungetc(c, in->stream);
-  }
-  else {
-    in->ungetc = c;
-  }
-}
 
 char is_delimiter(int c) {
   return isspace(c) || c == EOF ||
@@ -116,39 +37,38 @@ char is_initial(char c) {
     c == '?' || c == '!' || c == '&' || c == '.' || c == ':' || c == '%';
 }
 
-int peek(read_buffer * in) {
-  int c;
-  c = read_getc(in);
-  read_ungetc(c, in);
+int peek(FILE * in) {
+  int c = getc(in);
+  ungetc(c, in);
   return c;
 }
 
-int eat_whitespace(read_buffer * in) {
+int eat_whitespace(FILE * in) {
   int c;
 
-  while((c = read_getc(in)) != EOF) {
+  while((c = getc(in)) != EOF) {
     if(isspace(c)) {
       continue;
     }
     else if(c == ';') {
       /* eat until eol */
-      while(((c = read_getc(in)) != EOF) && (c != '\n')) {
+      while(((c = getc(in)) != EOF) && (c != '\n')) {
 	continue;
       }
       if(c == EOF)
 	return c;
       return eat_whitespace(in);
     }
-    read_ungetc(c, in);
+    ungetc(c, in);
     break;
   }
   return c;
 }
 
-object *eat_expected_string(read_buffer * in, char *str) {
+object *eat_expected_string(FILE * in, char *str) {
   int c;
   while(*str != '\0') {
-    c = read_getc(in);
+    c = getc(in);
     if(c != *str) {
       return throw_message("unexpected character '%c'", c);
     }
@@ -157,19 +77,19 @@ object *eat_expected_string(read_buffer * in, char *str) {
   return g->true;
 }
 
-object *peek_expected_delimiter(read_buffer * in) {
+object *peek_expected_delimiter(FILE * in) {
   if(!is_delimiter(peek(in))) {
     return throw_message("character not followed by delimiter");
   }
   return g->true;
 }
 
-object *lisp_read(read_buffer * in);
+object *lisp_read(FILE * in);
 
-object *read_character(read_buffer * in) {
+object *read_character(FILE * in) {
   int c;
 
-  c = read_getc(in);
+  c = getc(in);
   switch (c) {
   case EOF:
     return throw_message("incomplete character literal");
@@ -212,7 +132,7 @@ object *read_character(read_buffer * in) {
   return make_character(c);
 }
 
-object *read_pair(read_buffer * in) {
+object *read_pair(FILE * in) {
   int c;
   object *car_obj;
   object *cdr_obj;
@@ -220,11 +140,11 @@ object *read_pair(read_buffer * in) {
   if(eat_whitespace(in) == EOF)
     return throw_message("unexpected EOF");
 
-  c = read_getc(in);
+  c = getc(in);
   if(c == ')') {
     return g->empty_list;
   }
-  read_ungetc(c, in);
+  ungetc(c, in);
 
   car_obj = lisp_read(in);
   if(is_primitive_exception(car_obj)) return car_obj;
@@ -234,7 +154,7 @@ object *read_pair(read_buffer * in) {
   if(eat_whitespace(in) == EOF)
     return throw_message("unexpected EOF");
 
-  c = read_getc(in);
+  c = getc(in);
   if(c == '.') {
     object *temp = peek_expected_delimiter(in);
     if(is_primitive_exception(temp)) return temp;
@@ -246,7 +166,7 @@ object *read_pair(read_buffer * in) {
 
     if(eat_whitespace(in) == EOF)
       return throw_message("unexpected EOF");
-    c = read_getc(in);
+    c = getc(in);
     if(c != ')') {
       return throw_message("improper list missing trailing paren");
     }
@@ -258,7 +178,7 @@ object *read_pair(read_buffer * in) {
     return result;
   }
   else {
-    read_ungetc(c, in);
+    ungetc(c, in);
 
     cdr_obj = read_pair(in);
     if(is_primitive_exception(cdr_obj)) return cdr_obj;
@@ -272,7 +192,7 @@ object *read_pair(read_buffer * in) {
   }
 }
 
-object *read_vector(read_buffer * in) {
+object *read_vector(FILE * in) {
   int c;
   object *list_head;
   object *list_tail;
@@ -281,11 +201,11 @@ object *read_vector(read_buffer * in) {
   if(eat_whitespace(in) == EOF)
     return throw_message("unexpected EOF");
 
-  c = read_getc(in);
+  c = getc(in);
   if(c == ')') {
     return g->empty_vector;
   }
-  read_ungetc(c, in);
+  ungetc(c, in);
 
   object *val = lisp_read(in);
   if(is_primitive_exception(val)) return val;
@@ -300,9 +220,9 @@ object *read_vector(read_buffer * in) {
 
   if(eat_whitespace(in) == EOF)
     return throw_message("unexpected EOF");
-  c = read_getc(in);
+  c = getc(in);
   while(c != ')') {
-    read_ungetc(c, in);
+    ungetc(c, in);
 
     current = lisp_read(in);
     if(is_primitive_exception(current)) return current;
@@ -312,7 +232,7 @@ object *read_vector(read_buffer * in) {
 
     if(eat_whitespace(in) == EOF)
       return throw_message("unexpected EOF");
-    c = read_getc(in);
+    c = getc(in);
   }
 
   object *vector = list_to_vector(list_head);
@@ -323,16 +243,7 @@ object *read_vector(read_buffer * in) {
 }
 
 object *obj_read(FILE * in) {
-  read_buffer r;
-  r.stream = in;
-  r.buffer = r.p = r.history = NULL;
-  r.ungetc = -1;
-  object *obj = lisp_read(&r);
-  free(r.buffer);
-#ifndef NO_READLINE
-  add_history(r.history);
-#endif
-  return obj;
+  return lisp_read(in);
 }
 
 object *string_to_number(char *buffer) {
@@ -362,7 +273,7 @@ object *string_to_number(char *buffer) {
   }
 }
 
-object *read_number(char c, read_buffer * in) {
+object *read_number(char c, FILE * in) {
   char buffer[128];
   int idx = 0;
 
@@ -372,11 +283,11 @@ object *read_number(char c, read_buffer * in) {
     }
 
     buffer[idx++] = c;
-    c = read_getc(in);
+    c = getc(in);
   }
 
   if(is_delimiter(c)) {
-    read_ungetc(c, in);
+    ungetc(c, in);
   }
   else {
     return throw_message("number was not followed by delimiter");
@@ -387,7 +298,7 @@ object *read_number(char c, read_buffer * in) {
   return string_to_number(buffer);
 }
 
-object *lisp_read(read_buffer * in) {
+object *lisp_read(FILE * in) {
   int c;
   int i;
 #define BUFFER_MAX 1000
@@ -395,9 +306,9 @@ object *lisp_read(read_buffer * in) {
 
   if(eat_whitespace(in) == EOF)
     return NULL;
-  c = read_getc(in);
+  c = getc(in);
   if(c == '#') {
-    c = read_getc(in);
+    c = getc(in);
     switch (c) {
     case 't':
       return g->true;
@@ -409,7 +320,7 @@ object *lisp_read(read_buffer * in) {
       return read_vector(in);
     case '!':
       /* Treat like a comment. */
-      while(((c = read_getc(in)) != EOF) && (c != '\n'))
+      while(((c = getc(in)) != EOF) && (c != '\n'))
 	continue;
       return g->false;
     default:
@@ -428,14 +339,14 @@ object *lisp_read(read_buffer * in) {
       else {
 	return throw_message("symbol exceeded %d chars", BUFFER_MAX);
       }
-      c = read_getc(in);
+      c = getc(in);
       if(c == EOF) {
 	return throw_message("unexpected EOF");
       }
     }
     if(is_delimiter(c)) {
       buffer[i] = '\0';
-      read_ungetc(c, in);
+      ungetc(c, in);
       return make_symbol(buffer);
     }
     else {
@@ -444,9 +355,9 @@ object *lisp_read(read_buffer * in) {
   }
   else if(c == '"') {
     i = 0;
-    while((c = read_getc(in)) != '"') {
+    while((c = getc(in)) != '"') {
       if(c == '\\') {
-	c = read_getc(in);
+	c = getc(in);
 	if(c == 'n') {
 	  c = '\n';
 	}
@@ -484,14 +395,14 @@ object *lisp_read(read_buffer * in) {
     return quoted;
   }
   else if(c == ',') {
-    char next_char = read_getc(in);
+    char next_char = getc(in);
     object *qsym = g->unquote_symbol;
 
     if(next_char == '@') {
       qsym = g->unquotesplicing_symbol;
     }
     else {
-      read_ungetc(next_char, in);
+      ungetc(next_char, in);
     }
 
     object *unquoted = lisp_read(in);
