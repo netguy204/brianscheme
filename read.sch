@@ -129,6 +129,10 @@ of a token.")
       (begin (read:slurp-atom port) #\tab))
      (#t ch))))
 
+(define-dispatch-macro-character (#\< port)
+  "Produce an error."
+  (throw-error "unreadable object" "#<...>"))
+
 ;; Token predicates
 
 (define (read:lp? token)
