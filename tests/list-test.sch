@@ -1,0 +1,15 @@
+(require 'unittest)
+
+(define-test (list-test)
+  (let ((lst '((2 1) (1 1) (3 1) (3 2) (2 2) (1 2)))
+	(sorted '((1 1) (1 2) (2 1) (2 2) (3 1) (3 2)))
+	(plist '(name "Chris" fav-word language language Lisp)))
+    (check
+     (equal? sorted (stable-sort lst < 'key car))
+     (equal? (list 2 4 6 7) (sort (list 6 2 7 4) <))
+     (equal? "Chris" (plist-get plist 'name))
+     (eq? 'Lisp (plist-get plist 'language))
+     (plist-get plist 'no-such-key 'fail #t)
+     (equal? (list 3 4 5) (nthcdr 2 (list 1 2 3 4 5)))
+     (equal? lst (nthcdr 0 lst))
+     (equal? (list 10 10 10 10) (make-list 4 10)))))

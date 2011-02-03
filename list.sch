@@ -1,11 +1,20 @@
-(define (plist-get list key)
+(define (plist-get list key (fail #f))
   "Return property value in plist."
-  (second (member key list)))
+  (if (null? list)
+      fail
+      (if (eq? key (first list))
+	  (second list)
+	  (plist-get (cddr list) key 'fail fail))))
 
 (define (plist-set! list key value)
   "Set property value in plist."
-  (let ((rest (member key list)))
-    (set-cdr! rest (cons value (cddr rest)))))
+  (if (null? list)
+      #f
+      (if (eq? key (first list))
+	  (begin
+	    (set-cdr! list (cons value (cddr list)))
+	    value)
+	  (plist-set! (cddr list) key value))))
 
 (define (nthcdr n lst)
   "Return nth cdr of list."
