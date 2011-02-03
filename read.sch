@@ -247,18 +247,11 @@ of a token.")
 
 (define (read:from-token str)
   "Turn the token in the string into either an integer, real, or symbol."
-  (let* ((lst (string->list str))
-	 (signed (or (eq? (car lst) #\-) (eq? (car lst) #\+))))
+  (let ((lst (string->list str)))
     (cond
      ((integer-string-list? lst) (string->integer str))
-     ((and (or (and signed (every? digit? (delq #\. (cdr lst)))
-		    (not (null? (cdr lst))))
-	       (and (not signed) (every? digit? (delq #\. lst))
-		    (not (null? (delq #\. lst)))))
-	   (= 1 (count-member #\. lst))
-	   (every? digit? (delq #\. (cdr lst))))
-      (string->number str))		; real
-     (#t (string->symbol str)))))	; everything else is a symbol
+     ((real-string-list? lst)    (string->real str))
+     (#t                         (string->symbol str)))))
 
 ;; Take over for old reader
 (define read read:read)

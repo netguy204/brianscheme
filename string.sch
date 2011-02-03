@@ -79,3 +79,50 @@
     (if (not (integer-string-list? lst))
         (error "invalid integer in string" string)
         (string-list->integer lst))))
+
+(define (real-string-list? lst)
+  "Return #t if string-list contains a real."
+  (letrec ((iter (lambda (lst saw-dot)
+                   (cond
+                    ((null? lst) saw-dot)
+                    ((eq? (car lst) #\e) (integer-string-list? (cdr lst)))
+                    ((eq? (car lst) #\.)
+                     (if saw-dot
+                         #f
+                         (iter (cdr lst) #t)))
+                    ((digit? (car lst)) (iter (cdr lst) saw-dot))
+                    (#t #f)))))
+    (if (or (eq? (car lst) #\-)
+            (eq? (car lst) #\+))
+        (iter (cdr lst) #f)
+        (iter lst #f))))
+
+(define (real-string? string)
+  "Return #t if string contains a real."
+  (real-string-list? (string->list string)))
+
+(define (string-list->real lst)
+  "Convert real in string-list to real."
+  (letrec ((iter (lambda (number lst m1 m2 saw-dot)
+                   (cond
+                    ((null? lst) number)
+                    ((digit? (car lst))
+                     (iter (+ (* m1 number)
+                              (* m2 (index-of (curry eq? (car lst))
+                                              *digits*)))
+                           (cdr lst) m1 (if saw-dot (/ m2 10) m2) saw-dot))
+                    ((eq? (car lst) #\e)
+                     (* number (expt 10.0 (string-list->integer (cdr lst)))))
+                    ((eq? (car lst) #\.)
+                     (iter number (cdr lst) 1.0 0.1 #t))))))
+    (cond
+     ((eq? (car lst) #\-) (- (iter 0 (cdr lst) 10.0 1.0 #f)))
+     ((eq? (car lst) #\+) (iter 0 (cdr lst) 10.0 1.0 #f))
+     (#t(iter 0 lst 10.0 1.0 #f)))))
+
+(define (string->real string)
+  "Convert real in string to real."
+  (let ((lst (string->list string)))
+    (if (not (real-string-list? lst))
+        (error "invalid real in string" string)
+        (string-list->real lst))))
