@@ -15,10 +15,6 @@
   (or (eq? ch #\()
       (eq? ch #\))))
 
-(define (digit? ch)
-  "Return #t if character is a digit."
-  (member? ch (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)))
-
 (define (read-char-safe port)
   "Throw an error if read returns eof-object."
   (let ((ch (read-char port)))
@@ -254,12 +250,7 @@ of a token.")
   (let* ((lst (string->list str))
 	 (signed (or (eq? (car lst) #\-) (eq? (car lst) #\+))))
     (cond
-     ((and (or (and signed
-		    (every? digit? (cdr lst))
-		    (not (null? (cdr lst))))
-	       (and (not signed)
-		    (every? digit? lst)))
-	   (string->number str)))	; integer
+     ((integer-string? str) (string->integer str))
      ((and (or (and signed (every? digit? (delq #\. (cdr lst)))
 		    (not (null? (cdr lst))))
 	       (and (not signed) (every? digit? (delq #\. lst))

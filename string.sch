@@ -39,3 +39,36 @@
 (define (char->string char)
   "Return a string containing only char."
   (make-string 1 char))
+
+;; String number processing
+
+(define *digits* (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
+
+(define (digit? ch)
+  "Return #t if character is a digit."
+  (member? ch *digits*))
+
+(define (integer-string? string)
+  "Return #t iif string contains an integer."
+  (let ((lst (string->list string)))
+    (and (every? digit? (cdr lst))
+	 (or (and (or (eq? (car lst) #\-)
+		      (eq? (car lst) #\+))
+		  (not (null? (cdr lst))))
+	     (digit? (car lst))))))
+
+(define (string->integer string)
+  "Convert the integer in the string to an integer."
+  (if (not (integer-string? string))
+      (error "invalid integer in string" string))
+  (let ((lst (string->list string)))
+    (letrec ((iter (lambda (number lst)
+		     (if (null? lst)
+			 number
+			 (iter (+ (* 10 number)
+				  (index-of (curry eq? (car lst)) *digits*))
+			       (cdr lst))))))
+      (cond
+       ((eq? (car lst) #\-) (- (iter 0 (cdr lst))))
+       ((eq? (car lst) #\+) (iter 0 (cdr lst)))
+       (#t (iter 0 lst))))))
