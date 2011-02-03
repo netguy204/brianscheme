@@ -250,7 +250,7 @@ of a token.")
   (let* ((lst (string->list str))
 	 (signed (or (eq? (car lst) #\-) (eq? (car lst) #\+))))
     (cond
-     ((integer-string? str) (string->integer str))
+     ((integer-string-list? lst) (string->integer str))
      ((and (or (and signed (every? digit? (delq #\. (cdr lst)))
 		    (not (null? (cdr lst))))
 	       (and (not signed) (every? digit? (delq #\. lst))

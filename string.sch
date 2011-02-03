@@ -48,27 +48,34 @@
   "Return #t if character is a digit."
   (member? ch *digits*))
 
+(define (integer-string-list? lst)
+  "Return #t if string-list contains an integer."
+  (and (every? digit? (cdr lst))
+       (or (and (or (eq? (car lst) #\-)
+                    (eq? (car lst) #\+))
+                (not (null? (cdr lst))))
+           (digit? (car lst)))))
+
 (define (integer-string? string)
-  "Return #t iif string contains an integer."
-  (let ((lst (string->list string)))
-    (and (every? digit? (cdr lst))
-	 (or (and (or (eq? (car lst) #\-)
-		      (eq? (car lst) #\+))
-		  (not (null? (cdr lst))))
-	     (digit? (car lst))))))
+  "Return #t if string contains an integer."
+  (integer-string-list (string->list string)))
+
+(define (string-list->integer lst)
+  "Convert the integer in the string-list to an integer."
+  (letrec ((iter (lambda (number lst)
+                   (if (null? lst)
+                       number
+                       (iter (+ (* 10 number)
+                                (index-of (curry eq? (car lst)) *digits*))
+                             (cdr lst))))))
+    (cond
+     ((eq? (car lst) #\-) (- (iter 0 (cdr lst))))
+     ((eq? (car lst) #\+) (iter 0 (cdr lst)))
+     (#t (iter 0 lst)))))
 
 (define (string->integer string)
   "Convert the integer in the string to an integer."
-  (if (not (integer-string? string))
-      (error "invalid integer in string" string))
   (let ((lst (string->list string)))
-    (letrec ((iter (lambda (number lst)
-		     (if (null? lst)
-			 number
-			 (iter (+ (* 10 number)
-				  (index-of (curry eq? (car lst)) *digits*))
-			       (cdr lst))))))
-      (cond
-       ((eq? (car lst) #\-) (- (iter 0 (cdr lst))))
-       ((eq? (car lst) #\+) (iter 0 (cdr lst)))
-       (#t (iter 0 lst))))))
+    (if (not (integer-string-list? lst))
+        (error "invalid integer in string" string)
+        (string-list->integer lst))))
