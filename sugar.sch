@@ -4,7 +4,9 @@
 
 ;; This creates an Arc-like singe-argument lambda function.
 ;; [+ _ 5] -> (lambda (_) (+ _ 5))
-;; This relies on the #\] macro defined above.
+
+(define-macro-character (#\] port)
+  (throw-error "read unexpected ']'" #\]))
 
 (define-macro-character (#\[ port)
   `(lambda (_) ,(read:list port #\])))
