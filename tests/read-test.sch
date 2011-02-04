@@ -27,3 +27,5 @@
   "Run test on entire BS source."
   (reduce (lambda (a b) (and a b))
           (map compare-read (filter bs-file? (dir ".")))))
+
+(read-test-all)
