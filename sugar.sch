@@ -8,7 +8,7 @@
 (define-macro-character (#\] port)
   (throw-error "read unexpected ']'" #\]))
 
-(define-dispatch-macro-character (#\[ port)
+(define-dispatch-macro-character (#\# #\[ port)
   (display "macro\n")
   (let* ((range (read:list port #\]))
 	 (min (first range))

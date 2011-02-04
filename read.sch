@@ -19,13 +19,13 @@
 
 ;; Reader macros
 
-(define *macro-characters* '()
-  "Characters that dispatch reader macros when read at the beginning
-of a token.")
+(define *readtable* '(() ())   ; functions first, sub-tables second
+  "Characters that dispatch reader macros when read.")
 
 (define (set-macro-character! ch fn)
   "Add reader macro for the given character."
-  (set! *macro-characters* (assq-set! *macro-characters* ch fn)))
+  (set! *readtable* (list (assq-set! (first *readtable*) ch fn)
+			  (second *readtable*))))
 
 (define-syntax (define-macro-character char-and-port . body)
   "Define-style syntax for creating reader macros."
@@ -37,39 +37,45 @@ of a token.")
 
 (define (macro-character? ch)
   "Return #t if character is a macro character."
-  (assq ch *macro-characters*))
+  (assq ch (first *readtable*)))
 
 (define (get-macro-character ch)
   "Return the macro character function for the character."
-  (cdr (assq ch *macro-characters*)))
+  (cdr (assq ch (first *readtable*))))
 
-(define *dispatch-macro-characters* '()
-  "Character macros that dispatch on #.")
-
-(define (set-dispatch-macro-character! ch fn)
-  "Add # reader macro for the given character."
-  (set! *dispatch-macro-characters*
-	(assq-set! *dispatch-macro-characters* ch fn)))
-
-(define (get-dispatch-macro-character ch)
+(define (get-dispatch-macro-character ch1 ch2)
   "Return the macro character function for the character."
-  (cdr (assq ch *dispatch-macro-characters*)))
+  (cdr (assq ch2 (cdr (assq ch1 (second *readtable*))))))
 
-(define-macro-character (#\# port)
-  (let* ((ch (read-char-safe port))
-	 (fn (get-dispatch-macro-character ch)))
-    (if (not fn)
-	(throw-error "unknown dispatch # macro" ch)
-	(fn port))))
+(define (make-dispatch-macro-character ch)
+  (set! *readtable* (list (first *readtable*)
+			  (assq-set! (second *readtable*) ch '())))
+  (define-macro-character (ch port)
+    (let* ((ch2 (read-char-safe port))
+	   (fn (get-dispatch-macro-character ch ch2)))
+      (if fn
+	  (fn port)
+	  (throw-error "unknown dispatch macro" ch2)))))
 
-(define-syntax (define-dispatch-macro-character char-and-port . body)
+(define (set-dispatch-macro-character! ch1 ch2 fn)
+  "Add dispatch reader macro for the given characters."
+  (if (macro-character? ch1)
+      (assq-set! (second *readtable*) ch1
+		 (assq-set! (cdr (assq ch1 (second *readtable*))) ch2 fn))
+      (throw-error "no dispatch macro" ch1)))
+
+(define-syntax (define-dispatch-macro-character chars-and-port . body)
   "Define-style syntax for creating dispatch reader macros on #."
-  (let ((char (first char-and-port))
-	(port (second char-and-port)))
-    `(set-dispatch-macro-character! ,char
+  (let ((ch1 (first chars-and-port))
+	(ch2 (second chars-and-port))
+	(port (third chars-and-port)))
+    `(set-dispatch-macro-character! ,ch1 ,ch2
 				    (lambda (,port)
 				      ,@body))))
+
 ;; Define some reader macros
+
+(make-dispatch-macro-character #\#)
 
 (define-macro-character (#\' port)
   "Quote reader macro."
@@ -103,15 +109,15 @@ of a token.")
 
 (define *dot* (string->symbol "."))
 
-(set-dispatch-macro-character! #\t (always #t))
-(set-dispatch-macro-character! #\f (always #f))
-(set-dispatch-macro-character! #\! read-line)
+(set-dispatch-macro-character! #\# #\t (always #t))
+(set-dispatch-macro-character! #\# #\f (always #f))
+(set-dispatch-macro-character! #\# #\! read-line)
 
-(define-dispatch-macro-character (#\( port)
+(define-dispatch-macro-character (#\# #\( port)
   "Read in a vector."
   (apply vector (read:list port #\))))
 
-(define-dispatch-macro-character (#\\ port)
+(define-dispatch-macro-character (#\# #\\ port)
   "Read a character."
   (let ((ch (read-char-safe port))
 	(peek (peek-char port)))
@@ -124,7 +130,7 @@ of a token.")
       (begin (read:slurp-atom port) #\tab))
      (#t ch))))
 
-(define-dispatch-macro-character (#\< port)
+(define-dispatch-macro-character (#\# #\< port)
   "Produce an error."
   (throw-error "unreadable object" "#<...>"))
 
