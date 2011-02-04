@@ -245,7 +245,7 @@ objects")
 (define (update-objects objects)
   "returns an updated list of objects. may destructively modify
 members of objects"
-  (filter (compliment null?)
+  (filter (complement null?)
 	  (mappend update-object objects)))
 
 (define (test)
