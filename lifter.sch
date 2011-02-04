@@ -1,9 +1,12 @@
+(define (dprintf . args)
+  "debug printf"
+  (apply printf args))
 
 (define (lift exp)
   (lift:exp (macroexpand exp) nil))
 
 (define (lift:exp exp env)
-  (printf "lift:exp %a -- %a\n" exp env)
+  (dprintf "lift:exp %a -- %a\n" exp env)
   (cond
    ((symbol? exp)
     (lift:symbol exp env))
@@ -38,18 +41,18 @@
 
 
 (define (lift:symbol sym env)
-  (printf "lift:symbol %a -- %a\n" sym env)
+  (dprintf "lift:symbol %a -- %a\n" sym env)
   (let ((var (in-env? sym env)))
     (if var
 	`(local ,(first var) ,(second var))
 	`(global ,sym))))
 
 (define (lift:begin exps env)
-  (printf "lift:begin %a %a\n" exps env)
+  (dprintf "lift:begin %a %a\n" exps env)
   (map (lambda (exp) (lift:exp exp env)) exps))
 
 (define (lift:lambda args body env)
-  (printf "lift:lambda %a, %a\n" args body)
+  (dprintf "lift:lambda %a, %a\n" args body)
   `(lambda ,args
      . ,(lift:begin body
 		    (cons (make-true-list args)
