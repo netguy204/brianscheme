@@ -144,14 +144,16 @@ of a token.")
 
 (define (read:read port)
   "Read an s-expression or object from the port."
-  (read:flush-whitespace port)
-  (let ((ch (read-char port)))
-    (cond
-     ((eof-object? ch) ch)
-     ((macro-character? ch) ((get-macro-character ch) port))
-     (#t (begin
-           (unread-char ch port)
-           (read:from-token (read:slurp-atom port)))))))
+  (let ((flush (read:flush-whitespace port)))
+    (if (eof-object? flush)
+	flush
+	(let ((ch (read-char port)))
+	  (cond
+	   ((eof-object? ch) ch)
+	   ((macro-character? ch) ((get-macro-character ch) port))
+	   (#t (begin
+		 (unread-char ch port)
+		 (read:from-token (read:slurp-atom port)))))))))
 
 (define (read:flush-whitespace port)
   "Eat all the whitespace, including comments, coming up in the port."
@@ -162,12 +164,14 @@ of a token.")
           (read:flush-whitespace port))
         (if (whitespace? ch)
             (read:flush-whitespace port)
-            (unless (eof-object? ch)
-              (unread-char ch port))))))
+            (if (eof-object? ch)
+		ch
+		(unread-char ch port))))))
 
 (define (read:list port char)
   "Read a list from the given port, assuming opening char is gone."
-  (read:flush-whitespace port)
+  (if (eof-object? (read:flush-whitespace port))
+      (throw-error "unexpected eof" "eof"))
   (let ((ch (read-char-safe port)))
     (cond
      ((eq? ch char) '())
