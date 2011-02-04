@@ -85,19 +85,19 @@ of a token.")
 
 (define-macro-character (#\' port)
   "Quote reader macro."
-  (list 'quote (read:read port)))
+  (list 'quote (read:read port 'eof-error #t)))
 
 (define-macro-character (#\` port)
   "Quasiquote reader macro."
-  (list 'quasiquote (read:read port)))
+  (list 'quasiquote (read:read port 'eof-error #t)))
 
 (define-macro-character (#\, port)
   "Unquote reader macro."
   (let ((ch (read-char-safe port)))
     (cond
-     ((eq? #\@ ch) (list 'unquotesplicing (read:read port)))
+     ((eq? #\@ ch) (list 'unquotesplicing (read:read port 'eof-error #t)))
      (#t (begin (unread-char ch port)
-		(list 'unquote (read:read port)))))))
+		(list 'unquote (read:read port 'eof-error #t)))))))
 
 (define-macro-character (#\" port)
   "String reader macro."
@@ -142,14 +142,16 @@ of a token.")
 
 ;; Read functions
 
-(define (read:read port)
+(define (read:read port (eof-error #f))
   "Read an s-expression or object from the port."
   (let ((flush (read:flush-whitespace port)))
     (if (eof-object? flush)
 	flush
 	(let ((ch (read-char port)))
 	  (cond
-	   ((eof-object? ch) ch)
+	   ((eof-object? ch) (if eof-error
+				 (throw-error "unexpected eof" ch)
+				 ch))
 	   ((macro-character? ch) ((get-macro-character ch) port))
 	   (#t (begin
 		 (unread-char ch port)
@@ -177,15 +179,13 @@ of a token.")
      ((eq? ch char) '())
      (#t (begin
            (unread-char ch port)
-           (let ((obj (read:read port)))
+           (let ((obj (read:read port 'eof-error #t)))
              (cond
-              ((eof-object? obj) (throw-error "unexpected eof" obj))
               ((eq? *dot* obj)
-	       (let ((last (read:read port)))
-		 (cond
-		  ((eof-object? last) (throw-error "unexpected eof" obj))
-		  ((eq? '() (read:list port char)) last)
-		  (#t (throw-error "invalid improper list" obj)))))
+	       (let ((last (read:read port 'eof-error #t)))
+		 (if (eq? '() (read:list port char))
+		     last
+		     (#t (throw-error "invalid improper list" obj)))))
               (#t (cons obj (read:list port char))))))))))
 
 (define (read:make-buf (size 16))
