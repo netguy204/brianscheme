@@ -1,3 +1,19 @@
+(define (delq item list)
+  "Return list with all items eq? to item removed."
+  (filter (complement (curry eq? item)) list))
+
+(define (delv item list)
+  "Return list with all items eqv? to item removed."
+  (filter (complement (curry eqv? item)) list))
+
+(define (delete item list)
+  "Return list with all items equal? to item removed."
+  (filter (complement (curry equal? item)) list))
+
+(define (remove-if test lst)
+  "Remove elements matching predicate."
+  (filter (complement test) lst))
+
 (define (plist-get list key (fail #f))
   "Return property value in plist."
   (if (null? list)
