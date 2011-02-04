@@ -104,13 +104,24 @@ of a token.")
   (read:slurp-atom port 'stop? (lambda (ch) (eq? #\" ch))
 		   'allow-eof #f))
 
+(define-macro-character (#\; port)
+  (read-line port))
+
+(define-macro-character (#\( port)
+  (read:list port #\)))
+
+(define-macro-character (#\) port)
+  (throw-error "read unexpected ')'" #\)))
+
+(define *dot* (string->symbol "."))
+
 (set-dispatch-macro-character! #\t (always #t))
 (set-dispatch-macro-character! #\f (always #f))
 (set-dispatch-macro-character! #\! read-line)
 
 (define-dispatch-macro-character (#\( port)
   "Read in a vector."
-  (apply vector (read:list port)))
+  (apply vector (read:list port #\))))
 
 (define-dispatch-macro-character (#\\ port)
   "Read a character."
@@ -129,64 +140,49 @@ of a token.")
   "Produce an error."
   (throw-error "unreadable object" "#<...>"))
 
-;; Token predicates
-
-(define (read:lp? token)
-  "Is token the left parenthesis?"
-  (eq? (car token) 'lp))
-
-(define (read:rp? token)
-  "Is token the right parenthesis?"
-  (eq? (car token) 'rp))
-
-(define (read:dot? token)
-  "Is this the dot operator?"
-  (eq? (car token) 'dot))
-
-(define (read:obj? token)
-  "Is token a Lisp object?"
-  (eq? (car token) 'obj))
-
-(define (read:eof? token)
-  (eq? (car token) 'eof))
-
 ;; Read functions
 
 (define (read:read port)
   "Read an s-expression or object from the port."
-  (let ((token (read:token port)))
-    (cond
-     ((read:lp? token) (read:list port))
-     ((read:rp? token) (throw-error "read unexpected ')'" token))
-     ((read:obj? token) (cdr token))
-     ((read:eof? token) (cdr token)))))
-
-(define (read:list port)
-  "Read a list from the given port, assuming opening paren is gone."
-  (let ((token (read:token port)))
-    (cond
-     ((read:lp? token) (cons (read:list port) (read:list port)))
-     ((read:rp? token) '())
-     ((read:dot? token) (let ((end (read:read port)))
-			  (unless (read:rp? (read:token port))
-				  (throw-error "missing expected ')'" "."))
-			  end))
-     ((read:obj? token) (cons (cdr token) (read:list port)))
-     ((read:eof? token) (throw-error "unexpected eof" token)))))
-
-(define (read:token port)
-  "Read the next token from the port."
+  (read:flush-whitespace port)
   (let ((ch (read-char port)))
     (cond
-     ((eof-object? ch) (cons 'eof ch))
-     ((macro-character? ch) (cons 'obj ((get-macro-character ch) port)))
-     ((whitespace? ch) (read:token port))
-     ((eq? ch #\;) (begin (read:eat-comment port) (read:token port)))
-     ((eq? #\( ch) (cons 'lp ch))
-     ((eq? #\) ch) (cons 'rp ch))
-     ((and (eq? #\. ch) (whitespace? (peek-char port))) (cons 'dot ch))
-     (#t (cons 'obj (begin (unread-char ch port)
-			   (read:from-token (read:slurp-atom port))))))))
+     ((eof-object? ch) ch)
+     ((macro-character? ch) ((get-macro-character ch) port))
+     (#t (begin
+           (unread-char ch port)
+           (read:from-token (read:slurp-atom port)))))))
+
+(define (read:flush-whitespace port)
+  "Eat all the whitespace, including comments, coming up in the port."
+  (let ((ch (read-char port)))
+    (if (eq? ch #\;)
+        (begin
+          (read-line port)
+          (read:flush-whitespace port))
+        (if (whitespace? ch)
+            (read:flush-whitespace port)
+            (unless (eof-object? ch)
+              (unread-char ch port))))))
+
+(define (read:list port char)
+  "Read a list from the given port, assuming opening char is gone."
+  (read:flush-whitespace port)
+  (let ((ch (read-char-safe port)))
+    (cond
+     ((eq? ch char) '())
+     (#t (begin
+           (unread-char ch port)
+           (let ((obj (read:read port)))
+             (cond
+              ((eof-object? obj) (throw-error "unexpected eof" obj))
+              ((eq? *dot* obj)
+	       (let ((last (read:read port)))
+		 (cond
+		  ((eof-object? last) (throw-error "unexpected eof" obj))
+		  ((eq? '() (read:list port char)) last)
+		  (#t (throw-error "invalid improper list" obj)))))
+              (#t (cons obj (read:list port char))))))))))
 
 (define (read:make-buf (size 16))
   "Create a new string buffer."
@@ -220,10 +216,9 @@ of a token.")
 			   (read:buf-trim buffer)
 			   (throw-error "unexpected eof" "")))
      ((stop? ch) (read:buf-trim buffer))
-     ((and allow-eof (eq? ch #\;)) (begin (read:eat-comment port)
-					  (read:buf-trim buffer)))
-     ((and allow-eof (paren? ch)) (begin (unread-char ch port)
-					 (read:buf-trim buffer)))
+     ((and allow-eof (macro-character? ch))
+      (begin (unread-char ch port)
+             (read:buf-trim buffer)))
      ((eq? ch #\\)
       (read:slurp-atom port
 		       'stop? stop?
