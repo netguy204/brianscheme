@@ -1,6 +1,7 @@
 (define (bs-file? file)
   "Is this a source file?"
-  (equal? (substring file (- (string-length file) 4)) ".sch"))
+  (and (> (string-length file) 4)
+       (equal? (substring file (- (string-length file) 4)) ".sch")))
 
 (define (compare-read-ports old new (success #t))
   (let ((old-in (old-read old))
