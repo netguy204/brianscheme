@@ -10,24 +10,12 @@
   "Return #t if character is whitespace."
   (member? ch *whitespace-characters*))
 
-(define (paren? ch)
-  "Return #t if character is parenthesis."
-  (or (eq? ch #\()
-      (eq? ch #\))))
-
 (define (read-char-safe port)
   "Throw an error if read returns eof-object."
   (let ((ch (read-char port)))
     (if (eof-object? ch)
 	(throw-error "unexpected eof" "eof")
 	ch)))
-
-(define (count-member el lst)
-  "Count the number of times an element appears in a list."
-  (let ((mem (member el lst)))
-    (if mem
-	(+ 1 (count-member el (cdr mem)))
-	0)))
 
 ;; Reader macros
 
@@ -232,9 +220,6 @@ of a token.")
 			  'stop? stop?
 			  'allow-eof allow-eof
 			  'buffer (read:buf-add! buffer ch))))))
-
-(define read:eat-comment read-line
-  "Consume stream until the end of the line.")
 
 (define (read:escaped port)
   "Read an escaped character, and throw an error on EOF."
