@@ -254,5 +254,6 @@ of a token.")
      (#t                         (string->symbol str)))))
 
 ;; Take over for old reader
+(define old-read read-port)
 (define read read:read)
 (define read-port read:read)
