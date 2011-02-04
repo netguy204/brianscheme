@@ -58,7 +58,7 @@
 
 (define (integer-string? string)
   "Return #t if string contains an integer."
-  (integer-string-list (string->list string)))
+  (integer-string-list? (string->list string)))
 
 (define (string-list->integer lst)
   "Convert the integer in the string-list to an integer."
@@ -82,20 +82,22 @@
 
 (define (real-string-list? lst)
   "Return #t if string-list contains a real."
-  (letrec ((iter (lambda (lst saw-dot)
+  (letrec ((iter (lambda (lst saw-dot saw-digit)
                    (cond
-                    ((null? lst) saw-dot)
-                    ((eq? (car lst) #\e) (integer-string-list? (cdr lst)))
+                    ((null? lst) (and saw-dot saw-digit))
+                    ((eq? (car lst) #\e) (if saw-digit
+					     (integer-string-list? (cdr lst))
+					     #f))
                     ((eq? (car lst) #\.)
                      (if saw-dot
                          #f
-                         (iter (cdr lst) #t)))
-                    ((digit? (car lst)) (iter (cdr lst) saw-dot))
+                         (iter (cdr lst) #t saw-digit)))
+                    ((digit? (car lst)) (iter (cdr lst) saw-dot #t))
                     (#t #f)))))
     (if (or (eq? (car lst) #\-)
             (eq? (car lst) #\+))
-        (iter (cdr lst) #f)
-        (iter lst #f))))
+        (iter (cdr lst) #f #f)
+        (iter lst #f #f))))
 
 (define (real-string? string)
   "Return #t if string contains a real."
