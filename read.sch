@@ -130,6 +130,18 @@
       (begin (read:slurp-atom port) #\tab))
      (#t ch))))
 
+(define-dispatch-macro-character (#\# #\B port)
+  (string->integer (read:slurp-atom port) 'base 2))
+(set-dispatch-macro-character! #\# #\b (get-dispatch-macro-character #\# #\B))
+
+(define-dispatch-macro-character (#\# #\O port)
+  (string->integer (read:slurp-atom port) 'base 8))
+(set-dispatch-macro-character! #\# #\o (get-dispatch-macro-character #\# #\O))
+
+(define-dispatch-macro-character (#\# #\X port)
+  (string->integer (read:slurp-atom port) 'base 16))
+(set-dispatch-macro-character! #\# #\x (get-dispatch-macro-character #\# #\X))
+
 (define-dispatch-macro-character (#\# #\< port)
   "Produce an error."
   (throw-error "unreadable object" "#<...>"))
