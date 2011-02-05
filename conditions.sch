@@ -24,27 +24,64 @@
 ;; the base case is a hard exit, the repl will install something more
 ;; friendly
 ;;
-(defvar *condition-handler*
-  (lambda (exception)
-    (write-port "unhandled condition: " stderr)
-    (write-with-spaces stderr exception)
-    (exit 1)))
+
+(let ((condition-handlers nil))
+  (define (conditions:push-handler handler)
+    (push! handler condition-handlers))
+
+  (define (conditions:top-handler)
+    (car condition-handlers))
+
+  (define (conditions:handlers?)
+    (not (null? condition-handlers)))
+
+  (define (conditions:pop-handler)
+    (pop! condition-handlers)))
+
 
 (define (raise obj)
   "throw object up to the currently installed *condition-handler*"
-  ((*condition-handler*) obj))
+  (if (conditions:handlers?)
+      ((conditions:top-handler) obj)
+      (begin
+	(write-port "unhandled condition: " stderr)
+	(write-port obj stderr)
+	(newline)
+	(exit 1))))
 
-(define (with-exception-handler handler thunk)
-  (let* ((error-cont nil)
-	 (restart (call/cc (lambda (cc)
-			     (set! error-cont cc)
-			     #f))))
+(define-syntax (with-nonlocal-exit exiter flag . body)
+  (let ((cc (gensym)))
+    `(call/cc (lambda (,cc)
+		(let ((,exiter
+		       (lambda x (,cc (cons ,flag x)))))
+		  . ,body)))))
 
-    (if restart
-	(handler (cdr restart))
-	(binding ((*condition-handler* (lambda (ex)
-					 (error-cont (cons #t ex)))))
-          (thunk)))))
+(define-syntax (guard exception-and-clauses . body)
+  (let ((ex (gensym))
+	(flag (gensym))
+	(result (gensym))
+	(exception (car exception-and-clauses))
+	(clauses (cdr exception-and-clauses)))
+
+    `(let ((,result
+	    (with-nonlocal-exit ,ex ',flag
+	      (conditions:push-handler ,ex)
+	      . ,body)))
+
+       (conditions:pop-handler)
+
+       (if (and (pair? ,result)
+		(eq? (car ,result) ',flag))
+	   ;; an exception was thrown
+	   (begin
+	     (let ((,exception (cdr ,result)))
+	       (cond
+		,@clauses
+		(#t (raise ,exception)))))
+
+	   ;; exited normally
+	   ,result))))
+
 
 ;; replace error and throw error with exception raising equivalents
 (define (error . objs)

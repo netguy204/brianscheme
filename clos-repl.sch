@@ -30,14 +30,14 @@
 		(newline)
 		(repl-loop)))))
 
-    (with-exception-handler
-     (lambda (ex)
-       (write-stream stderr-stream "clos-repl: ")
-       (print-object stderr-stream ex)
-       (newline)
-       (repl-loop))
+    (guard
+     (ex
+      (#t
+       (printf "clos-repl: %a\n" ex)))
 
-     (lambda () (repl-loop)))))
+     (repl-loop)))
+
+  (clos-repl))
 
 
 
