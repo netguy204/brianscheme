@@ -6,11 +6,8 @@
 
 (define (string-length str)
   "find the length of a string, not including null"
-  (let ((len 0))
-    (while (not (= (char->integer (string-ref str len))
-		   0))
-      (inc! len))
-    len))
+  (do ((len 0 (+ len 1)))
+      ((= (char->integer (string-ref str len)) 0) len)))
 
 (define (substring str start . end)
   "Return given substring from start (inclusive) to end (exclusive)."
@@ -28,9 +25,13 @@
 
 (define (string->list str)
   "Turn a string into a character list."
-  (if (= 0 (string-length str))
-      '()
-      (cons (string-ref str 0) (string->list (substring str 1)))))
+  (let ((len (string-length str)))
+    (if (= 0 len)
+	nil
+	(do ((idx 0 (+ idx 1))
+	     (result nil (cons (string-ref str idx)
+			       result)))
+	    ((= idx len) (reverse result))))))
 
 (define (string=? . args)
   "Return #t if all strings arguments are equal?."
