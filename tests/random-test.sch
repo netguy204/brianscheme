@@ -3,10 +3,10 @@
 ; Press q to quit. Try resizing your terminal once it's started!
 
 (require 'random)
-(require 'ncurses)
 
 (define (normal-plot)
   "Generate 2D plots of numbers from the normal distribution."
+  (require 'ncurses)
   (with-curses win
     (let ((done #f)
           (syms ".-+%#"))
@@ -32,6 +32,7 @@
 
 (define (calc-pi)
   "Calculate pi by the Monte Carlo method."
+  (require 'ncurses)
   (with-curses win
     (let ((total 0)
           (in 0)
@@ -65,10 +66,9 @@
                   (write-char (integer->char 10) port)))))
     (call-with-output-file file func)))
 
-(require 'plot)
-
 (define (plot-pdf fn)
   "Plot the PDF of the given RNG function using the plot library."
+  (require 'plot)
   (plot:hist (map fn (duplicate *random-state* 10000)) 50))
 
 (require 'unittest)
