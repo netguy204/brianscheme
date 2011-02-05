@@ -2,6 +2,13 @@
   "debug printf"
   (apply printf args))
 
+(define-struct lmbda
+  "structure representing a processed lambda"
+  (name
+   env
+   body
+   args))
+
 (define (lift exp)
   (lift:exp (macroexpand exp) nil))
 
