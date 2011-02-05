@@ -33,7 +33,7 @@ char is_delimiter(int c) {
 
 char is_initial(char c) {
   return isalpha((int)c) || c == '*' || c == '/' ||
-    c == '>' || c == '<' || c == '=' || c == '?' ||
+    c == '>' || c == '<' || c == '=' || c == '?' || c == '_' ||
     c == '?' || c == '!' || c == '&' || c == '.' || c == ':' || c == '%';
 }
 

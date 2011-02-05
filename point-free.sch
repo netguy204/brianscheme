@@ -1,4 +1,4 @@
-(define (compliment fn)
+(define (complement fn)
   "function that returns (not (fn))"
   (lambda (x) (not (fn x))))
 
