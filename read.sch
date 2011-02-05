@@ -142,6 +142,9 @@
   (string->integer (read:slurp-atom port) 'base 16))
 (set-dispatch-macro-character! #\# #\x (get-dispatch-macro-character #\# #\X))
 
+(define-dispatch-macro-character (#\# #\: port)
+  (string->uninterned-symbol (read:slurp-atom port)))
+
 (define-dispatch-macro-character (#\# #\< port)
   "Produce an error."
   (throw-error "unreadable object" "#<...>"))
