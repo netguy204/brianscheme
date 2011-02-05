@@ -100,16 +100,6 @@
 	    ((eq? (car list) x) (cdr list))
 	    (else (cons (car list) (remove x (cdr list)))))))
 
-(define union
-    (lambda lists
-      (letrec ((clean (lambda (list result)
-			(cond ((null? list) result)
-			      ((memq (car list) result)
-			       (clean (cdr list) result))
-			      (else
-			       (clean (cdr list) (cons (car list) result)))))))
-	(clean (apply append lists) '()))))
-
 (define collect-if
     (lambda (test? lst)
       (cond ((null? lst) '())

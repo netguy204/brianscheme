@@ -893,12 +893,25 @@ returns true"
 	     (throw-error "assert failed" ',cond)
 	     ,result)))))
 
-(define (dynamic-wind before body after)
-  "hack. do something useful here later"
-  (before)
-  (let ((result (body)))
-    (after)
-    result))
+(define (union . lists)
+  "compute the union of any number of lists"
+  (letrec ((clean (lambda (list result)
+		    (cond ((null? list) result)
+			  ((memq (car list) result)
+			   (clean (cdr list) result))
+			  (else
+			   (clean (cdr list) (cons (car list) result)))))))
+    (clean (apply append lists) '())))
+
+(define (remove-if test lst)
+  "Remove elements matching predicate."
+  (filter (complement test) lst))
+
+(define (difference set subtracted)
+  "compute the set difference (set - subtracted)"
+  (remove-if (lambda (item)
+	       (memq item subtracted)) set))
+
 
 (define (all-symbols)
   "return a list of all symbols defined in the global environment"

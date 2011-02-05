@@ -10,10 +10,6 @@
   "Return list with all items equal? to item removed."
   (filter (complement (curry equal? item)) list))
 
-(define (remove-if test lst)
-  "Remove elements matching predicate."
-  (filter (complement test) lst))
-
 (define (plist-get list key (fail #f))
   "Return property value in plist."
   (if (null? list)

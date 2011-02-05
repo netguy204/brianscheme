@@ -33,6 +33,8 @@
 (write-char #\newline stderr)
 
 (define (list* . args)
+  "appends any number of elements to the list that is the last
+argument"
   (letrec ((chase
 	    (lambda (args)
 	      (cond ((null? args) '())
@@ -41,9 +43,13 @@
     (chase args)))
 
 (define (apply* proc . args)
+  "apply a function to a series of arguments (the last of which is a
+list)"
   (apply proc (apply list* args)))
 
 (define (map-vector fn vector)
+  "apply a function to each element of a vector and return a vector of
+the results"
   (let* ((len (vector-length vector))
 	 (result (make-vector len nil)))
     (dotimes (idx len)
@@ -52,6 +58,8 @@
     result))
 
 (define (vector->list vector)
+  "convert a vector of elements into a list of elements in the same
+order"
   (let ((result nil)
 	(len (vector-length vector)))
     (dotimes (idx len)

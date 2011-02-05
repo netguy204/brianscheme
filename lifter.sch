@@ -14,13 +14,21 @@
   (type
    refs
    sets
-   data))
+   children))
 
 (define-struct lvar
   "represents a variable"
   (name
    oname
    refs))
+
+(define (new-lnode type children)
+  (let ((sets (apply union (map lnode-sets-ref children)))
+	(refs (apply union (map lnode-refs-ref children))))
+    (make-lnode 'type type
+		'refs refs
+		'sets sets
+		'children children)))
 
 (define (make-environment syms structs)
   (cons syms structs))
@@ -55,33 +63,44 @@
 	    (second addr)))
 
 (define (sym->struct env sym)
-  (addr->struct env (sym-addr env sym)))
+  (let ((addr (sym-addr env sym)))
+    (if addr
+	(addr->struct env addr)
+	nil)))
 
 (define (lift exp)
-  (lift:exp (macroexpand exp) nil))
+  (lift:exp (macroexpand exp) (make-empty-environment)))
 
 (define (lift:exp exp env)
   (dprintf "lift:exp %a -- %a\n" exp env)
   (cond
    ((symbol? exp)
     (lift:symbol exp env))
-   ((atom? exp) exp)
+   ((atom? exp)
+    (make-lnode 'type 'const
+		'data exp))
+   ;; must have a list, look at its head
+   ;; TODO: extract the refs from subnodes
    (else
     (case (first exp)
-      (quote exp)
+      (quote
+       (make-lnode 'type 'const
+		   'data exp))
 
       (begin
-	`(begin . ,(lift:begin (cdr exp) env)))
+	(new-lnode 'begin (lift:begin (cdr exp) env)))
 
       (set!
-       (list 'set!
-	     (second exp)
-	     (lift:exp (third exp) env)))
+       (let ((node (new-lnode 'set! (lift:exp (third exp) env))))
+	 (lnode-sets-set! node
+			  (list (lift:symbol (second exp) env)))
+	 node))
 
       (if
-       `(if ,(lift:exp (second exp) env)
-	    ,(lift:exp (third exp) env)
-	    ,(lift:exp (fourth exp) env)))
+       (new-lnode 'if
+		  (list (lift:exp (second exp) env)
+			(lift:exp (third exp) env)
+			(lift:exp (fourth exp) env))))
 
       (lambda
 	  (lift:lambda (second exp)
@@ -89,18 +108,21 @@
 		       env))
 
       (else
-       (cons
-	(lift:exp (first exp) env)
-	(map (lambda (e) (lift:exp e env))
-	     (cdr exp))))))))
+       (new-lnode 'apply
+		  (cons
+		   (lift:exp (first exp) env)
+		   (map (lambda (e) (lift:exp e env))
+			(cdr exp)))))))))
 
 
 (define (lift:symbol sym env)
   (dprintf "lift:symbol %a -- %a\n" sym env)
-  (let ((var (in-env? sym env)))
+  (let ((var (sym->struct env sym)))
     (if var
-	`(local ,(first var) ,(second var))
-	`(global ,sym))))
+	(make-lnode 'type 'lref
+		    'refs (list var))
+	(make-lnode 'type 'gref
+		    'children (list 'global sym)))))
 
 (define (lift:begin exps env)
   (dprintf "lift:begin %a %a\n" exps env)
@@ -108,9 +130,16 @@
 
 (define (lift:lambda args body env)
   (dprintf "lift:lambda %a, %a\n" args body)
-  `(lambda ,args
-     . ,(lift:begin body
-		    (cons (make-true-list args)
-			  env))))
+  (let* ((new-env (extend-environment env args))
+	 (node (new-lnode 'lambda
+			  (lift:begin
+			   body
+			   new-env))))
+
+    (make-lnode 'type 'lambda
+		'refs (difference (lnode-refs-ref node)
+				  (first (env-structs new-env)))
+		'children (lnode-children-ref node))))
+
 
 
