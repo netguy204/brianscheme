@@ -156,6 +156,8 @@
   (when (eq? (plist-get issue 'status) 'open)
     (display (plist-get issue 'id))
     (display "  ")
+    (display (plist-get issue 'priority))
+    (display "  ")
     (display (plist-get issue 'title))
     (display "\n")))
 
