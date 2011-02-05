@@ -14,6 +14,7 @@
   (type
    refs
    sets
+   new-bindings
    children))
 
 (define-struct lvar
@@ -78,23 +79,19 @@
     (lift:symbol exp env))
    ((atom? exp)
     (make-lnode 'type 'const
-		'data exp))
+		'children exp))
    ;; must have a list, look at its head
    ;; TODO: extract the refs from subnodes
    (else
     (case (first exp)
       (quote
        (make-lnode 'type 'const
-		   'data exp))
+		   'children exp))
 
       (begin
 	(new-lnode 'begin (lift:begin (cdr exp) env)))
 
-      (set!
-       (let ((node (new-lnode 'set! (lift:exp (third exp) env))))
-	 (lnode-sets-set! node
-			  (list (lift:symbol (second exp) env)))
-	 node))
+      (set! (lift:set exp env))
 
       (if
        (new-lnode 'if
@@ -124,6 +121,13 @@
 	(make-lnode 'type 'gref
 		    'children (list 'global sym)))))
 
+(define (lift:set exp env)
+  (let ((node (new-lnode 'set!
+			 (list (lift:exp (third exp) env))))
+	(var (sym->struct env (second exp))))
+    (when var (lnode-sets-set! node (list var)))
+    node))
+
 (define (lift:begin exps env)
   (dprintf "lift:begin %a %a\n" exps env)
   (map (lambda (exp) (lift:exp exp env)) exps))
@@ -139,7 +143,37 @@
     (make-lnode 'type 'lambda
 		'refs (difference (lnode-refs-ref node)
 				  (first (env-structs new-env)))
+		'sets (difference (lnode-sets-ref node)
+				  (first (env-structs new-env)))
+		'new-bindings (first (env-structs new-env))
 		'children (lnode-children-ref node))))
 
 
+
+(define (lift:pp node)
+  (cond
+   ((not (lnode? node)) node)
+   (else
+    (case (lnode-type-ref node)
+      (const (list 'quote (lnode-children-ref node)))
+      (begin `(begin . ,(map lift:pp (lnode-children-ref node))))
+      (set! `(set! ,(lvar-name-ref (first (lnode-sets-ref node)))
+		   ,(lift:pp (first (lnode-children-ref node)))))
+      (if `(if ,(lift:pp (first (lnode-children-ref node)))
+	       ,(lift:pp (second (lnode-children-ref node)))
+	       ,(lift:pp (third (lnode-children-ref node)))))
+      (lambda `(lambda
+		 (new-bindings
+		 ,(map lvar-name-ref (lnode-new-bindings-ref node)))
+		 (free-read-bindings
+		 ,(map lvar-name-ref (lnode-refs-ref node)))
+		 (free-write-bindings
+		 ,(map lvar-name-ref (lnode-sets-ref node)))
+		 . ,(map lift:pp (lnode-children-ref node))))
+      (apply (cons
+	      (lift:pp (first (lnode-children-ref node)))
+	      (map lift:pp (rest (lnode-children-ref node)))))
+      (lref (lvar-name-ref (first (lnode-refs-ref node))))
+      (gref (lnode-children-ref node))
+      (else (error "don't know how to process" (lnode-type-ref node)))))))
 
