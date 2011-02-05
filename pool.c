@@ -34,7 +34,7 @@ size_t init_freed_stack = 256;
 
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_ANON, -1, 0);
   fflush(stdout);
   return p;
 }
