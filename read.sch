@@ -145,6 +145,9 @@
 (define-dispatch-macro-character (#\# #\: port)
   (string->uninterned-symbol (read:slurp-atom port)))
 
+(define-dispatch-macro-character (#\# #\. port)
+  (eval (read port 'eof-error #t)))
+
 (define-dispatch-macro-character (#\# #\< port)
   "Produce an error."
   (throw-error "unreadable object" "#<...>"))
