@@ -21,7 +21,7 @@
   "represents a variable"
   (name
    oname
-   refs))
+   properties))
 
 (define (new-lnode type children)
   (let ((sets (apply union (map lnode-sets-ref children)))
@@ -47,7 +47,7 @@
   (make-lvar
    'name (gensym)
    'oname old-name
-   'refs nil))
+   'properties (make-hashtab-eq 10)))
 
 (define (extend-environment env vars)
   (let ((tvars (make-true-list vars)))
