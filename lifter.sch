@@ -46,6 +46,17 @@
       (cons tvars (env-symbols env))
       (cons (map new-lvar tvars) (env-structs env)))))
 
+(define (sym-addr env sym)
+  (in-env? sym (env-symbols env)))
+
+(define (addr->struct env addr)
+  (list-ref (list-ref (env-structs env)
+		      (first addr))
+	    (second addr)))
+
+(define (sym->struct env sym)
+  (addr->struct env (sym-addr env sym)))
+
 (define (lift exp)
   (lift:exp (macroexpand exp) nil))
 
