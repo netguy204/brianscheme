@@ -239,9 +239,9 @@
   "Turn the token in the string into either an integer, real, or symbol."
   (let ((lst (string->list str)))
     (cond
-     ((integer-string-list? lst) (string->integer str))
-     ((real-string-list? lst)    (string->real str))
-     (#t                         (string->symbol str)))))
+     ((integer-string-list? lst *digits*) (string-list->integer lst 10))
+     ((real-string-list? lst)             (string-list->real lst))
+     (#t                                  (string->symbol str)))))
 
 ;; Take over for old reader
 (define old-read read-port)

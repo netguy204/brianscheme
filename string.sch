@@ -44,41 +44,45 @@
 
 (define *digits* (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
 
+(define *digits-16* (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9
+                          #\a #\b #\c #\d #\e #\f))
+
 (define (digit? ch)
   "Return #t if character is a digit."
   (member? ch *digits*))
 
-(define (integer-string-list? lst)
+(define (integer-string-list? lst digits)
   "Return #t if string-list contains an integer."
-  (and (every? digit? (cdr lst))
+  (and (every? (rcurry member? digits) (cdr lst))
        (or (and (or (eq? (car lst) #\-)
                     (eq? (car lst) #\+))
                 (not (null? (cdr lst))))
-           (digit? (car lst)))))
+           (member? (car lst) digits))))
 
 (define (integer-string? string)
   "Return #t if string contains an integer."
-  (integer-string-list? (string->list string)))
+  (integer-string-list? (string->list string) *digits*))
 
-(define (string-list->integer lst)
+(define (string-list->integer lst base)
   "Convert the integer in the string-list to an integer."
   (letrec ((iter (lambda (number lst)
                    (if (null? lst)
                        number
-                       (iter (+ (* 10 number)
-                                (index-of (curry eq? (car lst)) *digits*))
+                       (iter (+ (* base number)
+                                (index-of (curry eq? (car lst)) *digits-16*))
                              (cdr lst))))))
     (cond
      ((eq? (car lst) #\-) (- (iter 0 (cdr lst))))
      ((eq? (car lst) #\+) (iter 0 (cdr lst)))
      (#t (iter 0 lst)))))
 
-(define (string->integer string)
+(define (string->integer string (base 10))
   "Convert the integer in the string to an integer."
   (let ((lst (string->list string)))
-    (if (not (integer-string-list? lst))
-        (error "invalid integer in string" string)
-        (string-list->integer lst))))
+    (if (not (integer-string-list?
+              lst (reverse (nthcdr (- 16 base) (reverse *digits-16*)))))
+	(error "invalid integer in string" string)
+        (string-list->integer lst base))))
 
 (define (real-string-list? lst)
   "Return #t if string-list contains a real."
@@ -86,7 +90,8 @@
                    (cond
                     ((null? lst) (and saw-dot saw-digit))
                     ((eq? (car lst) #\e) (if saw-digit
-					     (integer-string-list? (cdr lst))
+					     (integer-string-list?
+					      (cdr lst) *digits*)
 					     #f))
                     ((eq? (car lst) #\.)
                      (if saw-dot
@@ -114,7 +119,8 @@
                                               *digits*)))
                            (cdr lst) m1 (if saw-dot (/ m2 10) m2) saw-dot))
                     ((eq? (car lst) #\e)
-                     (* number (expt 10.0 (string-list->integer (cdr lst)))))
+                     (* number (expt 10.0 (string-list->integer
+                                           (cdr lst) 10))))
                     ((eq? (car lst) #\.)
                      (iter number (cdr lst) 1.0 0.1 #t))))))
     (cond
