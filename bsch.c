@@ -167,9 +167,9 @@ object * compile_library(char *libname) {
 
 char temp_image[L_tmpnam];
 
-off_t find_image() {
+off_t find_image(char *selfexe) {
   size_t ps = sysconf(_SC_PAGE_SIZE);
-  FILE *self = fopen("/proc/self/exe", "r");
+  FILE *self = fopen(selfexe, "r");
   uint32_t sample;
   off_t loc = 0;
   while (1) {
@@ -226,8 +226,8 @@ int main(int argc, char ** argv) {
 #ifdef SFX
   if (image == NULL && bootstrap) {
     /* Always load an image. */
-    img_off = find_image();
     image = "/proc/self/exe";
+    img_off = find_image(image);
   }
 #endif
 
