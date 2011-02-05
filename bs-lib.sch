@@ -146,10 +146,10 @@
 
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
-  (let ((port (open-input-port (string-append *bs-dir* "/" name))))
-    (if (eof-object? port)
-        '()
-        (read-port port))))
+  (let ((file (string-append *bs-dir* "/" name)))
+    (if (file-exists? file)
+        (call-with-input-file file read-port)
+        (bs-error "No such issue: " name))))
 
 (define (print-issue-short issue)
   "Print out the issue summary in one line."
