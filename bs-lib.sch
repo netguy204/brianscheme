@@ -56,6 +56,16 @@
 (define *priorities* '(low normal high urgent)
   "Priorities in order, 0-4.")
 
+;; Error handling
+
+(define (bs-error . msgs)
+  "Produce an error message for the user."
+  (display "bs: ")
+  (dolist (msg msgs)
+    (display msg))
+  (newline)
+  (exit 1))
+
 ;; Argument processing
 
 (define (process-args-img)
@@ -118,8 +128,8 @@
   (let* ((opts (optlist "np:t:"))
          (do-commit (not (plist-get opts 'n)))
          (id (number->string (create-id)))
+         (priority (priority (or (plist-get opts 'p) 'normal)))
          (title (or (plist-get opts 't) (edit-message)))
-         (priority (priority (plist-get opts 'p)))
          (issue (list 'id id 'priority priority 'user *full*
                       'title title 'status 'open)))
     (write-issue issue)
@@ -217,9 +227,13 @@
 (define (edit-message)
   "Summon the EDITOR to interact with the user."
   (close-output-port (open-output-port *tmp-file*))
-  (system (string-append (get-editor) " " *tmp-file*))
-  (let*  ((port (open-input-port *tmp-file*))
-          (title (read-line port)))
+  (let* ((ret (system (string-append (get-editor) " " *tmp-file*)))
+         (port (open-input-port *tmp-file*))
+         (title (read-line port)))
+    (unless ret
+      (bs-error "editor aborted"))
+    (if (= 0 (string-length title))
+        (bs-error "empty message/title: aborting"))
     (close-output-port port)
     title))
 
@@ -234,4 +248,4 @@
      ((and (number? p) (>= p 0) (<= p (length *priorities*)))
       (list-ref *priorities* p))
      ((and (symbol? p) (member? p *priorities*)) p)
-     (#t (throw-error "unknown priority" p)))))
+     (#t (bs-error "unknown priority: " p)))))
