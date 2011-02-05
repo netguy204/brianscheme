@@ -9,6 +9,43 @@
    body
    args))
 
+(define-struct lnode
+  "a node in the ast"
+  (type
+   refs
+   sets
+   data))
+
+(define-struct lvar
+  "represents a variable"
+  (name
+   oname
+   refs))
+
+(define (make-environment syms structs)
+  (cons syms structs))
+
+(define (make-empty-environment)
+  (make-environment nil nil))
+
+(define (env-symbols env)
+  (car env))
+
+(define (env-structs env)
+  (cdr env))
+
+(define (new-lvar old-name)
+  (make-lvar
+   'name (gensym)
+   'oname old-name
+   'refs nil))
+
+(define (extend-environment env vars)
+  (let ((tvars (make-true-list vars)))
+    (make-environment
+      (cons tvars (env-symbols env))
+      (cons (map new-lvar tvars) (env-structs env)))))
+
 (define (lift exp)
   (lift:exp (macroexpand exp) nil))
 
