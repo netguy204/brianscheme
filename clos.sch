@@ -128,6 +128,8 @@
 
 (define-method (print-object (strm <output-stream>)
 			     (sym <symbol>))
+  (unless (interned? sym)
+	  (write-stream strm "#:"))
   (write-stream strm (symbol->string sym)))
 
 (define-method (print-object (strm <output-stream>)

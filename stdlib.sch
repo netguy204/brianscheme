@@ -68,6 +68,10 @@
   (assert-types (var string?))
   (%getenv var))
 
+(define (interned? sym)
+  "Return #t if symbol is interned."
+  (eq? sym (string->symbol (symbol->string sym))))
+
 (require 'cl-defun)
 (require 'point-free)
 (require 'string)
