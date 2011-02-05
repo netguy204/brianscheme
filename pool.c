@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/mman.h>
-#include <bits/mman.h>
 #include "pool.h"
 #include "gc.h"
 
