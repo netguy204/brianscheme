@@ -39,11 +39,13 @@
 (define *bs-dir* ".bs"
   "Location of issue database.")
 
-(define *bs-config* (string-append (or (getenv "HOME") "") "/.bsconfig")
-  "Location of global config file.")
+(define (config-file)
+  "Return location of global config file."
+  (string-append (or (getenv "HOME") "") "/.bsconfig"))
 
-(define *editor* (or (getenv "EDITOR") "nano")
-  "User's editor.")
+(define (get-editor)
+  "Return name of user's editor."
+  (or (getenv "EDITOR") "nano"))
 
 (define *default-msg* "[issue] Update bs database."
   "Default commit message.")
@@ -196,8 +198,8 @@
 
 (define (get-config)
   "Fetch configuration."
-  (if (file-exists? *bs-config*)
-      (call-with-input-file *bs-config* read-port)
+  (if (file-exists? (config-file))
+      (call-with-input-file (config-file) read-port)
       (get-git-config)))
 
 (define (get-git-config)
@@ -215,7 +217,7 @@
 (define (edit-message)
   "Summon the EDITOR to interact with the user."
   (close-output-port (open-output-port *tmp-file*))
-  (system (string-append *editor* " " *tmp-file*))
+  (system (string-append (get-editor) " " *tmp-file*))
   (let*  ((port (open-input-port *tmp-file*))
           (title (read-line port)))
     (close-output-port port)
