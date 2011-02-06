@@ -63,11 +63,18 @@
 
 (define (bs-error . msgs)
   "Produce an error message for the user."
-  (display "bs: ")
+  (display "bs: error: ")
   (dolist (msg msgs)
     (display msg))
   (newline)
   (exit 1))
+
+(define (bs-warning . msgs)
+  "Produce a warning message for the user."
+  (display "bs: warning: ")
+  (dolist (msg msgs)
+    (display msg))
+  (newline))
 
 ;; Argument processing
 
@@ -110,6 +117,7 @@
    ((equal? cmd "list")   (bs-list   args))
    ((equal? cmd "show")   (bs-show   args))
    ((equal? cmd "new")    (bs-new    args))
+   ((equal? cmd "close")  (bs-close  args))
    ((equal? cmd "commit") (bs-commit args))
    ((eq? cmd nil) (bs-help args))
    (#t (begin
@@ -129,6 +137,7 @@
   (display "list    Print list of current issues.\n")
   (display "show    Show all information on a commit.\n")
   (display "new     Create a new issue.\n")
+  (display "close   Set issue status to closed.\n")
   (display "commit  Commit database to Git.\n"))
 
 (define (bs-list args)
@@ -138,9 +147,7 @@
     (print-issue-short (fetch-issue issue))))
 
 (define (bs-show args)
-  "Show all information on a commit."
-  (if (null? args)
-      (bs-error "must provide a commit to show"))
+  "Show all information on an issue."
   (print-issue (fetch-issue (canon (car args)))))
 
 (define (bs-new args)
@@ -158,7 +165,18 @@
     (print-issue-short issue)
     (display (string-append "Created issue " id "\n"))
     (if do-commit
-        (commit (string-append "[issue] " title)))))
+        (commit-issue issue))))
+
+(define (bs-close args)
+  "Set a commit status to closed."
+  (let ((issue (fetch-issue (canon (car args)))))
+    (if (eq? (plist-get issue 'status) 'closed)
+        (bs-warning "issue was already closed")
+        (begin
+          (plist-set! issue 'status 'closed)
+          (write-issue issue)
+          (commit-issue issue
+                        (string-append "closed " (plist-get issue 'id)))))))
 
 (define (bs-commit args)
   "Commit current database to the repository."
@@ -169,6 +187,8 @@
 
 (define (canon short)
   "Find the full issue name for a possible short-hand name."
+  (if (null? short)
+      (bs-error "must provide a commit to show"))
   (letrec ((match (lambda (lst)
                     (if (null? lst)
                         (bs-error "unknown issue: " short)
@@ -209,8 +229,7 @@
 
 (define (write-issue issue)
   "Write the given issue to the database."
-  (let ((port (open-output-port
-               (string-append *bs-dir* "/" (plist-get issue 'id)))))
+  (let ((port (open-output-port (issue-file issue))))
     (write-string "(" port)
     (dolist (prop *props*)
       (write-port prop port)
@@ -219,6 +238,10 @@
       (write-char #\newline port))
     (write-string ")\n" port)
     (close-output-port port)))
+
+(define (issue-file issue)
+  "Determine file corresponding to the given issue."
+  (string-append *bs-dir* "/" (plist-get issue 'id)))
 
 (define (create-id)
   "Create a new issue id."
@@ -251,8 +274,17 @@
   "Commit all current changes into the git repository."
   (unless (and (git reset)
                (git add *bs-dir*)
-               (git commit "-qm" msg))
+               (git commit "-qm" (string-append "[issue] " msg)))
     (display "No database changes to commit.\n")))
+
+(define (commit-issue issue . msg)
+  "Commit a single issue into git."
+  (unless (and (git reset)
+               (git add (issue-file issue))
+               (git commit "-qm"
+                    (string-append "[issue] "
+                                   (car-else msg (plist-get issue 'title)))))
+    (display "Failed to commit issue.\n")))
 
 ;; Environment
 
