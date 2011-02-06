@@ -108,6 +108,7 @@
    ((equal? cmd "help")   (bs-help   args))
    ((equal? cmd "init")   (bs-init   args))
    ((equal? cmd "list")   (bs-list   args))
+   ((equal? cmd "show")   (bs-show   args))
    ((equal? cmd "new")    (bs-new    args))
    ((equal? cmd "commit") (bs-commit args))
    ((eq? cmd nil) (bs-help args))
@@ -126,6 +127,7 @@
   (display "help    Print this help information\n")
   (display "init    Create an empty issue database\n")
   (display "list    Print list of current issues.\n")
+  (display "show    Show all information on a commit.\n")
   (display "new     Create a new issue.\n")
   (display "commit  Commit database to Git.\n"))
 
@@ -134,6 +136,12 @@
   (go-to-root)
   (dolist (issue (dir *bs-dir*))
     (print-issue-short (fetch-issue issue))))
+
+(define (bs-show args)
+  "Show all information on a commit."
+  (if (null? args)
+      (bs-error "must provide a commit to show"))
+  (print-issue (fetch-issue (canon (car args)))))
 
 (define (bs-new args)
   "Create a new issue."
@@ -159,6 +167,17 @@
 
 ;; Issue handling
 
+(define (canon short)
+  "Find the full issue name for a possible short-hand name."
+  (letrec ((match (lambda (lst)
+                    (if (null? lst)
+                        (bs-error "unknown issue: " short)
+                        (if (equal? short (substring (car lst) 0
+                                                     (string-length short)))
+                            (car lst)
+                            (match (cdr lst)))))))
+    (match (dir *bs-dir*))))
+
 (define (fetch-issue name)
   "Fetch an issue s-exp by name."
   (let ((file (string-append *bs-dir* "/" name)))
@@ -175,6 +194,18 @@
     (display "  ")
     (display (plist-get issue 'title))
     (display "\n")))
+
+(define (print-issue issue)
+  "Print out the issue summary in one line."
+  (printf "issue %s    %a  (%a priority)\n"
+          (plist-get issue 'id)
+          (plist-get issue 'status)
+          (plist-get issue 'priority))
+  (printf "Author: %s\n" (plist-get issue 'user))
+  (printf "\n\t%s\n\n" (plist-get issue 'title))
+  (dolist (msg (plist-get issue 'comments))
+    (display msg)
+    (newline)))
 
 (define (write-issue issue)
   "Write the given issue to the database."
