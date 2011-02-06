@@ -152,7 +152,7 @@
 
 (define-method (print-object (strm <output-stream>)
 			     (val <null>))
-  (write-stream strm "'()"))
+  (write-stream strm "()"))
 
 (define-method (print-object (strm <output-stream>)
 			     (str <string>))
