@@ -35,6 +35,18 @@
 			       result)))
 	    ((= idx len) (reverse result))))))
 
+(define (list->string lst)
+  "Convert a list-string into a string."
+  (let* ((len (length lst))
+         (str (make-string len ".")))
+    (letrec ((iter (lambda (lst str n)
+                     (if (null? lst)
+                         str
+                         (begin
+                           (string-set! str n (car lst))
+                           (iter (cdr lst) str (+ n 1)))))))
+      (iter lst str 0))))
+
 (define (string=? . args)
   "Return #t if all strings arguments are equal?."
   (every-pair? equal? args))
