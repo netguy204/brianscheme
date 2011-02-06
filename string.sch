@@ -149,3 +149,15 @@
     (if (not (real-string-list? lst))
         (error "invalid real in string" string)
         (string-list->real lst))))
+
+(define (integer->string int (base 10))
+  "Convert integer into a string, with optional base."
+  (assert-types (int integer?))
+  (letrec ((iter (lambda (n lst)
+                   (if (zero? n)
+                       lst
+                       (iter (/ n base)
+                             (cons (list-ref *digits-16* (mod n base)) lst))))))
+    (if (zero? int)
+        "0"
+        (list->string (iter int '())))))
