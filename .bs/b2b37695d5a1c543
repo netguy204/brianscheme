@@ -1,0 +1,16 @@
+(id	"b2b37695d5a1c543"
+priority	normal
+status	open
+category	bug
+user	"Christopher Wellons <mosquitopsu@gmail.com>"
+date	"Sun Feb  6 15:50:23 2011"
+title	"destructuring-let should evaluate forms only once"
+comments	("Copied from GitHub:
+
+(let (((a b) form)) (list a b))
+
+This will evaluate form twice as it destructures its result into a and
+b. Should only evaluate form once.
+
+")
+)
