@@ -68,6 +68,14 @@
 
 ;; Argument processing
 
+(define (go-to-root)
+  "Change current working directory to the project root."
+  (cond
+   ((file-exists? *bs-dir*) #t)
+   ((equal? "/" (getcwd))
+    (bs-error "Not in a project, or project uninitialized."))
+   (#t (begin (chdir "..") (go-to-root)))))
+
 (define (process-args-img)
   "Process arguments as an image."
   (define *argv* *args*)
@@ -120,11 +128,13 @@
 
 (define (bs-list args)
   "List the current issues."
+  (go-to-root)
   (dolist (issue (dir *bs-dir*))
     (print-issue-short (fetch-issue issue))))
 
 (define (bs-new args)
   "Create a new issue."
+  (go-to-root)
   (let* ((opts (optlist "np:t:"))
          (do-commit (not (plist-get opts 'n)))
          (id (number->string (create-id)))
@@ -140,6 +150,7 @@
 
 (define (bs-commit args)
   "Commit current database to the repository."
+  (go-to-root)
   (commit (car-else args *default-msg*)))
 
 ;; Issue handling
