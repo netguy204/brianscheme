@@ -2,7 +2,9 @@
 
 (define (string-append . args)
   "join a series of strings"
-  (reduce prim-concat args))
+  (if (null? args)
+      ""
+      (reduce prim-concat args)))
 
 (define (string-length str)
   "find the length of a string, not including null"
