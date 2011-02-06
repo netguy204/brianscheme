@@ -127,9 +127,11 @@
 
 (define (bs-init args)
   "Initialize bs database in current directory."
+  (if (file-exists? *bs-dir*)
+      (bs-error "database already initialized"))
   (if (mkdir *bs-dir*)
       (display "Initialized empty issue database.\n")
-      (display "Failed to initialize database.\n")))
+      (bs-error "failed to initialize database\n")))
 
 (define (bs-help args)
   (display "usage: bs [bs-opts] command [cmd-opts]\n\n")
