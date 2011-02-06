@@ -48,13 +48,13 @@
   "Return name of user's editor."
   (or (getenv "EDITOR") "nano"))
 
-(define *default-msg* "[issue] Update bs database."
+(define *default-msg* "Update bs database."
   "Default commit message.")
 
 (define *tmp-file* ".git/BS_EDIT"
   "Temporary EDITOR file.")
 
-(define *props* '(id priority status user title comments))
+(define *props* '(id priority status category user title comments))
 
 (define *priorities* '(low normal high urgent)
   "Priorities in order, 0-4.")
@@ -153,13 +153,14 @@
 (define (bs-new args)
   "Create a new issue."
   (go-to-root)
-  (let* ((opts (optlist "np:t:"))
+  (let* ((opts (optlist "np:c:t:"))
          (do-commit (not (plist-get opts 'n)))
          (id (create-id))
          (priority (priority (or (plist-get opts 'p) 'normal)))
+         (cat (string->symbol (or (plist-get opts 'c) "bug")))
          (title (or (plist-get opts 't) (edit-message)))
          (message (if (plist-get opts 't) '() (list (get-message))))
-         (issue (list 'id id 'priority priority 'user *full*
+         (issue (list 'id id 'priority priority 'category cat 'user *full*
                       'title title 'status 'open 'comments message)))
     (write-issue issue)
     (print-issue-short issue)
@@ -212,6 +213,8 @@
     (display "  ")
     (display (plist-get issue 'priority))
     (display "  ")
+    (display (plist-get issue 'category))
+    (display "  ")
     (display (plist-get issue 'title))
     (display "\n")))
 
@@ -221,6 +224,7 @@
           (plist-get issue 'id)
           (plist-get issue 'status)
           (plist-get issue 'priority))
+  (printf "Category: %a\n" (plist-get issue 'category))
   (printf "Author: %s\n" (plist-get issue 'user))
   (printf "\n\t%s\n\n" (plist-get issue 'title))
   (dolist (msg (plist-get issue 'comments))
