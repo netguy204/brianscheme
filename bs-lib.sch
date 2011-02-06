@@ -140,7 +140,7 @@
   (go-to-root)
   (let* ((opts (optlist "np:t:"))
          (do-commit (not (plist-get opts 'n)))
-         (id (number->string (create-id)))
+         (id (create-id))
          (priority (priority (or (plist-get opts 'p) 'normal)))
          (title (or (plist-get opts 't) (edit-message)))
          (message (if (plist-get opts 't) '() (list (get-message))))
@@ -169,7 +169,7 @@
 (define (print-issue-short issue)
   "Print out the issue summary in one line."
   (when (eq? (plist-get issue 'status) 'open)
-    (display (plist-get issue 'id))
+    (display (substring (plist-get issue 'id) 0 7))
     (display "  ")
     (display (plist-get issue 'priority))
     (display "  ")
@@ -191,10 +191,14 @@
 
 (define (create-id)
   "Create a new issue id."
-  (let ((id (mod (abs (make-seed)) 10000)))
-    (if (< id 1000)
-        (create-id)
-        id)))
+  (let ((pad (lambda (str)
+               (if (< (string-length str) 4)
+                   (string-append (make-string (- 4 (string-length str)) #\0)
+                                  str)
+                   str))))
+    (apply string-append
+           (map (compose pad (rcurry integer->string 'base 16) random)
+                (make-list 4 (expt 2 16))))))
 
 ;; Committing
 
