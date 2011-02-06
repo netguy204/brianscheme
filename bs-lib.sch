@@ -104,7 +104,8 @@
                                       (char->string opt)) *optarg*)
                                (iter (getopt opts)))
                        '()))))
-    (iter (getopt opts))))
+    (let ((plist (iter (getopt opts))))
+      (append (list 'rest (nthcdr *optind* *argv*)) plist))))
 
 ;; Command processing
 
@@ -170,14 +171,17 @@
 
 (define (bs-close args)
   "Set a commit status to closed."
-  (let ((issue (fetch-issue (canon (car args)))))
+  (let* ((opts (optlist "n"))
+         (do-commit (not (plist-get opts 'n)))
+         (issue (fetch-issue (canon (car (plist-get opts 'rest))))))
     (if (eq? (plist-get issue 'status) 'closed)
         (bs-warning "issue was already closed")
         (begin
           (plist-set! issue 'status 'closed)
           (write-issue issue)
-          (commit-issue issue
-                        (string-append "closed: " (co-msg issue)))))))
+          (if do-commit
+              (commit-issue issue
+                            (string-append "closed: " (co-msg issue))))))))
 
 (define (bs-commit args)
   "Commit current database to the repository."
