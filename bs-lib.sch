@@ -35,6 +35,7 @@
 ;;  this.
 
 (require 'getopt)
+(require 'sugar)
 
 (define *bs-dir* ".bs"
   "Location of issue database.")
@@ -142,8 +143,9 @@
          (id (number->string (create-id)))
          (priority (priority (or (plist-get opts 'p) 'normal)))
          (title (or (plist-get opts 't) (edit-message)))
+         (message (if (plist-get opts 't) '() (list (get-message))))
          (issue (list 'id id 'priority priority 'user *full*
-                      'title title 'status 'open)))
+                      'title title 'status 'open 'comments message)))
     (write-issue issue)
     (print-issue-short issue)
     (display (string-append "Created issue " id "\n"))
@@ -249,14 +251,17 @@
   "Summon the EDITOR to interact with the user."
   (close-output-port (open-output-port *tmp-file*))
   (let* ((ret (system (string-append (get-editor) " " *tmp-file*)))
-         (port (open-input-port *tmp-file*))
-         (title (read-line port)))
+         (title (call-with-input-file *tmp-file* read-line)))
     (unless ret
       (bs-error "editor aborted"))
     (if (= 0 (string-length title))
         (bs-error "empty message/title: aborting"))
-    (close-output-port port)
     title))
+
+(define (get-message)
+  "Get the message from the tempfile, less the title."
+  (call-with-input-file *tmp-file*
+    [begin (read-line _) (read-line _) (slurp-port _)]))
 
 ;; Misc
 
