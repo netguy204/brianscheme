@@ -77,6 +77,11 @@
   (assert-types (path string?))
   (%chdir path))
 
+(define (date-string)
+  "Return current date as a standard string."
+  (let ((str (%date-string)))
+    (substring str 0 (- (string-length str) 1))))
+
 (require 'cl-defun)
 (require 'point-free)
 (require 'string)

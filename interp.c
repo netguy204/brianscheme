@@ -855,6 +855,11 @@ DEFUN1(getpid_proc) {
   return make_fixnum(getpid());
 }
 
+DEFUN1(date_string_proc) {
+  time_t curtime = time(NULL);
+  return make_string(asctime(localtime(&curtime)));
+}
+
 DEFUN1(clocks_per_sec_proc) {
   return make_fixnum(CLOCKS_PER_SEC);
 }
@@ -1512,6 +1517,7 @@ void init_prim_environment(definer defn) {
   add_procedure("interpreter-stats", stats_proc);
   add_procedure("clock", clock_proc);
   add_procedure("getpid", getpid_proc);
+  add_procedure("%date-string", date_string_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("getcwd", getcwd_proc);
   add_procedure("%chdir", chdir_proc);
