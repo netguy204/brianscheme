@@ -871,12 +871,15 @@ DEFUN1(chdir_proc) {
 }
 
 DEFUN1(concat_proc) {
-  char buffer[100];
-
   char *str1 = STRING(FIRST);
   char *str2 = STRING(SECOND);
-  snprintf(buffer, 100, "%s%s", str1, str2);
-  return make_string(buffer);
+  size_t len1 = strlen(str1);
+  size_t len2 = strlen(str2);
+  char *buffer = xmalloc(len1 + len2 + 1);
+  snprintf(buffer, len1 + len2 + 1, "%s%s", str1, str2);
+  object *str = make_string(buffer);
+  free(buffer);
+  return str;
 }
 
 DEFUN1(compound_args_proc) {
