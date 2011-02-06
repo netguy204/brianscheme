@@ -1,0 +1,16 @@
+(id	"1c1bbc95eacf1f9e"
+priority	normal
+status	open
+category	bug
+user	"Christopher Wellons <mosquitopsu@gmail.com>"
+date	"Sun Feb  6 17:49:08 2011"
+title	"Segfaults on OpenBSD when loading images."
+comments	("While everything else seems to work fine on OpenBSD, around 1 in 10
+times bsch will segfault after loading an image. It looks like this
+may have to do with the kernel picking mmap() locations that conflict
+with malloc(). When mapping the image it may be mapping overtop
+malloc()'s own structures. However, an experiment with choosing mmap()
+locations seems to suggest this is untrue.
+
+")
+)
