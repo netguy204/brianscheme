@@ -53,6 +53,8 @@
 (define *tmp-file* ".git/BS_EDIT"
   "Temporary EDITOR file.")
 
+(define *props* '(id priority status user title comments))
+
 (define *priorities* '(low normal high urgent)
   "Priorities in order, 0-4.")
 
@@ -176,7 +178,13 @@
   "Write the given issue to the database."
   (let ((port (open-output-port
                (string-append *bs-dir* "/" (plist-get issue 'id)))))
-    (write-port issue port)
+    (write-string "(" port)
+    (dolist (prop *props*)
+      (write-port prop port)
+      (write-char #\tab port)
+      (write-port (plist-get issue prop) port)
+      (write-char #\newline port))
+    (write-string ")\n" port)
     (close-output-port port)))
 
 (define (create-id)
