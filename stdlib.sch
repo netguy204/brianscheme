@@ -72,6 +72,11 @@
   "Return #t if symbol is interned."
   (eq? sym (string->symbol (symbol->string sym))))
 
+(define (chdir path)
+  "Change the current working directory."
+  (assert-types (path string?))
+  (%chdir path))
+
 (require 'cl-defun)
 (require 'point-free)
 (require 'string)

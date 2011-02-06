@@ -859,6 +859,17 @@ DEFUN1(clocks_per_sec_proc) {
   return make_fixnum(CLOCKS_PER_SEC);
 }
 
+DEFUN1(getcwd_proc) {
+  char *cwd = getcwd(NULL, 0);
+  object *str = make_string(cwd);
+  free(cwd);
+  return str;
+}
+
+DEFUN1(chdir_proc) {
+  return AS_BOOL(chdir(STRING(FIRST)) == 0);
+}
+
 DEFUN1(concat_proc) {
   char buffer[100];
 
@@ -1499,6 +1510,8 @@ void init_prim_environment(definer defn) {
   add_procedure("clock", clock_proc);
   add_procedure("getpid", getpid_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
+  add_procedure("getcwd", getcwd_proc);
+  add_procedure("%chdir", chdir_proc);
   add_procedure("set-debug!", debug_proc);
   add_procedure("compound-body", compound_body_proc);
   add_procedure("compound-args", compound_args_proc);
