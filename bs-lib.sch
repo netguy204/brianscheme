@@ -292,6 +292,15 @@
 
 ;; Environment
 
+(let ((old-read-line read-line))
+  (define (read-line port)              ; redefine
+    "Read a non-comment line from the file."
+    (let ((line (old-read-line port)))
+      (cond
+       ((eof-object? line) line)
+       ((eq? (string-ref line 0) #\#) (read-line port))
+       (#t line)))))
+
 (define (load-config)
   "Load configuration into global variables."
   (let ((config (get-config)))
@@ -320,7 +329,16 @@
 
 (define (edit-message)
   "Summon the EDITOR to interact with the user."
-  (close-output-port (open-output-port *tmp-file*))
+  (let ((template (open-output-port *tmp-file*)))
+    (display "\n" template)
+    (display "# Put your issue message above. " template)
+    (display "Lines starting with # are ignored.\n" template)
+    (display "#\n" template)
+    (display "# The first line is the issue title. " template)
+    (display "Follow this with a blank line and\n" template)
+    (display "# then a detailed commentary of the issue.\n" template)
+    (display "#\n" template)
+    (close-output-port template))
   (let* ((ret (system (string-append (get-editor) " " *tmp-file*)))
          (title (call-with-input-file *tmp-file* read-line)))
     (unless ret
