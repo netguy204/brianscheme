@@ -88,11 +88,25 @@
 (define (read-line in)
   "Read the next line from the input port."
   (letrec ((iter (lambda (str next)
-                    (if (or (eq? next #\newline) (eof-object? next))
-                        str
-                        (iter (string-append str (char->string next))
-                              (read-char in))))))
+                   (if (and (eof-object? next)
+                            (= 0 (string-length str)))
+                       next
+                       (if (or (eq? next #\newline)
+                               (eof-object? next))
+                           str
+                           (iter (string-append str (char->string next))
+                                 (read-char in)))))))
     (iter "" (read-char in))))
+
+(define (slurp-port port)
+  "Read the rest of the port into a single string."
+  (letrec ((iter (lambda (next lst)
+                   (if (eof-object? next)
+                       lst
+                       (iter (read-line port) (cons next lst))))))
+    (apply string-append
+           (map (lambda (str) (string-append str "\n"))
+                (reverse (iter (read-line port) '()))))))
 
 (define (flush-output out)
   "Flush output port buffer."
