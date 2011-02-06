@@ -35,7 +35,11 @@ size_t init_freed_stack = 256;
 void* new_mmap(size_t size) {
   void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE | MAP_ANON, -1, 0);
-  fflush(stdout);
+  if (p == MAP_FAILED) {
+    fprintf(stderr, "error: mmap() failed to create mempool: %s\n",
+	    strerror(errno));
+    exit(1);
+  }
   return p;
 }
 
