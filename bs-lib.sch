@@ -177,7 +177,7 @@
           (plist-set! issue 'status 'closed)
           (write-issue issue)
           (commit-issue issue
-                        (string-append "closed " (plist-get issue 'id)))))))
+                        (string-append "closed: " (co-msg issue)))))))
 
 (define (bs-commit args)
   "Commit current database to the repository."
@@ -206,10 +206,14 @@
         (call-with-input-file file read-port)
         (bs-error "No such issue: " name))))
 
+(define (short-id issue)
+  "Return short id version of issue."
+  (substring (plist-get issue 'id) 0 7))
+
 (define (print-issue-short issue)
   "Print out the issue summary in one line."
   (when (eq? (plist-get issue 'status) 'open)
-    (display (substring (plist-get issue 'id) 0 7))
+    (display (short-id issue))
     (display "  ")
     (display (plist-get issue 'priority))
     (display "  ")
@@ -281,13 +285,16 @@
                (git commit "-qm" (string-append "[issue] " msg)))
     (display "No database changes to commit.\n")))
 
+(define (co-msg issue)
+  "Create standard commit message for the given issue."
+  (string-append (plist-get issue 'title) " (" (short-id issue) ")"))
+
 (define (commit-issue issue . msg)
   "Commit a single issue into git."
   (unless (and (git reset)
                (git add (issue-file issue))
                (git commit "-qm"
-                    (string-append "[issue] "
-                                   (car-else msg (plist-get issue 'title)))))
+                    (string-append "[issue] " (car-else msg (co-msg issue)))))
     (display "Failed to commit issue.\n")))
 
 ;; Environment
