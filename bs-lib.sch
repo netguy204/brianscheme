@@ -54,7 +54,7 @@
 (define *tmp-file* ".git/BS_EDIT"
   "Temporary EDITOR file.")
 
-(define *props* '(id priority status category user title comments))
+(define *props* '(id priority status category user date title comments))
 
 (define *priorities* '(low normal high urgent)
   "Priorities in order, 0-4.")
@@ -164,7 +164,8 @@
          (title (or (plist-get opts 't) (edit-message)))
          (message (if (plist-get opts 't) '() (list (get-message))))
          (issue (list 'id id 'priority priority 'category cat 'user *full*
-                      'title title 'status 'open 'comments message)))
+                      'date (date-string) 'title title 'status 'open
+                      'comments message)))
     (write-issue issue)
     (print-issue-short issue)
     (display (string-append "Created issue " id "\n"))
@@ -236,6 +237,7 @@
           (plist-get issue 'priority))
   (printf "Category: %a\n" (plist-get issue 'category))
   (printf "Author: %s\n" (plist-get issue 'user))
+  (printf "Date:   %s\n" (plist-get issue 'date))
   (printf "\n\t%s\n\n" (plist-get issue 'title))
   (dolist (msg (plist-get issue 'comments))
     (display msg)
