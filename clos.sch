@@ -228,9 +228,9 @@
 
 (define (end-of-stream? obj)
   "predicate to detect the end of a stream"
-  (eq? obj 'eos))
+  (eof-object? obj))
 
-(define-generic read-stream
+(define-generic read-stream-char
   "read a character from an input stream")
 
 (define-generic read-stream-upto
@@ -241,7 +241,7 @@
   (let ((result (make-string count)))
     (let loop ((idx 0))
       (if (< idx count)
-	  (let ((char (read-stream strm)))
+	  (let ((char (read-stream-char strm)))
 	    (if (end-of-stream? char)
 		result
 		(begin
@@ -255,14 +255,14 @@
 (define-method (read-stream-until (strm <input-stream>)
 				  (pred <procedure>))
   (let ((result (make-string-buffer)))
-    (let loop ((char (read-stream strm)))
+    (let loop ((char (read-stream-char strm)))
       (if (end-of-stream? char)
 	  (string-buffer->string result)
 	  (begin
 	    (write-stream result char)
 	    (if (pred char)
 		(string-buffer->string result)
-		(loop (read-stream strm))))))))
+		(loop (read-stream-char strm))))))))
 
 (define-method (read-stream-until (strm <input-stream>)
 				  (char <char>))
@@ -276,12 +276,8 @@
 
 (define stdin-stream (make <native-input-stream> 'port stdin))
 
-(define-method (read-stream (strm <native-input-stream>))
-  (let ((val (read-char (slot-ref strm 'port))))
-    ;; nead to translate eof
-    (if (eof-object? val)
-	'eos
-	val)))
+(define-method (read-stream-char (strm <native-input-stream>))
+  (read-char (slot-ref strm 'port)))
 
 ;; a stream buffer can be written to or read from as a stream
 (define-class <string-buffer> (<output-stream> <input-stream>)
@@ -348,10 +344,10 @@
 
   #t)
 
-(define-method (read-stream (strm <string-buffer>))
+(define-method (read-stream-char (strm <string-buffer>))
   (if (= (slot-ref strm 'read-index)
 	 (slot-ref strm 'string-length))
-      'eos
+      *eof-object*
       (let ((val (string-ref (slot-ref strm 'string)
 			     (slot-ref strm 'read-index))))
 	(slot-set! strm 'read-index
@@ -416,7 +412,7 @@ characters"
 	'wrapped-stream strm
 	'buffer nil)))
 
-(define-method (read-stream (strm <pushback-input-stream>))
+(define-method (read-stream-char (strm <pushback-input-stream>))
   (let ((buf (slot-ref strm 'buffer))
 	(wrapped (slot-ref strm 'wrapped-stream)))
 
@@ -425,15 +421,14 @@ characters"
 	  (slot-set! strm 'buffer (cdr buf))
 	  char)
 	;; no buffer, read stream directly
-	(read-stream wrapped))))
+	(read-stream-char wrapped))))
 
-(define-generic unread-stream
+(define-generic unread-stream-char
   "return a character read from a stream back to that stream to be
 read again")
 
-(define-method (unread-stream (strm <pushback-input-stream>)
-			      (char <char>))
+(define-method (unread-stream-char (strm <pushback-input-stream>)
+				   (char <char>))
   (slot-set! strm 'buffer
 	     (cons char (slot-ref strm 'buffer)))
   nil)
-
