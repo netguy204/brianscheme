@@ -17,6 +17,17 @@
         (set! sum (logxor sum (ash (char->integer (read-char in)) (* i 8)))))
       sum)))
 
+(define (random:collapse-string str)
+  "Collapse string into a 32-bit seed."
+  (letrec ((iter (lambda (lst mix pos)
+		   (if (null? lst)
+		       mix
+		       (iter (cdr lst)
+			     (logxor mix (ash (char->integer (car lst))
+					      (* pos 8)))
+			     (mod (+ pos 1) 4))))))
+    (iter (string->list str) 0 0)))
+
 (define (make-seed)
   "Generate a new seed."
   (reduce logxor (list (gc) (getpid)
@@ -24,7 +35,8 @@
                            (generate *random-state*)
                            0)
                        (if (file-exists? "/dev/urandom")
-                           (random:urandom)))))
+                           (random:urandom))
+		       (random:collapse-string (date-string)))))
 
 (define-class <random-state> ()
   "A random state for a PRNG.")
