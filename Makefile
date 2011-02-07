@@ -2,7 +2,7 @@ TARGETS = bsch bsch.preboot bschsfx
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c pool.c
+SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c pool.c socket.c
 HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))

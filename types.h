@@ -142,6 +142,8 @@ char is_character(object *obj);
 
 object *make_empty_string(long length);
 
+object *make_filled_string(long len, char fill_char);
+
 object *make_string(char *value);
 
 char is_string(object *obj);
