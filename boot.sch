@@ -587,6 +587,9 @@ list"
   "read from a port"
   (read-port port))
 
+(define (eof-object? obj)
+  (eq? *eof-object* obj))
+
 (define (file-exists?0 name)
   "Return #t if file (and only files) exists, otherwise false."
   (let ((port (open-input-port name)))

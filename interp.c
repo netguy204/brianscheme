@@ -235,10 +235,6 @@ DEFUN1(is_alien_proc) {
   return AS_BOOL(is_alien(FIRST));
 }
 
-DEFUN1(is_eof_proc) {
-  return AS_BOOL(is_eof_object(FIRST));
-}
-
 DEFUN1(is_compiled_proc_proc) {
   return AS_BOOL(is_compiled_proc(FIRST));
 }
@@ -1404,7 +1400,6 @@ void init_prim_environment(definer defn) {
   add_procedure("compiled-syntax-procedure?", is_compiled_syntax_proc_proc);
   add_procedure("output-port?", is_output_port_proc);
   add_procedure("input-port?", is_input_port_proc);
-  add_procedure("eof-object?", is_eof_proc);
   add_procedure("alien?", is_alien_proc);
   add_procedure("compiled-procedure?", is_compiled_proc_proc);
   add_procedure("meta?", is_meta_proc);
@@ -1588,19 +1583,20 @@ void init() {
   g->error_sym = make_uninterned_symbol("error");
   push_root(&(g->error_sym));
 
-  g->eof_object = alloc_object(0);
-  g->eof_object->type = EOF_OBJECT;
-  push_root(&(g->eof_object));
-
   g->empty_env = g->empty_list;
   g->env = make_hashtab(100);
   push_root(&(g->env));
   interp_definer("*global-environment*", g->env);
 
-
   g->vm_env = make_hashtab(100);
   push_root(&(g->vm_env));
   vm_definer("*global-environment*", g->vm_env);
+
+  g->eof_object = alloc_object(0);
+  g->eof_object->type = EOF_OBJECT;
+  interp_definer("*eof-object*", g->eof_object);
+  vm_definer("*eof-object*", g->eof_object);
+  push_root(&(g->eof_object));
 
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
