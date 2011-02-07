@@ -28,6 +28,7 @@
 #include "gc.h"
 #include "vm.h"
 #include "ffi.h"
+#include "socket.h"
 
 static const int DEBUG_LEVEL = 1;
 
@@ -706,7 +707,6 @@ DEFUN1(integer_to_char_proc) {
 }
 
 DEFUN1(make_string_proc) {
-  int idx;
   long length = LONG(FIRST) + 1;
   object *fill = SECOND;
   char fill_char = '\0';
@@ -714,11 +714,7 @@ DEFUN1(make_string_proc) {
     fill_char = CHAR(fill);
   }
 
-  object *string = make_empty_string(length);
-  for(idx = 0; idx < length - 1; ++idx) {
-    STRING(string)[idx] = fill_char;
-  }
-
+  object *string = make_filled_string(length, fill_char);
   STRING(string)[length - 1] = '\0';
   return string;
 }
@@ -1603,10 +1599,12 @@ void init() {
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
   init_ffi(interp_definer);
+  init_socket(interp_definer);
 
   init_prim_environment(vm_definer);
   vm_init_environment(vm_definer);
   init_ffi(vm_definer);
+  init_socket(vm_definer);
 
   vm_init();
 

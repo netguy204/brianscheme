@@ -82,6 +82,15 @@ object *make_empty_string(long len) {
   return obj;
 }
 
+object *make_filled_string(long length, char fill_char) {
+  int idx;
+  object *string = make_empty_string(length);
+  for(idx = 0; idx < length - 1; ++idx) {
+    STRING(string)[idx] = fill_char;
+  }
+  return string;
+}
+
 object *make_string(char *value) {
   size_t len = strlen(value) + 1;
   object *obj = make_empty_string(len);

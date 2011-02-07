@@ -150,6 +150,7 @@
         (error "invalid real in string" string)
         (string-list->real lst))))
 
+
 (define (integer->string int (base 10))
   "Convert integer into a string, with optional base."
   (assert-types (int integer?))
@@ -161,3 +162,36 @@
     (if (zero? int)
         "0"
         (list->string (iter int '())))))
+
+(define (chomp line)
+  (let ((len (string-length line)))
+    (if (eq? (string-ref line (- len 1))
+	     #\newline)
+	(if (and (> len 1)
+		 (= (char->integer (string-ref line (- len 2)))
+		    13))
+	    (substring line 0 (- len 2))
+	    (substring line 0 (- len 1)))
+	line)))
+
+(define (trim line)
+  (let loop ((idx 0))
+    (let ((char (string-ref line idx)))
+      (cond
+       ((= (char->integer char) 0)
+	(list line nil))
+       ((eq? char #\space)
+	(loop (+ idx 1)))
+       (else
+	(substring line idx))))))
+
+(define (string-split line split-char)
+  (let loop ((idx 0))
+    (let ((char (string-ref line idx)))
+      (cond
+       ((= (char->integer char) 0)
+	(list line nil))
+       ((eq? char split-char)
+	(list (substring line 0 idx)
+	      (substring line (+ idx 1))))
+       (else (loop (+ idx 1)))))))
