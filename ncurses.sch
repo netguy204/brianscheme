@@ -15,7 +15,7 @@
 
 (require 'ffi)
 
-(with-library (nc "libncurses.so")
+(with-library (nc "libncurses")
   (let ((initscr (ffi:dlsym nc "initscr"))
 	(noecho (ffi:dlsym nc "noecho"))
 	(cbreak (ffi:dlsym nc "cbreak"))

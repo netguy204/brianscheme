@@ -24,7 +24,7 @@
 (require 'ffi)
 (require 'clos)
 
-(with-library (pth "libpth.so")
+(with-library (pth "libpth")
   (let ((init (ffi:dlsym pth "pth_init"))
 	(spawn (ffi:dlsym pth "pth_spawn"))
 	(yield (ffi:dlsym pth "pth_yield"))

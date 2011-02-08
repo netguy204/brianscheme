@@ -1,6 +1,6 @@
 (require 'ffi)
 
-(with-library (rl "libreadline.so")
+(with-library (rl "libreadline")
   (let ((ffi-readline (ffi:dlsym rl "readline"))
         (ffi-add-history (ffi:dlsym rl "add_history")))
 

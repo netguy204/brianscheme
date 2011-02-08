@@ -10,7 +10,7 @@ OBJECTS = $(subst .c,.o,$(SOURCES))
 IMAGE = boot.img
 
 ifeq ($(shell uname), Linux)
-	LDFLAGS = -lz -lffi -ldl -lm -rdynamic
+	LDFLAGS = -lz -lffi -lltdl -lm -rdynamic
 else
 	LDFLAGS = -lz -lffi -lm -rdynamic
 endif

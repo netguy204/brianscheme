@@ -19,7 +19,7 @@
 
 (require 'ffi)
 
-(let* ((libjit (ffi:dlopen "libjit.so"))
+(let* ((libjit (ffi:dlopen "libjit"))
        (context-create (ffi:dlsym libjit "jit_context_create"))
        (context-destroy (ffi:dlsym libjit "jit_context_destroy"))
        (context-supports-threads (ffi:dlsym

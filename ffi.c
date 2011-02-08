@@ -16,7 +16,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <dlfcn.h>
+#include <ltdl.h>
 
 #include <ffi.h>
 #include "types.h"
@@ -34,10 +34,10 @@ DEFUN1(dlopen_proc) {
   void *handle;
 
   if(FIRST == g->empty_list) {
-    handle = dlopen(NULL, RTLD_LAZY);
+    handle = lt_dlopen(NULL);
   }
   else {
-    handle = dlopen(STRING(FIRST), RTLD_LAZY | RTLD_GLOBAL);
+    handle = lt_dlopenext(STRING(FIRST));
   }
 
   if(handle == NULL) {
@@ -51,14 +51,12 @@ DEFUN1(dlopen_proc) {
 DEFUN1(dlsym_proc) {
   void *handle = ALIEN_PTR(FIRST);
 
-  dlerror();
-
   FN_PTR fn;
-  *(void **)(&fn) = dlsym(handle, STRING(SECOND));
+  *(void **)(&fn) = lt_dlsym(handle, STRING(SECOND));
 
-  char *msg;
-  if((msg = dlerror()) != NULL) {
-    fprintf(stderr, "dlerror: %s\n", msg);
+  if(fn == NULL) {
+    const char *msg = lt_dlerror();
+    fprintf(stderr, "lt_dlerror: %s\n", msg);
     return g->false;
   }
 
@@ -68,11 +66,10 @@ DEFUN1(dlsym_proc) {
 DEFUN1(dlsym2_proc) {
   void *handle = ALIEN_PTR(FIRST);
 
-  dlerror();
-  void *ptr = dlsym(handle, STRING(SECOND));
-  char *msg;
-  if((msg = dlerror()) != NULL) {
-    fprintf(stderr, "dlerror: %s\n", msg);
+  void *ptr = lt_dlsym(handle, STRING(SECOND));
+  if(ptr == NULL) {
+    const char *msg = lt_dlerror();
+    fprintf(stderr, "lt_dlerror: %s\n", msg);
     return g->false;
   }
 
@@ -83,7 +80,7 @@ DEFUN1(dlsym2_proc) {
 
 DEFUN1(dlclose_proc) {
   void *handle = ALIEN_PTR(FIRST);
-  dlclose(handle);
+  lt_dlclose(handle);
   return g->true;
 }
 
@@ -324,6 +321,7 @@ DEFUN1(alien_to_primitive) {
 }
 
 void ffi_add_roots() {
+  lt_dlinit();
   push_root(&(g->free_ptr_fn));
 }
 
@@ -382,4 +380,6 @@ void init_ffi(definer defn) {
   fixnum_offset = (unsigned int)(long)&(((object *) 0)->data.fixnum.value);
   car_offset = (unsigned int)(long)&(((object *) 0)->data.pair.car);
   cdr_offset = (unsigned int)(long)&(((object *) 0)->data.pair.cdr);
+
+  lt_dlinit();
 }
