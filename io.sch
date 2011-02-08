@@ -22,7 +22,7 @@
   (%umask mode))
 
 (define (mkdir file . modearg)
-  (let ((mode (car-else modearg 493)))
+  (let ((mode (car-else modearg 493)))	; #o755
     (assert-types (file string?) (mode integer?))
     (%mkdir file mode)))
 

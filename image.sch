@@ -34,7 +34,7 @@
       (close-input-port exe)
       (close-input-port img)
       (close-output-port out)
-      (chmod outfile 493)
+      (chmod outfile #o755)
       (rename-file outfile file))))
 
 ;; this list of hooks will be executed before the user image load
