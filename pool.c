@@ -231,7 +231,7 @@ subpool_t *create_subpool_node (size_t size)
  * place in memory. */
 int pool_dump (pool_t * pool, char *file, int compress)
 {
-  int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC);
+  int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd < 0) return -1;
   subpool_t *cur = pool->pools;
 
