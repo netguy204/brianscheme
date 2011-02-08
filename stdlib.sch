@@ -90,10 +90,19 @@
 (require 'math)
 (require 'clos)
 (require 'read)
+(require 'sugar)
 (require 'clos-repl)
 (require 'list)
 (require 'image)
 (require 'random)
+
+(define-syntax (doto exp . funcs)
+  "As Clojure's doto, apply function forms to exp as left-most argument."
+  (let ((res (gensym)))
+    `(let ((,res ,exp))
+       ,@(map [cons (car _) (cons res (cdr _))] funcs)
+       ,res)))
+
 (provide 'stdlib)
 
 (define (repl-or-script)
