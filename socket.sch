@@ -57,33 +57,34 @@
 
 (define (header-code code)
   (let ((buff (make-string-buffer)))
-    (write-stream buff "HTTP/1.1 ")
-    (write-stream buff (number->string code))
-    (write-stream buff " OK")
-    (append-eol buff)
+    (doto buff
+      (write-stream "HTTP/1.1 ")
+      (write-stream (number->string code))
+      (write-stream " OK")
+      (append-eol))
     (string-buffer->string buff)))
 
 (define (header-field name value)
   (let ((buff (make-string-buffer)))
-    (write-stream buff name)
-    (write-stream buff ": ")
-    (write-stream buff value)
-    (append-eol buff)
+    (doto buff
+      (write-stream name)
+      (write-stream ": ")
+      (write-stream value)
+      (append-eol))
     (string-buffer->string buff)))
 
 (define (with-basic-header data)
   (let ((buff (make-string-buffer)))
-    (write-stream buff (header-code 200))
-    (write-stream 
-     buff
-     (header-field "Content-Length"
-		   (number->string (string-length data))))
-    (write-stream buff
-		  (header-field "Content-Type"
-				"text/html; charset=UTF-8"))
-
-    (append-eol buff)
-    (write-stream buff data)
+    (doto buff
+      (write-stream (header-code 200))
+      (write-stream
+       (header-field "Content-Length"
+		     (number->string (string-length data))))
+      (write-stream
+       (header-field "Content-Type"
+		     "text/html; charset=UTF-8"))
+      (append-eol)
+      (write-stream data))
     (string-buffer->string buff)))
 
 (define (test-handler conn hdrs)
