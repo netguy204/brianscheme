@@ -55,8 +55,8 @@ void *xmalloc(size_t size) {
   return obj;
 }
 
-int save_image(char *filename) {
-  return pool_dump(g->global_pool, filename);
+int save_image(char *filename, int compress) {
+  return pool_dump(g->global_pool, filename, compress);
 }
 
 void patch_object(object *sym, object *new_value) {

@@ -64,7 +64,7 @@ void pool_free (pool_t * pool, void *p);
 
 /* Dump entire pool to file that can be read back in later to the same
  * place in memory. */
-int pool_dump (pool_t * pool, char *file);
+int pool_dump (pool_t * pool, char *file, int compress);
 
 /* Read the pool from the given file into memory. */
 void *pool_load (char * file, off_t offset);

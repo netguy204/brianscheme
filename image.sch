@@ -13,11 +13,12 @@
 
 ; DESCRIPTION: Provides functions for dealing with saved images.
 
-(define (save-image file (executable #f) (toplevel repl-or-script))
+(define (save-image file
+		    (executable #f) (toplevel repl-or-script) (compress #f))
   "Save image to FILE. If given a second argument, run that on load."
   (assert-types (file string?))
   (define *after-image-start* toplevel)
-  (%save-image file)
+  (%save-image file (if (eq? compress #t) -1 (if compress compress 0)))
   (if executable
       (create-exec-image file)
       #t))

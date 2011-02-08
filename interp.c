@@ -579,7 +579,7 @@ DEFUN1(save_image_proc) {
   baker_collect();
 
   object *file = FIRST;
-  int r = save_image(STRING(file));
+  int r = save_image(STRING(file), LONG(SECOND));
   if (r < 0)
     return throw_message("could not save image");
   return g->true;

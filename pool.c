@@ -21,9 +21,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/mman.h>
+#include <zlib.h>
 #include "pool.h"
 #include "gc.h"
+
+#define ZCHUNK 16384
 
 static const size_t hdr = sizeof(void *) + sizeof(size_t);
 
@@ -225,23 +229,57 @@ subpool_t *create_subpool_node (size_t size)
 
 /* Dump entire pool to file that can be read back in later to the same
  * place in memory. */
-int pool_dump (pool_t * pool, char *file)
+int pool_dump (pool_t * pool, char *file, int compress)
 {
-  FILE *f = fopen(file, "w");
-  if (f == NULL) return -1;
+  int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC);
+  if (fd < 0) return -1;
   subpool_t *cur = pool->pools;
+
+  gzFile gz;
+  if (compress != 0) {
+    gz = gzdopen(fd, "w");
+    gzsetparams(gz, compress, Z_DEFAULT_STRATEGY);
+  }
+
   while (cur != NULL)
     {
-      fwrite(cur->mem_block, cur->size, 1, f);
+      if (compress == 0) {
+	write(fd, cur->mem_block, cur->size);
+      } else {
+	gzwrite(gz, cur->mem_block, cur->size);
+      }
       cur = cur->next;
     }
-  fclose(f);
+
+  if (compress != 0)
+    gzclose(gz);
+  else
+    close(fd);
   return 0;
 }
+
+void *pool_loadz(char *file, off_t offset);
 
 /* Read the pool from the given file into memory. */
 void* pool_load (char * file, off_t offset)
 {
+  /* Check for a compressed image. */
+  FILE *zcheck = fopen(file, "r");
+  if (zcheck == NULL) {
+    fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
+    return NULL;
+  }
+  if (offset > 0)
+    fseek(zcheck, offset, SEEK_SET);
+  uint16_t zheader;
+  fread(&zheader, 1, 2, zcheck);
+  if (zheader == 0x8b1f) {
+    /* This is a compressed stream. */
+    fclose(zcheck);
+    return pool_loadz(file, offset);
+  }
+  fclose(zcheck);
+
   int fd = open(file, O_RDONLY);
   if (fd < 0) {
     fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
@@ -274,5 +312,51 @@ void* pool_load (char * file, off_t offset)
     fprintf(stderr, "error: empty image file: %s\n", file);
     return NULL;
   }
+  return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
+}
+
+/* Load a compressed pool. Rather than mmap() a file, we just mmap()
+ * MAP_ANON again and write into it. */
+void *pool_loadz(char *file, off_t offset) {
+  int fd = open(file, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "error: failed to open %s: %s\n", file, strerror(errno));
+    return NULL;
+  }
+  if (offset > 0)
+    lseek(fd, offset, SEEK_SET);
+  gzFile gz = gzdopen(fd, "r");
+  void *first = NULL;
+  while (1) {
+    void *address;
+    size_t size, r;
+    r = gzread(gz, &size, sizeof(size_t));
+    if (r == 0) break;
+    r = gzread(gz, &address, sizeof(void *));
+    if (r == 0) break;
+
+    if (first == NULL)
+      first = address;
+    void *p = mmap(address, size, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    if (p == MAP_FAILED) {
+      fprintf(stderr, "error: loadz failed to mmap() %s: %s\n",
+	      file, strerror(errno));
+      return NULL;
+    }
+    memcpy(address, &size, sizeof(size));
+    memcpy(address + sizeof(size), &address, sizeof(address));
+    size_t amt = size - hdr;
+    r = gzread(gz, address + hdr, amt);
+    if (r != amt) {
+      fprintf(stderr, "error: failed to decompress image %s\n", file);
+      return NULL;
+    }
+  }
+  if (first == NULL) {
+    fprintf(stderr, "error: empty image file: %s\n", file);
+    return NULL;
+  }
+  gzclose(gz);
   return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
 }

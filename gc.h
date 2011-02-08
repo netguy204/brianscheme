@@ -35,7 +35,7 @@ void *MALLOC(size_t size);  /* mmap()ed */
 void *REALLOC(void *p, size_t new);  /* mmap()ed */
 void FREE(void *p);       /* mmap()ed */
 
-int save_image(char *filename);
+int save_image(char *filename, int compress);
 int load_image(char *filename, off_t offset);
 void patch_object(object *sym, object *new_value);
 
