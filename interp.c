@@ -1536,6 +1536,7 @@ void interp_add_roots(void) {
   push_root(&(g->env));
   push_root(&(g->vm_env));
   push_root(&(g->error_sym));
+  push_root(&(g->all_characters));
 }
 
 void init() {
@@ -1566,6 +1567,17 @@ void init() {
 
   g->symbol_table = g->empty_list;
   push_root(&(g->symbol_table));
+
+  /* build the intern'd character table */
+  g->all_characters = make_vector(g->empty_list, 256);
+  push_root(&(g->all_characters));
+  int ii;
+  for(ii = 0; ii < 256; ++ii) {
+    object *obj = alloc_object(0);
+    obj->type = CHARACTER;
+    CHAR(obj) = (char)ii;
+    VARRAY(g->all_characters)[ii] = obj;
+  }
 
   g->unquote_symbol = make_symbol("unquote");
   g->unquotesplicing_symbol = make_symbol("unquotesplicing");

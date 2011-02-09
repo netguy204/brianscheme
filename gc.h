@@ -101,6 +101,7 @@ typedef struct global_state {
   object *empty_env;
   object *env;
   object *vm_env;
+  object *all_characters;
 
   /* FFI */
   object *free_ptr_fn;

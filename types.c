@@ -65,10 +65,7 @@ char is_real(object * obj) {
 }
 
 object *make_character(char value) {
-  object *obj = alloc_object(0);
-  obj->type = CHARACTER;
-  obj->data.character.value = value;
-  return obj;
+  return VARRAY(g->all_characters)[(unsigned char)value];
 }
 
 char is_character(object * obj) {
