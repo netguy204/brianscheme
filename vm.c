@@ -58,24 +58,24 @@ opcode_table(generate_decls)
 
 /* generate an enumeration of all of the opcodes */
 #define generate_enum(opcode) _ ## opcode ## _,
-     enum {
-       opcode_table(generate_enum)
-	 INVALID_BYTECODE,
-     } opcodes;
+
+enum {
+  opcode_table(generate_enum)
+  INVALID_BYTECODE,
+} opcodes;
 
 /* generate the stringified form */
 #define generate_string(opcode) "" # opcode,
-     const char *bytecode_str[] = {
-       opcode_table(generate_string)
-     };
 
-object *bytecodes[INVALID_BYTECODE];
+const char *bytecode_str[] = {
+  opcode_table(generate_string)
+};
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
 #define generate_sym_to_code(opcode)		\
   if(sym == opcode ## _op) {			\
-    return bytecodes[ _ ## opcode ## _ ];	\
+    return make_character( _ ## opcode ## _);	\
   }
 
 object *symbol_to_code(object *sym) {
@@ -97,7 +97,7 @@ DEFUN1(symbol_to_code_proc) {
 
 DEFUN1(code_to_symbol_proc) {
   opcode_table(generate_code_to_sym)
-    return g->false;
+  return g->false;
 }
 
 #define VM_ERROR_RESTART(obj)			\
@@ -591,9 +591,6 @@ DEFUN1(set_error_restart_proc) {
 }
 
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
-#define generate_bytecodes(opcode)				  \
-  bytecodes[_ ## opcode ## _] = make_character(_ ## opcode ## _); \
-  push_root(&bytecodes[_ ## opcode ## _]);
 
 void vm_definer(char *sym, object *value) {
   object * symbol = make_symbol(sym);
@@ -612,7 +609,6 @@ void vm_definer(char *sym, object *value) {
 void vm_boot(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
-  opcode_table(generate_bytecodes)
 }
 
 void vm_add_roots(void) {
