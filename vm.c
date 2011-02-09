@@ -28,6 +28,7 @@ char profiling_enabled;
 
 #define ARG1 (codes[pc-2])
 #define ARG2 (codes[pc-1])
+#define BC short
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -85,6 +86,22 @@ object *symbol_to_code(object *sym) {
 
 DEFUN1(symbol_to_code_proc) {
   return symbol_to_code(FIRST);
+}
+
+DEFUN1(make_bytecode_array_proc) {
+  BC *bca = MALLOC(LONG(FIRST) * sizeof(BC));
+  return make_alien(bca, g->free_ptr_fn);
+}
+
+DEFUN1(get_bytecode_proc) {
+  BC *bca = ALIEN_PTR(FIRST);
+  return make_fixnum(bca[LONG(SECOND)]);
+}
+
+DEFUN1(set_bytecode_proc) {
+  BC *bca = ALIEN_PTR(FIRST);
+  bca[LONG(SECOND)] = (BC)LONG(THIRD);
+  return THIRD;
 }
 
 /* generate a function that converts a bytecode back into its
@@ -192,7 +209,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
 
   object *env;
 
-  long opcode;
+  BC opcode;
   object *top;
 
   long initial_top = stack_top - n_args;
@@ -218,7 +235,7 @@ vm_fn_begin:
   }
 
   long num_codes = LONG(car(BYTECODE(fn)));
-  long *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
+  BC *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
   const_array = caddr(BYTECODE(fn));
 
   VM_DEBUG("stack", stack);
@@ -236,7 +253,7 @@ vm_begin:
   switch (opcode) {
   case _args_:{
       VM_ASSERT(n_args == ARG1,
-		"wrong number of args. expected %ld, got %ld\n",
+		"wrong number of args. expected %d, got %ld\n",
 		ARG1, n_args);
 
       int ii;
@@ -261,8 +278,8 @@ vm_begin:
       VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
       int ii;
-      long req_args = ARG1;
-      long array_size = req_args + 1;
+      BC req_args = ARG1;
+      BC array_size = req_args + 1;
 
       /* resize the top frame if we need to */
       if(array_size > VSIZE(car(env))) {
@@ -322,7 +339,7 @@ vm_begin:
       top = METAPROC(top);
     }
 
-    long args_for_call = ARG1;
+    BC args_for_call = ARG1;
 
     if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
       fn = top;
@@ -374,7 +391,7 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      long args_for_call = ARG1;
+      BC args_for_call = ARG1;
 
       /* special case for apply (which will always be callj) */
       if(args_for_call == -1) {
@@ -647,6 +664,15 @@ void vm_init_environment(definer defn) {
 
   defn("set-profiling!",
        make_primitive_proc(set_profiling_proc));
+
+  defn("make-bytecode-array",
+       make_primitive_proc(make_bytecode_array_proc));
+
+  defn("bytecode-ref",
+       make_primitive_proc(get_bytecode_proc));
+
+  defn("bytecode-set!",
+       make_primitive_proc(set_bytecode_proc));
 }
 
 void wb(object * fn) {

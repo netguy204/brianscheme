@@ -396,30 +396,30 @@ about its value and optionally with more forms following"
 
 (define (instrs-to-bytes instr-vector)
   (let* ((len (vector-length instr-vector))
-	 (result (ffi:make-longs (%fixnum-mul 3 len))))
+	 (result (make-bytecode-array (%fixnum-mul 3 len))))
 
     (dotimes (idx len)
       (let ((instr (vector-ref instr-vector idx))
 	    (off (%fixnum-mul idx 3)))
 
-	(ffi:long-set! result off (char->integer (opcode instr)))
+	(bytecode-set! result off (char->integer (opcode instr)))
 
 	(if (cdr instr)
 	    (begin
-	      (ffi:long-set! result (%fixnum-add off 1)
+	      (bytecode-set! result (%fixnum-add off 1)
 			     (cadr instr))
 	      (if (cddr instr)
 		  (begin
-		    (ffi:long-set! result (%fixnum-add off 2)
+		    (bytecode-set! result (%fixnum-add off 2)
 				   (caddr instr)))
 		  ;; no second arg
-		  (ffi:long-set! result (%fixnum-add off 2) -1)))
+		  (bytecode-set! result (%fixnum-add off 2) -1)))
 
 	    (begin
 	      ;; no first or second arg
-	      (ffi:long-set! result (%fixnum-add off 1) -1)
+	      (bytecode-set! result (%fixnum-add off 1) -1)
 
-	      (ffi:long-set! result (%fixnum-add off 2) -1)))))
+	      (bytecode-set! result (%fixnum-add off 2) -1)))))
 
 
     result))
@@ -514,9 +514,9 @@ about its value and optionally with more forms following"
 	(result nil))
     (dotimes (idx len)
       (let* ((off (* idx 3))
-	     (instr (ffi:long-ref bytes off))
-	     (arg1 (ffi:long-ref bytes (+ off 1)))
-	     (arg2 (ffi:long-ref bytes (+ off 2)))
+	     (instr (bytecode-ref bytes off))
+	     (arg1 (bytecode-ref bytes (+ off 1)))
+	     (arg2 (bytecode-ref bytes (+ off 2)))
 	     (instr* (bytecode->symbol (integer->char instr)))
 	     (arg1* (if (member instr* '(fn const gvar gset))
 			(vector-ref consts arg1)
