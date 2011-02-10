@@ -404,3 +404,38 @@ characters"
   (print-object stdout-stream (read-stream-until tt #\space))
   (newline))
 
+(define-class <pushback-input-stream> (<input-stream>)
+  "wraps a stream in an interface that supports unreading characters"
+  ('wrapped-stream
+   'buffer))
+
+(define (make-pushback-stream strm)
+  (make <pushback-input-stream>
+    'wrapped-stream strm
+    'buffer nil))
+
+(define-method (read-stream (strm <pushback-input-stream>))
+  (let ((buf (slot-ref strm 'buffer))
+	(wrapped (slot-ref strm 'wrapped-stream)))
+
+    (if buf
+	(let ((char (read-stream buf)))
+	  (if (eq? char 'eos)
+	      (begin
+		;; buffer is empty, go back to stream
+		(slot-set! strm 'buffer nil)
+		(read-stream wrapped))
+	      char))
+	;; no buffer, read stream directly
+	(read-stream wrapped))))
+
+(define-generic unread-stream
+  "return a character read from a stream back to that stream to be
+read again")
+
+(define-method (unread-stream (strm <pushback-input-stream>)
+			      (char <char>))
+  (unless (slot-ref strm 'buffer)
+    (slot-set! strm 'buffer (make-string-buffer)))
+  (write-stream (slot-ref strm 'buffer) char))
+
