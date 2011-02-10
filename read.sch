@@ -285,3 +285,6 @@
   (read-stream (make <native-input-stream> 'port port)))
 
 (define read read-port)
+
+(define read-from-string (compose read-stream make-string-buffer)
+  "Read an expression from a string.")
