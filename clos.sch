@@ -410,22 +410,20 @@ characters"
    'buffer))
 
 (define (make-pushback-stream strm)
-  (make <pushback-input-stream>
-    'wrapped-stream strm
-    'buffer nil))
+  (if (instance-of? <pushback-input-stream> strm)
+      strm
+      (make <pushback-input-stream>
+	'wrapped-stream strm
+	'buffer nil)))
 
 (define-method (read-stream (strm <pushback-input-stream>))
   (let ((buf (slot-ref strm 'buffer))
 	(wrapped (slot-ref strm 'wrapped-stream)))
 
     (if buf
-	(let ((char (read-stream buf)))
-	  (if (eq? char 'eos)
-	      (begin
-		;; buffer is empty, go back to stream
-		(slot-set! strm 'buffer nil)
-		(read-stream wrapped))
-	      char))
+	(let ((char (car buf)))
+	  (slot-set! strm 'buffer (cdr buf))
+	  char)
 	;; no buffer, read stream directly
 	(read-stream wrapped))))
 
@@ -435,7 +433,7 @@ read again")
 
 (define-method (unread-stream (strm <pushback-input-stream>)
 			      (char <char>))
-  (unless (slot-ref strm 'buffer)
-    (slot-set! strm 'buffer (make-string-buffer)))
-  (write-stream (slot-ref strm 'buffer) char))
+  (slot-set! strm 'buffer
+	     (cons char (slot-ref strm 'buffer)))
+  nil)
 
