@@ -409,7 +409,7 @@ characters"
   ('wrapped-stream
    'buffer))
 
-(define (make-pushback-stream strm)
+(define (ensure-pushback-stream strm)
   (if (instance-of? <pushback-input-stream> strm)
       strm
       (make <pushback-input-stream>
