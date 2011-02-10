@@ -16,7 +16,7 @@
     (newline)
     (define *swank-stream* (make-server-stream port))
     (while #t
-	   (print-object stdout-stream (eval (read-stream *swank-stream*)))
-	   (newline))))
+	   (print-object *swank-stream* (eval (read-stream *swank-stream*)))
+	   (write-stream *swank-stream* "\n"))))
 
 (swank-listen 0)
