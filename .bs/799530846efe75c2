@@ -1,0 +1,9 @@
+(id	"799530846efe75c2"
+priority	normal
+status	open
+category	bug
+user	"Christopher Wellons <mosquitopsu@gmail.com>"
+date	"Thu Feb 10 11:45:04 2011"
+title	"Socket functions aren't type-safe."
+comments	()
+)
