@@ -1,0 +1,9 @@
+(id	"0d1da48587686948"
+priority	normal
+status	open
+category	feature
+user	"Christopher Wellons <mosquitopsu@gmail.com>"
+date	"Thu Feb 10 11:15:02 2011"
+title	"Streams have no concept of 'close'."
+comments	()
+)
