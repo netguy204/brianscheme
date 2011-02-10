@@ -213,50 +213,31 @@
 		     (#t (throw-error "invalid improper list" obj)))))
               (#t (cons obj (read:list stream char))))))))))
 
-(define (read:make-buf (size 16))
-  "Create a new string buffer."
-  (list 0 size (make-string size)))
-
-(define (read:buf-add! buffer ch)
-  "Add character to buffer, expanding if needed."
-  (let ((next (first buffer))
-	(size (second buffer))
-	(buf (third buffer)))
-    (if (= next size)
-	(let ((newbuf (read:make-buf 'size (* size 2))))
-	  (dotimes (i size)
-	    (string-set! (third newbuf) i (string-ref buf i)))
-	  (read:buf-add! (cons next (cdr newbuf)) ch))
-	(begin
-	  (string-set! buf next ch)
-	  (list (+ 1 next) size buf)))))
-
-(define (read:buf-trim buffer)
-  "Return a trimmed string of the buffer."
-  (substring (third buffer) 0 (first buffer)))
-
 (define (read:slurp-atom stream (stop? whitespace?) (allow-eof #t)
 			 (buffer #f))
   "Read until the next whitespace."
   (let ((ch (read-stream-char stream))
-	(buffer (or buffer (read:make-buf))))
+	(buffer (or buffer (make-string-buffer))))
     (cond
      ((eof-object? ch) (if allow-eof
-			   (read:buf-trim buffer)
+			   (string-buffer->string buffer)
 			   (throw-error "unexpected eof" "")))
-     ((stop? ch) (read:buf-trim buffer))
+     ((stop? ch) (string-buffer->string buffer))
      ((and allow-eof (macro-character? ch))
       (begin (unread-stream-char stream ch)
-             (read:buf-trim buffer)))
+             (string-buffer->string buffer)))
      ((eq? ch #\\)
+      (write-stream buffer (read:escaped stream))
       (read:slurp-atom stream
 		       'stop? stop?
 		       'allow-eof allow-eof
-		       'buffer (read:buf-add! buffer (read:escaped stream))))
-     (#t (read:slurp-atom stream
-			  'stop? stop?
-			  'allow-eof allow-eof
-			  'buffer (read:buf-add! buffer ch))))))
+		       'buffer buffer))
+     (#t
+      (write-stream buffer ch)
+      (read:slurp-atom stream
+		       'stop? stop?
+		       'allow-eof allow-eof
+		       'buffer buffer)))))
 
 (define (read:escaped stream)
   "Read an escaped character, and throw an error on EOF."
