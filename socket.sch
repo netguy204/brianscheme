@@ -37,6 +37,10 @@
 	*eof-object*
 	(string-ref (second r) 0))))
 
+(define-method (write-stream (stream <socket-stream>)
+			     (string <string>))
+  (socket-write (slot-ref stream 'conn) string (string-length string)))
+
 (define (make-socket-stream conn)
   "Create a stream from an existing connection."
   (make <socket-stream> 'conn conn))
