@@ -22,6 +22,31 @@
 ; And open localhost:8080 in your browser.
 
 (require 'string)
+(require 'clos)
+
+;;; CLOS stream
+
+(define-class <socket-stream> (<output-stream> <input-stream>)
+  "Apply stream concepts to sockets."
+  ('conn
+   'socket))
+
+(define-method (read-stream-char (stream <socket-stream>))
+  (let ((r (socket-read (slot-ref stream 'conn) 1)))
+    (if (zero? (first r))
+	*eof-object*
+	(string-ref (second r) 0))))
+
+(define (make-socket-stream conn)
+  "Create a stream from an existing connection."
+  (make <socket-stream> 'conn conn))
+
+(define (make-server-stream port)
+  "Create a stream TCP server, blocking on an incoming connection."
+  (let ((server (make-server-socket port)))
+    (make <socket-stream> 'conn (socket-accept server) 'socket server)))
+
+;;; HTTP server
 
 (define (socket-parse-line line)
   (let ((vals (string-split line #\:)))
