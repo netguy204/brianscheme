@@ -55,6 +55,10 @@ run: bsch
 clean:
 	rm -f *.o $(TARGETS) $(IMAGE) bs
 
+# Leave C object files, remove built BrianScheme files
+bs-clean:
+	rm bsch bs $(IMAGE)
+
 bs: bsch bs-lib.sch
 	./bsch bs-build.sch
 
