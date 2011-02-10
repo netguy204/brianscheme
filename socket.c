@@ -67,7 +67,8 @@ DEFUN1(socket_read_proc) {
   long socket = LONG(FIRST);
   long n_bytes = LONG(SECOND);
 
-  object * bytes = make_filled_string(n_bytes, '\0');
+  object * bytes = make_filled_string(n_bytes + 1, '\0');
+  push_root(&bytes);
   long rb = read(socket, STRING(bytes), n_bytes);
 
   object * result = g->empty_list;
@@ -80,6 +81,7 @@ DEFUN1(socket_read_proc) {
 
   pop_root(&count);
   pop_root(&result);
+  pop_root(&bytes);
 
   return result;
 }
