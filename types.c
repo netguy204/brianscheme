@@ -85,6 +85,7 @@ object *make_filled_string(long length, char fill_char) {
   for(idx = 0; idx < length - 1; ++idx) {
     STRING(string)[idx] = fill_char;
   }
+  STRING(string)[length - 1] = '\0';
   return string;
 }
 
