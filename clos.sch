@@ -156,9 +156,21 @@
 
 (define-method (print-object (strm <output-stream>)
 			     (str <string>))
-  (write-stream strm #\")
-  (write-stream strm str)
-  (write-stream strm #\"))
+  (let* ((esc '((#\newline #\n) (#\tab #\t) (#\" #\") (#\\ #\\)))
+	 (special (map car esc))
+	 (len (string-length str)))
+    (write-stream strm #\")
+    (let loop ((p 0))
+      (when (< p len)
+	(let ((c (string-ref str p)))
+	  (cond
+	   ((member? c special)
+	    (write-stream strm #\\)
+	    (write-stream strm (second (assq c esc))))
+	   (else
+	    (write-stream strm c))))
+	(loop (+ p 1))))
+    (write-stream strm #\")))
 
 (define-method (print-object (strm <output-stream>)
 			     (bool <boolean>))
