@@ -97,18 +97,32 @@
    `(nil)))
 
 (define (swank:compile-string-for-emacs . args)
-  "works but doesn't have the right return format"
+  "handle ctrl+c ctrl+c method of sending forms"
   (guard
    (ex (#t (list ':error ex)))
-   (eval (read-from-string (car args)))
-   (list ':ok (list (list 1) (list 1)))))
+
+   (list ':ok
+	 `(:compilation-result
+	   nil
+	   ,(object->string (eval (read-from-string (car args))))))))
 
 (define (swank:autodoc . args)
   "Ignore for now."
   (with-standard-return
    (list "")))
 
-(define swank:buffer-first-change (always 1))
+(define (swank:buffer-first-change . args)
+  (with-standard-return
+   (list "")))
+
+;; un-comment to have swank load on (require 'swank):
 
 ;(swank-listen)
+
+;; or build an image by evaluating in a repl:
+
+;; (require 'swank)
+;; (save-image "swank" 'executable #t 'toplevel swank-listen 'compress #t)
+
+
 
