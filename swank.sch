@@ -53,11 +53,22 @@
     exp))
 
 ;; Communication functions.
+(define (object->string form)
+  "stringify a form using the standard printer"
+  (string-buffer->string
+   (doto (make-string-buffer)
+     (print-object form))))
+
+(define (safe-eval exp)
+  "for internal evaluations: returns exception or result"
+  (guard
+   (ex
+    (#t ex))
+
+   (eval exp)))
+
 (define-syntax (with-standard-return . body)
-  (let ((ex (gensym)))
-    `(guard
-      (,ex (#t (cons ':error ,ex)))
-      (cons ':ok (begin . ,body)))))
+  `(cons ':ok (begin . ,body)))
 
 (define (swank:connection-info . args)
   (with-standard-return
@@ -74,23 +85,17 @@
   (with-standard-return
    '(("BSCH" "USER"))))
 
-(define (object->string form)
-  "stringify a form using the standard printer"
-  (string-buffer->string
-   (doto (make-string-buffer)
-     (print-object form))))
-
 (define (swank:interactive-eval . args)
   "Evaluate expression from SLIME."
   (with-standard-return
-   (list (object->string (eval (read-from-string (car args)))))))
+   (list (object->string (safe-eval (read-from-string (car args)))))))
 
 (define (swank:listener-eval . args)
   "Evaluate code from SLIME REPL."
   (with-standard-return
    (swank:send `(:presentation-start 1 :repl-result))
    (swank:send `(:write-string ,(object->string
-				 (eval (read-from-string (car args))))
+				 (safe-eval (read-from-string (car args))))
 			       :repl-result))
    (swank:send `(:presentation-end 1 :repl-result))
    (swank:send `(:write-string "\n" :repl-result))
@@ -98,13 +103,10 @@
 
 (define (swank:compile-string-for-emacs . args)
   "handle ctrl+c ctrl+c method of sending forms"
-  (guard
-   (ex (#t (list ':error ex)))
-
-   (list ':ok
-	 `(:compilation-result
-	   nil
-	   ,(object->string (eval (read-from-string (car args))))))))
+  (list ':ok
+	`(:compilation-result
+	  nil
+	  ,(object->string (safe-eval (read-from-string (car args)))))))
 
 (define (swank:autodoc . args)
   "Ignore for now."
