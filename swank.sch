@@ -20,9 +20,11 @@
 	   (let ((exp (swank:recv)))
 	     (print-object stdout-stream exp)
 	     (newline)
-	     (let ((out `(:return ,(cons ':ok (apply (eval (car (second exp)))
-						     (cdr (second exp))))
-				  ,(fifth exp))))
+	     (let ((out
+		    `(:return ,(apply (eval (car (second exp)))
+				      (cdr (second exp)))
+
+			      ,(fifth exp))))
 	       (print-object stdout-stream out)
 	       (newline)
 	       (swank:send out))))))
@@ -51,34 +53,62 @@
     exp))
 
 ;; Communication functions.
+(define-syntax (with-standard-return . body)
+  (let ((ex (gensym)))
+    `(guard
+      (,ex (#t (cons ':error ,ex)))
+      (cons ':ok (begin . ,body)))))
 
 (define (swank:connection-info . args)
-  (list `(:pid ,(getpid) :style nil :lisp-implementation (:name "bsch")
-	       :version "2010-12-10")))
+  (with-standard-return
+   (list `(:pid ,(getpid) :style nil :lisp-implementation (:name "bsch")
+		:version "2010-12-10"))))
 
-(define swank:swank-require (always '(("SWANK")))
-  "Ignore for now.")
+(define (swank:swank-require . args)
+  "Ignore for now."
+  (with-standard-return
+   '(("SWANK"))))
 
-(define swank:create-repl (always '(("BSCH" "USER")))
-  "Ignore for now.")
+(define (swank:create-repl . args)
+  "Ignore for now."
+  (with-standard-return
+   '(("BSCH" "USER"))))
+
+(define (object->string form)
+  "stringify a form using the standard printer"
+  (string-buffer->string
+   (doto (make-string-buffer)
+     (print-object form))))
 
 (define (swank:interactive-eval . args)
   "Evaluate expression from SLIME."
-  (let ((buffer (make-string-buffer)))
-    (print-object buffer (eval (read-from-string (car args))))
-    (list (string-buffer->string buffer))))
+  (with-standard-return
+   (list (object->string (eval (read-from-string (car args)))))))
 
 (define (swank:listener-eval . args)
   "Evaluate code from SLIME REPL."
-  (let ((buffer (make-string-buffer)))
-    (print-object buffer (eval (read-from-string (car args))))
-    (swank:send `(:presentation-start 1 :repl-result))
-    (swank:send `(:write-string ,(string-buffer->string buffer) :repl-result))
-    (swank:send `(:presentation-end 1 :repl-result))
-    (swank:send `(:write-string "\n" :repl-result))
-    `(nil)))
+  (with-standard-return
+   (swank:send `(:presentation-start 1 :repl-result))
+   (swank:send `(:write-string ,(object->string
+				 (eval (read-from-string (car args))))
+			       :repl-result))
+   (swank:send `(:presentation-end 1 :repl-result))
+   (swank:send `(:write-string "\n" :repl-result))
+   `(nil)))
 
-(define swank:autodoc (always (list ""))
-  "Ignore for now.")
+(define (swank:compile-string-for-emacs . args)
+  "works but doesn't have the right return format"
+  (guard
+   (ex (#t (list ':error ex)))
+   (eval (read-from-string (car args)))
+   (list ':ok (list (list 1) (list 1)))))
 
-(swank-listen)
+(define (swank:autodoc . args)
+  "Ignore for now."
+  (with-standard-return
+   (list "")))
+
+(define swank:buffer-first-change (always 1))
+
+;(swank-listen)
+
