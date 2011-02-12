@@ -47,7 +47,7 @@ swank: bsch
 	./bsch swank-image.sch
 
 test: bsch
-	echo '(load "run-tests.sch")' | ./bsch
+	./bsch run-tests.sch
 
 TAGS: bsch.c $(SOURCES) $(HEADERS)
 	find . -name "*.[chCH]" -print | etags -
@@ -58,7 +58,6 @@ run: bsch
 clean:
 	$(RM) *.o $(TARGETS) $(IMAGE) bs swank
 
-# Leave C object files, remove built BrianScheme files
 bs-clean:
 	$(RM) bsch bs swank $(IMAGE)
 
@@ -72,4 +71,4 @@ indent:
 linecount:
 	wc -l *.[ch] *.sch clos/*.sch examples/*.sch tests/*.sch
 
-.PHONY: test image clean indent linecount run
+.PHONY: test image clean indent linecount run bs-clean
