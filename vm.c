@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "vm.h"
 #include "types.h"
@@ -160,6 +161,12 @@ object *vector_pop(object * stack, long top) {
   return old;
 }
 
+char sigint_set = 0;
+
+void vm_sigint_handler(int arg __attribute__((unused))) {
+  sigint_set = 1;
+}
+
 #define VM_RETURN(obj)				\
   do {						\
     pop_root(&top);				\
@@ -241,6 +248,11 @@ vm_fn_begin:
   VM_DEBUG("stack", stack);
 
 vm_begin:
+  if(sigint_set) {
+    sigint_set = 0;
+    VM_ASSERT(0, "received SIGINT");
+  }
+
   if(pc >= num_codes) {
     VM_ASSERT(0, "pc %ld flew off the end of memory %ld", pc, num_codes);
   }
@@ -626,6 +638,11 @@ void vm_definer(char *sym, object *value) {
 void vm_boot(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
+
+  /* register for sigint */
+  struct sigaction sa;
+  sa.sa_handler = vm_sigint_handler;
+  sigaction(SIGINT, &sa, NULL);
 }
 
 void vm_add_roots(void) {
