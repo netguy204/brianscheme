@@ -230,3 +230,9 @@ appropriate operation for the types they end up as"
   (define (round x)
     "Return the nearest integer to X."
     (genf %round x)))
+
+(define (signum x)
+  "Number of magnitude of 1, representing the sign of x."
+  (cond ((> x 0) 1)
+	((< x 0) -1)
+	(else 0)))
