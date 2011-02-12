@@ -23,6 +23,9 @@
 	(getch (ffi:dlsym nc "getch"))
 	(clear (ffi:dlsym nc "clear"))
 	(mvprintw (ffi:dlsym nc "mvprintw"))
+	(addch (ffi:dlsym nc "addch"))
+	(mvaddch (ffi:dlsym nc "mvaddch"))
+	(move (ffi:dlsym nc "move"))
 	(refresh (ffi:dlsym nc "refresh"))
 	(nodelay (ffi:dlsym nc "nodelay"))
 	(halfdelay (ffi:dlsym nc "halfdelay"))
@@ -75,6 +78,24 @@
 		   (ffi:alien-uint x)
 		   (ffi:alien-uint y)
 		   (ffi:alien-string msg)))
+
+    (define (nc:addch ch)
+      "show char at current position"
+      (ffi:funcall addch 'ffi-uint
+		   (ffi:alien-uchar (char->integer ch))))
+
+    (define (nc:mvaddch x y ch)
+      "show char at position x y"
+      (ffi:funcall mvaddch 'ffi-uint
+		   (ffi:alien-uint x)
+		   (ffi:alien-uint y)
+		   (ffi:alien-uchar (char->integer ch))))
+
+    (define (nc:move x y)
+      "set current position to x y"
+      (ffi:funcall move 'ffi-uint
+		   (ffi:alien-uint x)
+		   (ffi:alien-uint y)))
 
     (define (nc:refresh)
       "flush the ncurses state to the terminal"
