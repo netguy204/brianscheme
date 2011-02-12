@@ -253,7 +253,10 @@
     (cond
      ((integer-string-list? lst *digits*) (string-list->integer lst 10))
      ((real-string-list? lst)             (string-list->real lst))
-     (#t                                  (string->symbol str)))))
+     (#t (let ((sym (string->symbol str)))
+	   (if (eq? (string-ref str 0) #\:)
+	       (set-global-unquoted! sym sym))
+	   sym)))))
 
 ;; Take over for old reader
 (define old-read read-port)
