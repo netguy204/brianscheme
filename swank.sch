@@ -9,6 +9,7 @@
 (require 'socket)
 
 (define *swank-port* 4005)
+(define *swank-debug* #f)
 
 (define (swank-listen . port-arg)
   "Start the swank server."
@@ -18,15 +19,17 @@
     (define *swank-stream* (make-server-stream port))
     (while #t
 	   (let ((exp (swank:recv)))
-	     (print-object stdout-stream exp)
-	     (newline)
+	     (when *swank-debug*
+		   (print-object stdout-stream exp)
+		   (newline))
 	     (let ((out
 		    `(:return ,(apply (eval (car (second exp)))
 				      (cdr (second exp)))
 
 			      ,(fifth exp))))
-	       (print-object stdout-stream out)
-	       (newline)
+	       (when *swank-debug*
+		     (print-object stdout-stream out)
+		     (newline))
 	       (swank:send out))))))
 
 (define (swank:send exp)
