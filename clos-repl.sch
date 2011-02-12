@@ -31,9 +31,7 @@
 		(repl-loop)))))
 
     (guard
-     (ex
-      (#t
-       (printf "clos-repl: %a\n" ex)))
+     (ex (#t (printf "clos-repl: %a\n" ex)))
 
      (repl-loop)))
 

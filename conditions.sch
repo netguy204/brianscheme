@@ -39,16 +39,6 @@
     (pop! condition-handlers)))
 
 
-(define (raise obj)
-  "throw object up to the currently installed *condition-handler*"
-  (if (conditions:handlers?)
-      ((conditions:top-handler) obj)
-      (begin
-	(write-port "unhandled condition: " stderr)
-	(write-port obj stderr)
-	(newline)
-	(exit 1))))
-
 (define-syntax (with-nonlocal-exit exiter flag . body)
   (let ((cc (gensym)))
     `(call/cc (lambda (,cc)
@@ -89,4 +79,50 @@
   (raise (cons 'error-condition objs)))
 
 (define throw-error error)
+
+(define (get-stack)
+  (let ((cenv (call/cc compiled-environment)))
+    (vector->list (vector-ref (car cenv) 0))))
+
+(define (return-point? stack-entry)
+  (and (pair? stack-entry)
+       (integer? (first stack-entry))
+       (not (null? (cdr stack-entry)))
+       (procedure? (second stack-entry))))
+
+(define (return-procedures)
+  (map second (filter return-point? (get-stack))))
+
+(define (sym-is-compiled? sym)
+  (compiled-procedure? (global-ref sym)))
+
+(define (remove-sequential lst)
+  (reverse (reduce (lambda (old next)
+		     (if (and (pair? old) (eq? (car old) next))
+			 old
+			 (cons next old))) lst nil)))
+
+(define (return-trace)
+  (let ((proc->sym (make-hashtab-eq 100))
+	(returns (remove-sequential (return-procedures))))
+    (dolist (proc-sym (filter sym-is-compiled? (all-symbols)))
+      (hashtab-set! proc->sym (global-ref proc-sym) proc-sym))
+
+    (cdddr (reverse (map (lambda (proc)
+			   (hashtab-ref proc->sym proc proc))
+			 returns)))))
+
+(define (print-return-trace)
+  (dolist-idx ((frame idx) (return-trace))
+    (printf "return %a: %a\n" idx frame)))
+
+(define (raise obj)
+  "throw object up to the currently installed *condition-handler*"
+  (if (conditions:handlers?)
+      ((conditions:top-handler) (list obj (cdr (return-trace))))
+      (begin
+	(write-port "unhandled condition: " stderr)
+	(write-port obj stderr)
+	(newline)
+	(exit 1))))
 
