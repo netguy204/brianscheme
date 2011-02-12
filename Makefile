@@ -43,6 +43,9 @@ $(IMAGE): bsch.preboot
 
 image: $(IMAGE)
 
+swank: bsch
+	./bsch swank-image.sch
+
 test: bsch
 	echo '(load "run-tests.sch")' | ./bsch
 
@@ -53,11 +56,11 @@ run: bsch
 	./bsch
 
 clean:
-	$(RM) *.o $(TARGETS) $(IMAGE) bs
+	$(RM) *.o $(TARGETS) $(IMAGE) bs swank
 
 # Leave C object files, remove built BrianScheme files
 bs-clean:
-	$(RM) bsch bs $(IMAGE)
+	$(RM) bsch bs swank $(IMAGE)
 
 bs: bsch bs-lib.sch
 	./bsch bs-build.sch

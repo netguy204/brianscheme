@@ -123,11 +123,3 @@
 ;; un-comment to have swank load on (require 'swank):
 
 ;(swank-listen)
-
-;; or build an image by evaluating in a repl:
-
-;; (require 'swank)
-;; (save-image "swank" 'executable #t 'toplevel swank-listen 'compress #t)
-
-
-
