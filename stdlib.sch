@@ -82,11 +82,6 @@
   (let ((str (%date-string)))
     (substring str 0 (- (string-length str) 1))))
 
-(define (set-global-unquoted! var value)
-  "In the global scope, set the symbol stored in VAR to VALUE."
-  (eval `(set! ,var (quote ,value))))
-
-(require 'cl-defun)
 (require 'point-free)
 (require 'string)
 (require 'io)
