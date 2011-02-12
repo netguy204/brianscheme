@@ -35,14 +35,15 @@ char profiling_enabled;
 
 #define opcode_table(define)			\
   define(args)					\
+  define(cargs)					\
   define(argsdot)				\
+  define(cargsdot)				\
   define(return)				\
   define(const)					\
   define(fn)					\
   define(fjump)					\
   define(tjump)					\
   define(jump)					\
-  define(fcallj)				\
   define(callj)					\
   define(lvar)					\
   define(save)					\
@@ -263,6 +264,8 @@ vm_begin:
   VM_DEBUG("dispatching", instr);
 
   switch (opcode) {
+  case _cargs_:{
+  }
   case _args_:{
       VM_ASSERT(n_args == ARG1,
 		"wrong number of args. expected %d, got %ld\n",
@@ -271,10 +274,8 @@ vm_begin:
       int ii;
       int num_args = ARG1;
 
-      /* resize the top frame if we need to */
-      if(num_args > VSIZE(car(env))) {
-	set_car(env, make_vector(g->empty_list, num_args));
-      }
+      top = make_vector(g->empty_list, num_args);
+      env = cons(top, env);
 
       object *vector = car(env);
       object **vdata = VARRAY(vector);
@@ -286,6 +287,8 @@ vm_begin:
       VM_DEBUG("after_args environment", env);
     }
     break;
+  case _cargsdot_:{
+  }
   case _argsdot_:{
       VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
@@ -293,10 +296,9 @@ vm_begin:
       BC req_args = ARG1;
       BC array_size = req_args + 1;
 
-      /* resize the top frame if we need to */
-      if(array_size > VSIZE(car(env))) {
-	set_car(env, make_vector(g->empty_list, array_size));
-      }
+      top = make_vector(g->empty_list, array_size);
+      env = cons(top, env);
+
 
       object *vector = car(env);
       object **vdata = VARRAY(vector);
@@ -343,58 +345,6 @@ vm_begin:
       VPUSH(new_fn, stack, stack_top);
     }
     break;
-  case _fcallj_:{
-    VPOP(top, stack, stack_top);
-
-    /* unwrap meta */
-    if(is_meta(top)) {
-      top = METAPROC(top);
-    }
-
-    BC args_for_call = ARG1;
-
-    if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
-      fn = top;
-      pc = 0;
-      n_args = args_for_call;
-
-      /* generate a fresh frame for the callee */
-      env = CENV(fn);
-
-      top = make_vector(g->empty_list, n_args + 1);
-      env = cons(top, env);
-
-      goto vm_fn_begin;
-    }
-    else if(is_primitive_proc(top)) {
-      /* build the list the target expects for the call */
-      long ii;
-      object *pfn = top;
-
-      top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
-      /* unwind the stack since primitives don't clean up after
-	 themselves */
-      object *temp;
-      for(ii = 0; ii < args_for_call; ++ii) {
-	VPOP(temp, stack, stack_top);
-      }
-
-      if(is_primitive_exception(top)) {
-	object *temp = top;
-	VM_ERROR_RESTART(cdr(temp));
-      }
-
-      VPUSH(top, stack, stack_top);
-
-      RETURN_OPCODE_INSTRUCTIONS;
-    }
-    else {
-      owrite(stderr, top);
-      fprintf(stderr, "\n");
-      VM_ASSERT(0, "don't know how to invoke");
-    }
-  }
-    break;
   case _callj_:{
       VPOP(top, stack, stack_top);
 
@@ -423,11 +373,7 @@ vm_begin:
 	fn = top;
 	pc = 0;
 	n_args = args_for_call;
-
-	/* we can reuse the cons and frame from our environment to
-	   build the new one */
-	object *fn_env = CENV(fn);
-	set_cdr(env, fn_env);
+	env = CENV(fn);
 
 	goto vm_fn_begin;
       }

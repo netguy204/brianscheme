@@ -17,7 +17,8 @@
    refs
    sets
    new-bindings
-   children))
+   children
+   head))
 
 (define-struct lvar
   "represents a variable"
@@ -122,11 +123,13 @@ given environment"
 		       env))
 
       (else
-       (new-lnode 'apply
-		  (cons
-		   (lift:exp (first exp) env)
-		   (map (lambda (e) (lift:exp e env))
-			(cdr exp)))))))))
+       (let ((head (lift:exp (first exp) env))
+	     (tail (map (lambda (e) (lift:exp e env))
+			(cdr exp))))
+	 (lnode-head-set! head #t)
+	 (new-lnode
+	  'apply
+	  (cons head tail))))))))
 
 
 (define (lift:symbol sym env)
@@ -191,6 +194,7 @@ given environment"
 		 ,(map lvar-name-ref (lnode-refs-ref node)))
 		 (free-write-bindings
 		 ,(map lvar-name-ref (lnode-sets-ref node)))
+		 (head? ,(lnode-head-ref node))
 		 . ,(map lift:pp (lnode-children-ref node))))
       (apply (cons
 	      (lift:pp (first (lnode-children-ref node)))
@@ -198,4 +202,6 @@ given environment"
       (lref (lvar-name-ref (first (lnode-refs-ref node))))
       (gref (lnode-children-ref node))
       (else (error "don't know how to process" (lnode-type-ref node)))))))
+
+
 

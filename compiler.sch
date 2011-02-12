@@ -63,7 +63,7 @@
   "expand form using a macro found in the compiled environment"
   (apply (comp-global-ref (car form)) (cdr form)))
 
-(define (comp x env val? more?)
+(define (comp x env val? more? (head? #f))
   "compile an expression in the given environment optionally caring
 about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
@@ -86,7 +86,8 @@ about its value and optionally with more forms following"
 			env val? more?))
 	   (lambda (when val?
 			 (let ((f (comp-lambda (second x)
-					       (rest (rest x)) env)))
+					       (rest (rest x)) env
+					       head?)))
 			   (seq (gen 'fn f)
 				(unless more? (gen 'return))))))
 
@@ -186,6 +187,7 @@ about its value and optionally with more forms following"
 	       (gen (prim-opcode prim))
 	       (unless val? (gen 'pop))
 	       (unless more? (gen 'return)))))
+     ;; inline lambdas of no arguments
      ((and (starts-with? f 'lambda eq?) (null? (second f)))
       (unless (null? args) (throw-error "too many arguments"))
       (comp-begin (cdr (cdr f)) env val? more?))
@@ -193,16 +195,16 @@ about its value and optionally with more forms following"
       (let ((k (gen-label 'k)))
 	(seq (gen 'save k)
 	     (comp-list args env)
-	     (comp f env #t #t)
+	     (comp f env #t #t 'head? #t)
 	     (gen 'incprof 0)
-	     (gen 'fcallj (length args) #t)
+	     (gen 'callj (length args) #t)
 	     (list k)
 	     (unless val? (gen 'pop)))))
      (else
       (seq (comp-list args env)
-	   (comp f env #t #t)
+	   (comp f env #t #t 'head? #t)
 	   (gen 'incprof 0)
-	   (gen 'fcallj (length args) #f))))))
+	   (gen 'callj (length args) #f))))))
 
 (define (primitive-procedure? obj)
   (and (procedure? obj)
@@ -281,21 +283,27 @@ about its value and optionally with more forms following"
 		 lst)
 	  (exit 1)))
 
-(define (comp-lambda args body env)
+(define (comp-lambda args body env head?)
   (write-dbg 'comp-lambda args 'body body)
-  (new-fun (seq (%gen-args args 0)
+  (new-fun (seq (%gen-args args 0 head?)
 		(comp-begin body
 			    (cons (make-true-list args) env)
 			    #t #f))
 	   env "unknown" args))
 
-(define (%gen-args args n-so-far)
+(define (%gen-args args n-so-far head?)
   (cond
-   ((null? args) (gen 'args n-so-far))
-   ((symbol? args) (gen 'argsdot n-so-far))
+   ((null? args)
+    (if head?
+	(gen 'cargs n-so-far)
+	(gen 'args n-so-far)))
+   ((symbol? args)
+    (if head?
+	(gen 'cargsdot n-so-far)
+	(gen 'argsdot n-so-far)))
    ((and (pair? args)
 	 (symbol? (first args)))
-    (%gen-args (rest args) (%fixnum-add n-so-far 1)))
+    (%gen-args (rest args) (%fixnum-add n-so-far 1) head?))
    (else (throw-error "illegal argument list" args))))
 
 ;; this doesn't do error checking like the method before
@@ -323,7 +331,7 @@ about its value and optionally with more forms following"
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
-    (comp-lambda nil (list x) nil))
+    (comp-lambda nil (list x) nil #t))
 
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
@@ -494,12 +502,6 @@ about its value and optionally with more forms following"
   (is instr 'fn))
 
 (define (optimize code)
-  (when (not (any? fn-opcode? code))
-    ;; nothing closed over our environment so we can recycle it
-    (dolist (op code)
-      (when (and (is op 'fcallj)
-		 (not (arg2 op)))
-	    (set-car! op 'callj))))
   code)
 
 
