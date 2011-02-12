@@ -44,7 +44,7 @@
     (write-stream buffer "\n")
     (let ((str (string-buffer->string buffer)))
       (write-stream *swank-stream*
-		    (pad (integer->string (string-length str) 'base 16)))
+		    (pad (integer->string (string-length str) :base 16)))
       (write-stream *swank-stream* str))))
 
 (define (swank:recv)

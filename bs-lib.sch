@@ -267,7 +267,7 @@
                                   str)
                    str))))
     (apply string-append
-           (map (compose pad (rcurry integer->string 'base 16) random)
+           (map (compose pad (rcurry integer->string :base 16) random)
                 (make-list 4 (expt 2 16))))))
 
 ;; Committing

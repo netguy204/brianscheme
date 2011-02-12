@@ -92,24 +92,24 @@
 
 (define-macro-character (#\' stream)
   "Quote reader macro."
-  (list 'quote (read:read stream 'eof-error #t)))
+  (list 'quote (read:read stream :eof-error #t)))
 
 (define-macro-character (#\` stream)
   "Quasiquote reader macro."
-  (list 'quasiquote (read:read stream 'eof-error #t)))
+  (list 'quasiquote (read:read stream :eof-error #t)))
 
 (define-macro-character (#\, stream)
   "Unquote reader macro."
   (let ((ch (read-stream-char-safe stream)))
     (cond
-     ((eq? #\@ ch) (list 'unquotesplicing (read:read stream 'eof-error #t)))
+     ((eq? #\@ ch) (list 'unquotesplicing (read:read stream :eof-error #t)))
      (#t (begin (unread-stream-char stream ch)
-		(list 'unquote (read:read stream 'eof-error #t)))))))
+		(list 'unquote (read:read stream :eof-error #t)))))))
 
 (define-macro-character (#\" stream)
   "String reader macro."
-  (read:slurp-atom stream 'stop? (lambda (ch) (eq? #\" ch))
-		   'allow-eof #f))
+  (read:slurp-atom stream :stop? (lambda (ch) (eq? #\" ch))
+		   :allow-eof #f))
 
 (define-macro-character (#\; stream)
   (read:kill-line stream))
@@ -144,15 +144,15 @@
      (#t ch))))
 
 (define-dispatch-macro-character (#\# #\B stream)
-  (string->integer (read:slurp-atom stream) 'base 2))
+  (string->integer (read:slurp-atom stream) :base 2))
 (set-dispatch-macro-character! #\# #\b (get-dispatch-macro-character #\# #\B))
 
 (define-dispatch-macro-character (#\# #\O stream)
-  (string->integer (read:slurp-atom stream) 'base 8))
+  (string->integer (read:slurp-atom stream) :base 8))
 (set-dispatch-macro-character! #\# #\o (get-dispatch-macro-character #\# #\O))
 
 (define-dispatch-macro-character (#\# #\X stream)
-  (string->integer (read:slurp-atom stream) 'base 16))
+  (string->integer (read:slurp-atom stream) :base 16))
 (set-dispatch-macro-character! #\# #\x (get-dispatch-macro-character #\# #\X))
 
 (define-dispatch-macro-character (#\# #\: stream)
@@ -204,10 +204,10 @@
      ((eq? ch char) '())
      (#t (begin
            (unread-stream-char stream ch)
-           (let ((obj (read:read stream 'eof-error #t)))
+           (let ((obj (read:read stream :eof-error #t)))
              (cond
               ((eq? *dot* obj)
-	       (let ((last (read:read stream 'eof-error #t)))
+	       (let ((last (read:read stream :eof-error #t)))
 		 (if (eq? '() (read:list stream char))
 		     last
 		     (#t (throw-error "invalid improper list" obj)))))
@@ -229,15 +229,15 @@
      ((eq? ch #\\)
       (write-stream buffer (read:escaped stream))
       (read:slurp-atom stream
-		       'stop? stop?
-		       'allow-eof allow-eof
-		       'buffer buffer))
+		       :stop? stop?
+		       :allow-eof allow-eof
+		       :buffer buffer))
      (#t
       (write-stream buffer ch)
       (read:slurp-atom stream
-		       'stop? stop?
-		       'allow-eof allow-eof
-		       'buffer buffer)))))
+		       :stop? stop?
+		       :allow-eof allow-eof
+		       :buffer buffer)))))
 
 (define (read:escaped stream)
   "Read an escaped character, and throw an error on EOF."

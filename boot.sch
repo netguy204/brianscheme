@@ -1026,6 +1026,11 @@ returns true"
   "In the global scope, set the symbol stored in VAR to VALUE."
   (eval `(set! ,var (quote ,value))))
 
+(define (symbol->keyword sym)
+  (let ((kw (string->symbol (string-append ":" (symbol->string sym)))))
+    (set-global-unquoted! kw kw)
+    kw))
+
 (define (parse-args arglist)
   (let ((bindings nil)
 	(argnames nil)
@@ -1055,11 +1060,12 @@ returns true"
 	    (push! arg argnames))
 
 	   ((pair? arg)
-	    (let (((varname default) arg)
-		  (sym (gensym)))
+	    (let* (((varname default) arg)
+		   (kwname (symbol->keyword varname))
+		   (sym (gensym)))
 
 	      (set! boa? #f)
-	      (push! `(,varname (getl ,rest-sym ',varname ,default))
+	      (push! `(,varname (getl ,rest-sym ',kwname ,default))
 		     bindings)))
 
 	   (else
