@@ -4,21 +4,36 @@
 
 (define (dprintf . args) nil)
 
-(define-struct lmbda
-  "structure representing a processed lambda"
-  (name
-   env
-   body
-   args))
-
 (define-struct lnode
   "a node in the ast"
   (type
    refs
    sets
-   new-bindings
-   children
-   head))
+   head
+   data))
+
+(define-struct lmbda
+  "more data for lambda nodes"
+  (new-bindings body))
+
+(define-struct set
+  "more data for set nodes"
+  (var val))
+
+(define-struct const
+  "a constant node"
+  (val))
+
+(define-struct bgn
+  "a begin node"
+  (forms))
+
+(define-struct if
+  "an if node"
+  (pred
+   conseq
+   alt))
+
 
 (define-struct lvar
   "represents a variable"
@@ -26,14 +41,32 @@
    oname
    properties))
 
-(define (new-lnode type children)
+(define-struct gvar
+  "a global variable"
+  (name))
+
+(define (body-children body)
+  "return the list of immediate children for a body field"
+  (cond
+   ((lmbda? body) (list (lmbda-body-ref body)))
+   ((set? body) (list (set-val-ref body)))
+   ((const? body) (list (const-val-ref body)))
+   ((bgn? body) (bgn-forms-ref body))
+   (else nil)))
+
+(define (lnode-children node)
+  "return a list of the direct children for a given node"
+  (body-children (lnode-body-ref node)))
+
+(define (new-lnode type body)
   "create a new node, pulling up the refs and sets from the children"
-  (let ((sets (apply union (map lnode-sets-ref children)))
-	(refs (apply union (map lnode-refs-ref children))))
-    (make-lnode 'type type
-		'refs refs
-		'sets sets
-		'children children)))
+  (let ((children (body-children body)))
+    (let ((sets (apply union (map lnode-sets-ref children)))
+	  (refs (apply union (map lnode-refs-ref children))))
+     (make-lnode 'type type
+		 'refs refs
+		 'sets sets
+		 'data body))))
 
 (define (make-environment syms structs)
   "create a new environment"
@@ -97,31 +130,22 @@ given environment"
     (lift:symbol exp env))
    ((atom? exp)
     (make-lnode 'type 'const
-		'children exp))
+		'data (make-const 'val exp)))
    ;; must have a list, look at its head
    ;; TODO: extract the refs from subnodes
    (else
     (case (first exp)
-      (quote
-       (make-lnode 'type 'const
-		   'children exp))
-
-      (begin
-	(new-lnode 'begin (lift:begin (cdr exp) env)))
-
+      (if-compiling (lift:exp (second exp) env))
+      (quote (make-lnode 'type 'const
+			 'data (make-const 'val exp)))
+      (begin (new-lnode 'begin
+			(make-bgn 'forms (lift:begin (cdr exp) env))))
       (set! (lift:set exp env))
-
-      (if
-       (new-lnode 'if
-		  (list (lift:exp (second exp) env)
-			(lift:exp (third exp) env)
-			(lift:exp (fourth exp) env))))
-
-      (lambda
-	  (lift:lambda (second exp)
-		       (cddr exp)
-		       env))
-
+      (if (new-lnode 'if
+		     (list (lift:exp (second exp) env)
+			   (lift:exp (third exp) env)
+			   (lift:exp (fourth exp) env))))
+      (lambda (lift:lambda (second exp) (cddr exp) env))
       (else
        (let ((head (lift:exp (first exp) env))
 	     (tail (map (lambda (e) (lift:exp e env))
@@ -173,35 +197,59 @@ given environment"
 		'children (lnode-children-ref node))))
 
 
-
 (define (lift:pp node)
   "pretty-print the output of lift"
-  (cond
-   ((not (lnode? node)) node)
-   (else
-    (case (lnode-type-ref node)
-      (const (list 'quote (lnode-children-ref node)))
-      (begin `(begin . ,(map lift:pp (lnode-children-ref node))))
-      (set! `(set! ,(lvar-name-ref (first (lnode-sets-ref node)))
-		   ,(lift:pp (first (lnode-children-ref node)))))
-      (if `(if ,(lift:pp (first (lnode-children-ref node)))
-	       ,(lift:pp (second (lnode-children-ref node)))
-	       ,(lift:pp (third (lnode-children-ref node)))))
-      (lambda `(lambda
+  (case (lnode-type-ref node)
+    (const (list 'quote (lnode-children-ref node)))
+    (begin `(begin . ,(map lift:pp (lnode-children-ref node))))
+    (set! `(set! ,(lvar-name-ref (first (lnode-sets-ref node)))
+		 ,(lift:pp (first (lnode-children-ref node)))))
+    (if `(if ,(lift:pp (first (lnode-children-ref node)))
+	     ,(lift:pp (second (lnode-children-ref node)))
+	     ,(lift:pp (third (lnode-children-ref node)))))
+    (lambda `(lambda
 		 (new-bindings
-		 ,(map lvar-name-ref (lnode-new-bindings-ref node)))
-		 (free-read-bindings
-		 ,(map lvar-name-ref (lnode-refs-ref node)))
-		 (free-write-bindings
-		 ,(map lvar-name-ref (lnode-sets-ref node)))
-		 (head? ,(lnode-head-ref node))
-		 . ,(map lift:pp (lnode-children-ref node))))
-      (apply (cons
-	      (lift:pp (first (lnode-children-ref node)))
-	      (map lift:pp (rest (lnode-children-ref node)))))
-      (lref (lvar-name-ref (first (lnode-refs-ref node))))
-      (gref (lnode-children-ref node))
-      (else (error "don't know how to process" (lnode-type-ref node)))))))
+		  ,(map lvar-name-ref (lnode-new-bindings-ref node)))
+	       (free-read-bindings
+		,(map lvar-name-ref (lnode-refs-ref node)))
+	       (free-write-bindings
+		,(map lvar-name-ref (lnode-sets-ref node)))
+	       (head? ,(lnode-head-ref node))
+	       . ,(map lift:pp (lnode-children-ref node))))
+    (apply (cons
+	    (lift:pp (first (lnode-children-ref node)))
+	    (map lift:pp (rest (lnode-children-ref node)))))
+    (lref (lvar-name-ref (first (lnode-refs-ref node))))
+    (gref (lnode-children-ref node))
+    (else (error "don't know how to process" (lnode-type-ref node)))))
 
 
+(define (lift:comp node val? more?)
+  (dprintf "lift:comp %a" node)
+  (case (lnode-type-ref node)
+    (const (lift:comp-const node val? more?))
+    (begin (lift:comp-begin (lnode-children-ref node) val? more?))
+    (set! (lift:comp-set node val? more?))
+    (if (lift:comp-if node val? more?))
+    (else (gen 'foo))))
 
+(define (lift:comp-const node val? more?)
+  (dprintf "lift:comp %a" node)
+  (when val?
+    (seq (gen 'const (lnode-children-ref node))
+	 (unless more?
+	   (gen 'return)))))
+
+(define (lift:comp-begin nodes val? more?)
+  (dprintf "lift:comp-begin %a" nodes)
+  (cond
+   ((null? nodes)
+    (lift:comp-const nil val? more?))
+   ((length=1 nodes)
+    (lift:comp (first nodes) val? more?))
+   (else (seq (lift:comp (first nodes) #f #t)
+	      (lift:comp-begin (rest nodes) val? more?)))))
+
+
+(define (test-comp exp)
+  (lift:comp (lift exp) #t #f))
