@@ -111,6 +111,13 @@
 	  nil
 	  ,(object->string (safe-eval (read-from-string (car args)))))))
 
+(define (swank:compile-file-for-emacs . args)
+  "handle ctrl+c ctrl+k method of sending a file"
+  (list ':ok
+	`(:compilation-result
+	  nil
+	  ,(object->string (load (car args))))))
+
 (define (swank:autodoc . args)
   "Ignore for now."
   (with-standard-return

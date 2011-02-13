@@ -1027,7 +1027,7 @@ returns true"
   (eval `(set! ,var (quote ,value))))
 
 (define (symbol->keyword sym)
-  (let ((kw (string->symbol (string-append ":" (symbol->string sym)))))
+  (let ((kw (string->symbol (%prim-concat ":" (symbol->string sym)))))
     (set-global-unquoted! kw kw)
     kw))
 
