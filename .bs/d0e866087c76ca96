@@ -1,12 +1,9 @@
 (id	"d0e866087c76ca96"
 priority	normal
-status	open
+status	closed
 category	feature
 user	"Christopher Wellons <mosquitopsu@gmail.com>"
 date	"Sun Feb  6 15:54:26 2011"
 title	"Interactive SIGINT should fall back to the REPL"
-comments	("Normally when interacting with the REPL, C-c should return control
-back to the REPL. This is used when the user wants to cutoff a
-function early, perhaps because it's taking too long.
-")
+comments	("Normally when interacting with the REPL, C-c should return control\nback to the REPL. This is used when the user wants to cutoff a\nfunction early, perhaps because it's taking too long.\n")
 )
