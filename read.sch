@@ -197,8 +197,8 @@
 
 (define (read:list stream char)
   "Read a list from the given stream, assuming opening char is gone."
-  (if (eof-object? (read:flush-whitespace stream))
-      (throw-error "unexpected eof" "eof"))
+  (when (eof-object? (read:flush-whitespace stream))
+	(throw-error "unexpected eof" "eof"))
   (let ((ch (read-stream-char-safe stream)))
     (cond
      ((eq? ch char) '())
@@ -254,8 +254,8 @@
      ((integer-string-list? lst *digits*) (string-list->integer lst 10))
      ((real-string-list? lst)             (string-list->real lst))
      (#t (let ((sym (string->symbol str)))
-	   (if (eq? (string-ref str 0) #\:)
-	       (set-global-unquoted! sym sym))
+	   (when (eq? (string-ref str 0) #\:)
+		 (set-global-unquoted! sym sym))
 	   sym)))))
 
 ;; Take over for old reader

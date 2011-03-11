@@ -34,8 +34,8 @@
                        (if (bound? '*random-state*)
                            (generate *random-state*)
                            0)
-                       (if (file-exists? "/dev/urandom")
-                           (random:urandom))
+                       (when (file-exists? "/dev/urandom")
+			     (random:urandom))
 		       (random:collapse-string (date-string)))))
 
 (define-class <random-state> ()
@@ -64,8 +64,8 @@
   "Generate a random number.")
 
 (define-method (generate (rng <mersenne>))
-  (if (= 0 (slot-ref rng 'index))
-      (regenerate rng))
+  (when (= 0 (slot-ref rng 'index))
+	(regenerate rng))
   (let ((y (vector-ref (slot-ref rng 'mt) (slot-ref rng 'index))))
     (set! y (logxor y (ash y -11)))
     (set! y (logxor y (logand (ash 1318464320 1) (ash y 7))))
@@ -98,9 +98,9 @@
 		 (logand *mask-31* (vector-ref mt j)))))
       (vector-set! mt i (logxor (vector-ref mt (mod (+ i 397) 624))
 				(ash y -1)))
-      (if (= 1 (abs (mod y 2)))
-	  (vector-set! mt i (logxor (vector-ref mt i)
-                                    (logor 1 (ash 1283741807 1))))))))
+      (when (= 1 (abs (mod y 2)))
+	    (vector-set! mt i (logxor (vector-ref mt i)
+				      (logor 1 (ash 1283741807 1))))))))
 
 ;; Middle-square algorithm -- don't use this seriously
 

@@ -70,32 +70,34 @@ about its value and optionally with more forms following"
   (cond
    ((symbol? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
-   (else (case (first x)
-	   (if-compiling (%arg-count x 2 2)
-			 (comp (second x) env val? more?))
-	   (quote (%arg-count x 1 1)
-		  (comp-const (second x) val? more?))
-	   (begin (comp-begin (rest x) env val? more?))
-	   (set! (%arg-count x 2 2)
-		 (seq (comp (third x) env #t #t)
-		      (gen-set (second x) env)
-		      (when (not val?) (gen 'pop))
-		      (unless more? (gen 'return))))
-	   (if (%arg-count x 2 3)
-	       (comp-if (second x) (third x) (fourth x)
-			env val? more?))
-	   (lambda (when val?
-			 (let ((f (comp-lambda (second x)
-					       (rest (rest x)) env)))
-			   (seq (gen 'fn f)
-				(unless more? (gen 'return))))))
+   (else
+    (record-case x
+      (if-compiling (then else)
+        (comp then env val? more?))
+      (quote (obj)
+        (comp-const obj val? more?))
+      (begin exps
+        (comp-begin exps env val? more?))
+      (set! (sym val)
+        (seq (comp val env #t #t)
+	     (gen-set sym env)
+	     (when (not val?) (gen 'pop))
+	     (unless more? (gen 'return))))
+      (if (test then . else)
+	  (let ((else (car-else else nil)))
+	    (comp-if test then else env val? more?)))
+      (lambda (args . body)
+	(when val?
+	  (let ((f (comp-lambda args body env)))
+	    (seq (gen 'fn f)
+		 (unless more? (gen 'return))))))
 
-	   ;; generate an invocation
-	   (else
-	    (if (comp-macro? (first x))
-		(comp (comp-macroexpand0 x) env val? more?)
-		(comp-funcall (first x) (rest x)
-			      env val? more?)))))))
+      ;; generate an invocation
+      (else
+       (if (comp-macro? (first x))
+	   (comp (comp-macroexpand0 x) env val? more?)
+	   (comp-funcall (first x) (rest x)
+			 env val? more?)))))))
 
 (define (%<=2 a b)
   (or (%fixnum-less-than a b) (%fixnum-equal a b)))

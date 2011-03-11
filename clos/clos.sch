@@ -589,8 +589,8 @@
 
 (define-syntax (define-generic name . documentation)
   "syntax for declaring new generic functions"
-  (if documentation
-      (add-documentation name (car documentation)))
+  (when documentation
+	(add-documentation name (car documentation)))
   `(define ,name (make-generic)))
 
 
@@ -801,7 +801,9 @@
   (slot-set! class
 	     'direct-slots
 	     (map (lambda (s)
-		    (if (pair? s) s (list s)))
+		    (if (pair? s) 
+			s
+			(list s)))
 		  (getl initargs 'direct-slots  '())))
   (slot-set! class
 	     'class-name
@@ -921,7 +923,9 @@
     'class-name    '<primitive-class>))
 
 (define (make-primitive-class class name)
-  (make (if (null? class) <primitive-class> class)
+  (make (if (null? class)
+	    <primitive-class>
+	    class)
     'direct-supers (list <top>)
     'class-name name))
 

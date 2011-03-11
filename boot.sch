@@ -441,6 +441,26 @@ that decompose it according to the structure of var-forms"
 			(else `((eq? ,key-val ',(first c)) . ,(cdr c)))))
 		     clauses)))))
 
+
+(define-syntax (record-case val . clauses)
+  "case-like syntax that decomposes a list by its head"
+  (let ((vale (gensym))
+	(key (gensym))
+	(record (gensym)))
+    `(let* ((,vale ,val)
+	    (,key (first ,vale))
+	    (,record (cdr ,vale)))
+       (case ,key
+	 ,@(map (lambda (clause)
+		  (if (eq? (first clause) 'else)
+		      clause
+		      (list (first clause)
+			    `(apply (lambda ,(second clause)
+				      . ,(cddr clause))
+				    ,record))))
+		clauses)))))
+
+
 (define-syntax (dowhile pred . body)
   "execute body whle pred evaluates true. checks pred after evaluating
 body. always executes at least once"
@@ -474,11 +494,11 @@ body. always executes at least once"
 			     (second binding)))
 		     bindings)
 	  (if ,(first test-and-return)
-	      ,(if (rest test-and-return)
-		   `(begin . ,(rest test-and-return)))
+	      ,(when (rest test-and-return)
+		     `(begin . ,(rest test-and-return)))
 	      (begin
-		,(if body
-		     `(begin . ,body))
+		,(when body
+		       `(begin . ,body))
 		(,loop . ,(map (lambda (binding)
 				 (if (cddr binding)
 				     (third binding)
@@ -640,6 +660,8 @@ list"
       "load file name if it hasn't already been loaded"
       (let ((name (sym-to-name name)))
 	(unless (memq name required)
+		(display "require ")
+		(display name) (newline)
 		(push! name required)
 		(load name))))
 
@@ -850,7 +872,8 @@ it's found. return not-found otherwised"
 (define (sort-list pred lst . equal)
   "arrange a list such that applying pred to any sequential pairs
 returns true"
-  (let ((equal (if (null? equal) equal?
+  (let ((equal (if (null? equal)
+		   equal?
 		   (car equal))))
     (letrec ((pivot (lambda (l)
 		      (cond ((null? l) 'done)
@@ -860,7 +883,8 @@ returns true"
 			     (pivot (cdr l)))
 			    (else (car l)))))
 	     (partition (lambda (piv l p1 p2)
-			  (if (null? l) (list p1 p2)
+			  (if (null? l)
+			      (list p1 p2)
 			      (if (pred (car l) piv)
 				  (partition piv (cdr l)
 					     (cons (car l) p1)
@@ -870,7 +894,8 @@ returns true"
 					     (cons (car l) p2))))))
 	     (quicksort (lambda (l)
 			  (let ((piv (pivot l)))
-			    (if (eq? piv 'done) l
+			    (if (eq? piv 'done)
+				l
 				(let ((parts (partition piv l nil nil)))
 				  (append (quicksort (car parts))
 					  (quicksort (cadr parts)))))))))

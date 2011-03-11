@@ -71,7 +71,9 @@
 
 (define position-of
     (lambda (x lst)
-      (if (eq? x (car lst)) 0 (+ 1 (position-of x (cdr lst))))))
+      (if (eq? x (car lst))
+	  0
+	  (+ 1 (position-of x (cdr lst))))))
 
 (define map-append
     (lambda (proc . lists)
@@ -115,15 +117,6 @@
       (cond ((null? lst) '())
 	    ((test? (car lst)) (cons (car lst) (collect-if test? (cdr lst))))
 	    (else (collect-if test? (cdr lst))))))
-
-;(define remove-unless
-;    (lambda (test list)
-;      (if (null? list)
-;	  ()
-;	  (let ((rest (remove-unless test (cdr list))))
-;	    (if (test (car list))
-;		(cons (car list) rest)
-;		rest)))))
 
 (define remove-duplicates
     (lambda (lst)
