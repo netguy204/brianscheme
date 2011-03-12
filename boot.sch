@@ -442,22 +442,26 @@ that decompose it according to the structure of var-forms"
 		     clauses)))))
 
 
+(define-syntax (record value fields . body)
+  "treat VALUE as a record composed of FIELDS"
+  `(apply (lambda ,fields . ,body) ,value))
+
+
 (define-syntax (record-case val . clauses)
   "case-like syntax that decomposes a list by its head"
   (let ((vale (gensym))
 	(key (gensym))
-	(record (gensym)))
+	(rec (gensym)))
     `(let* ((,vale ,val)
 	    (,key (first ,vale))
-	    (,record (cdr ,vale)))
+	    (,rec (cdr ,vale)))
        (case ,key
 	 ,@(map (lambda (clause)
 		  (if (eq? (first clause) 'else)
 		      clause
-		      (list (first clause)
-			    `(apply (lambda ,(second clause)
-				      . ,(cddr clause))
-				    ,record))))
+		      `(,(first clause)
+			(record ,rec ,(second clause)
+			  . ,(cddr clause)))))
 		clauses)))))
 
 
@@ -660,8 +664,6 @@ list"
       "load file name if it hasn't already been loaded"
       (let ((name (sym-to-name name)))
 	(unless (memq name required)
-		(display "require ")
-		(display name) (newline)
 		(push! name required)
 		(load name))))
 
