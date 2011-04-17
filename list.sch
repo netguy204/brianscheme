@@ -20,7 +20,7 @@
       fail
       (if (eq? key (first list))
 	  (second list)
-	  (plist-get (cddr list) key 'fail fail))))
+	  (plist-get (cddr list) key :fail fail))))
 
 (define (plist-set! list key value)
   "Set property value in plist."
