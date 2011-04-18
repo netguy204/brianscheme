@@ -72,7 +72,8 @@ object *extend_environment(object * vars, object * vals, object * base_env) {
 object *lookup_global_value(object * var, object * env) {
   object *res = get_hashtab(env, var, NULL);
   if(res == NULL) {
-    return throw_message("lookup failed. variable %s is unbound", STRING(var));
+    return throw_message("lookup failed. variable %s is unbound",
+			 STRING(var));
   }
 
   return res;
@@ -444,10 +445,10 @@ DEFUN1(open_output_port_proc) {
 
 DEFUN1(close_output_port_proc) {
   object *obj = FIRST;
-  if (!is_output_port_opened(obj))
+  if(!is_output_port_opened(obj))
     return g->false;
   FILE *out = OUTPUT(obj);
-  if (is_output_port_pipe(obj))
+  if(is_output_port_pipe(obj))
     pclose(out);
   else
     fclose(out);
@@ -466,10 +467,10 @@ DEFUN1(open_input_port_proc) {
 
 DEFUN1(close_input_port_proc) {
   object *obj = FIRST;
-  if (!is_input_port_opened(obj))
+  if(!is_input_port_opened(obj))
     return g->false;
   FILE *in = INPUT(obj);
-  if (is_input_port_pipe(obj))
+  if(is_input_port_pipe(obj))
     pclose(in);
   else
     fclose(in);
@@ -497,7 +498,7 @@ DEFUN1(open_output_pipe_proc) {
 
 DEFUN1(chmod_proc) {
   int r = chmod(STRING(FIRST), LONG(SECOND));
-  if (r == 0)
+  if(r == 0)
     return g->true;
   return g->false;
 }
@@ -508,7 +509,7 @@ DEFUN1(umask_proc) {
 
 DEFUN1(mkdir_proc) {
   int r = mkdir(STRING(FIRST), LONG(SECOND));
-  if (r == 0)
+  if(r == 0)
     return g->true;
   return g->false;
 
@@ -523,7 +524,7 @@ DEFUN1(getumask_proc) {
 
 DEFUN1(rename_proc) {
   int r = rename(STRING(FIRST), STRING(SECOND));
-  if (r == 0)
+  if(r == 0)
     return g->true;
   return g->false;
 }
@@ -570,7 +571,7 @@ DEFUN1(system_proc) {
 
 DEFUN1(getenv_proc) {
   char *val = getenv(STRING(FIRST));
-  if (val == NULL)
+  if(val == NULL)
     return g->false;
   return make_string(val);
 }
@@ -580,12 +581,12 @@ DEFUN1(save_image_proc) {
 
   object *file = FIRST;
   int r = save_image(STRING(file), LONG(SECOND));
-  if (r < 0)
+  if(r < 0)
     return throw_message("could not save image");
   return g->true;
 }
 
-object *apply(object *fn, object *evald_args) {
+object *apply(object * fn, object * evald_args) {
   /* essentially duplicated from interp but I'm not
    * sure how to implement this properly otherwise.*/
   object *env;
@@ -690,7 +691,7 @@ DEFUN1(port_dump_proc) {
   do {
     r = fread(buffer, 1, 4096, in);
     fwrite(buffer, 1, r, out);
-  } while (r > 0);
+  } while(r > 0);
   return g->true;
 }
 
@@ -911,7 +912,7 @@ object *write_pair(FILE * out, object * pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
 
-  object * result = owrite(out, car_obj);
+  object *result = owrite(out, car_obj);
   if(is_primitive_exception(result)) {
     return result;
   }
@@ -1005,7 +1006,7 @@ object *owrite(FILE * out, object * obj) {
       if(ii > 0) {
 	putc(' ', out);
       }
-      object * result = owrite(out, VARRAY(obj)[ii]);
+      object *result = owrite(out, VARRAY(obj)[ii]);
       if(is_primitive_exception(result)) {
 	return result;
       }
@@ -1092,15 +1093,15 @@ object *owrite(FILE * out, object * obj) {
     fprintf(out, "#<syntax-procedure>");
     break;
   case META_PROC:
-  {
-    fprintf(out, "#<meta: ");
-    object *result = owrite(out, METAPROC(obj));
-    if(is_primitive_exception(result)) {
-      return result;
+    {
+      fprintf(out, "#<meta: ");
+      object *result = owrite(out, METAPROC(obj));
+      if(is_primitive_exception(result)) {
+	return result;
+      }
+      fprintf(out, ">");
+      break;
     }
-    fprintf(out, ">");
-    break;
-  }
   case HASH_TABLE:
     fprintf(out, "#<hash-table>");
     break;
@@ -1370,9 +1371,9 @@ interp_restart:
 }
 
 
-void interp_definer(char *sym, object *value) {
+void interp_definer(char *sym, object * value) {
   push_root(&value);
-  object * symbol = make_symbol(sym);
+  object *symbol = make_symbol(sym);
   define_global_variable(symbol, value, g->env);
   pop_root(&value);
 }

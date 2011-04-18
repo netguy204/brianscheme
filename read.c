@@ -96,10 +96,12 @@ object *read_character(FILE * in) {
   case 's':
     if(peek(in) == 'p') {
       object *result = eat_expected_string(in, "pace");
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       result = peek_expected_delimiter(in);
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       return make_character(' ');
     }
@@ -107,27 +109,32 @@ object *read_character(FILE * in) {
   case 'n':
     if(peek(in) == 'e') {
       object *result = eat_expected_string(in, "ewline");
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       result = peek_expected_delimiter(in);
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       return make_character('\n');
     }
   case 't':
     if(peek(in) == 'a') {
       object *result = eat_expected_string(in, "ab");
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       result = peek_expected_delimiter(in);
-      if(is_primitive_exception(result)) return result;
+      if(is_primitive_exception(result))
+	return result;
 
       return make_character('\t');
     }
     break;
   }
   object *result = peek_expected_delimiter(in);
-  if(is_primitive_exception(result)) return result;
+  if(is_primitive_exception(result))
+    return result;
 
   return make_character(c);
 }
@@ -147,7 +154,8 @@ object *read_pair(FILE * in) {
   ungetc(c, in);
 
   car_obj = lisp_read(in);
-  if(is_primitive_exception(car_obj)) return car_obj;
+  if(is_primitive_exception(car_obj))
+    return car_obj;
 
   push_root(&car_obj);
 
@@ -157,10 +165,12 @@ object *read_pair(FILE * in) {
   c = getc(in);
   if(c == '.') {
     object *temp = peek_expected_delimiter(in);
-    if(is_primitive_exception(temp)) return temp;
+    if(is_primitive_exception(temp))
+      return temp;
 
     cdr_obj = lisp_read(in);
-    if(is_primitive_exception(cdr_obj)) return cdr_obj;
+    if(is_primitive_exception(cdr_obj))
+      return cdr_obj;
 
     push_root(&cdr_obj);
 
@@ -181,7 +191,8 @@ object *read_pair(FILE * in) {
     ungetc(c, in);
 
     cdr_obj = read_pair(in);
-    if(is_primitive_exception(cdr_obj)) return cdr_obj;
+    if(is_primitive_exception(cdr_obj))
+      return cdr_obj;
 
     push_root(&cdr_obj);
 
@@ -208,7 +219,8 @@ object *read_vector(FILE * in) {
   ungetc(c, in);
 
   object *val = lisp_read(in);
-  if(is_primitive_exception(val)) return val;
+  if(is_primitive_exception(val))
+    return val;
 
   current = cons(val, g->empty_list);
   push_root(&current);
@@ -225,7 +237,8 @@ object *read_vector(FILE * in) {
     ungetc(c, in);
 
     current = lisp_read(in);
-    if(is_primitive_exception(current)) return current;
+    if(is_primitive_exception(current))
+      return current;
 
     set_cdr(list_tail, cons(current, g->empty_list));
     list_tail = cdr(list_tail);
@@ -386,7 +399,8 @@ object *lisp_read(FILE * in) {
   }
   else if(c == '\'') {
     object *quoted = lisp_read(in);
-    if(is_primitive_exception(quoted)) return quoted;
+    if(is_primitive_exception(quoted))
+      return quoted;
 
     push_root(&quoted);
     quoted = cons(quoted, g->empty_list);
@@ -406,7 +420,8 @@ object *lisp_read(FILE * in) {
     }
 
     object *unquoted = lisp_read(in);
-    if(is_primitive_exception(unquoted)) return unquoted;
+    if(is_primitive_exception(unquoted))
+      return unquoted;
 
     push_root(&unquoted);
     unquoted = cons(unquoted, g->empty_list);
@@ -416,7 +431,8 @@ object *lisp_read(FILE * in) {
   }
   else if(c == '`') {
     object *qquoted = lisp_read(in);
-    if(is_primitive_exception(qquoted)) return qquoted;
+    if(is_primitive_exception(qquoted))
+      return qquoted;
 
     push_root(&qquoted);
     qquoted = cons(qquoted, g->empty_list);

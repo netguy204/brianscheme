@@ -40,7 +40,7 @@ DEFUN1(server_socket_proc) {
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   addr.sin_port = htons(port);
 
-  if(bind(sock, (struct sockaddr*)&addr, sizeof(struct sockaddr_in)) < 0) {
+  if(bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
     return g->false;
   }
 
@@ -67,13 +67,13 @@ DEFUN1(socket_read_proc) {
   long socket = LONG(FIRST);
   long n_bytes = LONG(SECOND);
 
-  object * bytes = make_filled_string(n_bytes + 1, '\0');
+  object *bytes = make_filled_string(n_bytes + 1, '\0');
   push_root(&bytes);
   long rb = read(socket, STRING(bytes), n_bytes);
 
-  object * result = g->empty_list;
+  object *result = g->empty_list;
   push_root(&result);
-  object * count = make_fixnum(rb);
+  object *count = make_fixnum(rb);
   push_root(&count);
 
   result = cons(bytes, result);
@@ -88,7 +88,7 @@ DEFUN1(socket_read_proc) {
 
 DEFUN1(socket_write_proc) {
   long socket = LONG(FIRST);
-  char * data = STRING(SECOND);
+  char *data = STRING(SECOND);
   long nbytes = LONG(THIRD);
 
   long written = write(socket, data, nbytes);
@@ -104,14 +104,9 @@ DEFUN1(socket_close_proc) {
 }
 
 void init_socket(definer defn) {
-  defn("make-server-socket",
-       make_primitive_proc(server_socket_proc));
-  defn("socket-accept",
-       make_primitive_proc(socket_accept_proc));
-  defn("socket-read",
-       make_primitive_proc(socket_read_proc));
-  defn("socket-write",
-       make_primitive_proc(socket_write_proc));
-  defn("socket-close",
-       make_primitive_proc(socket_close_proc));
+  defn("make-server-socket", make_primitive_proc(server_socket_proc));
+  defn("socket-accept", make_primitive_proc(socket_accept_proc));
+  defn("socket-read", make_primitive_proc(socket_read_proc));
+  defn("socket-write", make_primitive_proc(socket_write_proc));
+  defn("socket-close", make_primitive_proc(socket_close_proc));
 }

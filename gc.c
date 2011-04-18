@@ -59,7 +59,7 @@ int save_image(char *filename, int compress) {
   return pool_dump(g->global_pool, filename, compress);
 }
 
-void patch_object(object *sym, object *new_value) {
+void patch_object(object * sym, object * new_value) {
   /* find what the symbol points to */
   object *old_val = get_hashtab(g->vm_env, sym, NULL);
   if(!old_val) {
@@ -75,8 +75,8 @@ void patch_object(object *sym, object *new_value) {
 
 int load_image(char *filename, off_t offset) {
   g = pool_load(filename, offset);
-  if (g == NULL)
-    return -1; /* Error. */
+  if(g == NULL)
+    return -1;			/* Error. */
   return 0;
 }
 

@@ -60,18 +60,17 @@ opcode_table(generate_decls)
 
 /* generate an enumeration of all of the opcodes */
 #define generate_enum(opcode) _ ## opcode ## _,
-
-enum {
-  opcode_table(generate_enum)
-  INVALID_BYTECODE,
-} opcodes;
+     enum {
+       opcode_table(generate_enum)
+	 INVALID_BYTECODE,
+     } opcodes;
 
 /* generate the stringified form */
 #define generate_string(opcode) "" # opcode,
 
-const char *bytecode_str[] = {
-  opcode_table(generate_string)
-};
+     const char *bytecode_str[] = {
+       opcode_table(generate_string)
+     };
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
@@ -80,7 +79,7 @@ const char *bytecode_str[] = {
     return make_character( _ ## opcode ## _);	\
   }
 
-object *symbol_to_code(object *sym) {
+object *symbol_to_code(object * sym) {
   opcode_table(generate_sym_to_code);
   return g->false;
 }
@@ -101,7 +100,7 @@ DEFUN1(get_bytecode_proc) {
 
 DEFUN1(set_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  bca[LONG(SECOND)] = (BC)LONG(THIRD);
+  bca[LONG(SECOND)] = (BC) LONG(THIRD);
   return THIRD;
 }
 
@@ -115,7 +114,7 @@ DEFUN1(set_bytecode_proc) {
 
 DEFUN1(code_to_symbol_proc) {
   opcode_table(generate_code_to_sym)
-  return g->false;
+    return g->false;
 }
 
 #define VM_ERROR_RESTART(obj)			\
@@ -163,7 +162,7 @@ object *vector_pop(object * stack, long top) {
 
 char sigint_set = 0;
 
-void vm_sigint_handler(int arg __attribute__((unused))) {
+void vm_sigint_handler(int arg __attribute__ ((unused))) {
   sigint_set = 1;
 }
 
@@ -258,15 +257,14 @@ vm_begin:
   }
 
   opcode = codes[pc];
-  pc += 3; /* instructions are 3 bytes wide */
+  pc += 3;			/* instructions are 3 bytes wide */
 
   VM_DEBUG("dispatching", instr);
 
   switch (opcode) {
   case _args_:{
       VM_ASSERT(n_args == ARG1,
-		"wrong number of args. expected %d, got %ld\n",
-		ARG1, n_args);
+		"wrong number of args. expected %d, got %ld\n", ARG1, n_args);
 
       int ii;
       int num_args = ARG1;
@@ -305,27 +303,27 @@ vm_begin:
       }
 
       VM_DEBUG("after_args environment", env);
-  }
+    }
     break;
-  case _chainframe_: {
-    /* generate a fresh frame for the callee */
-    top = make_vector(g->empty_list, ARG1);
-    env = cons(top, env);
-  }
+  case _chainframe_:{
+      /* generate a fresh frame for the callee */
+      top = make_vector(g->empty_list, ARG1);
+      env = cons(top, env);
+    }
     break;
   case _fjump_:{
-    VPOP(top, stack, stack_top);
-    if(is_falselike(top)) {
-      pc = ARG1 * 3; /* offsets are in instructions */
+      VPOP(top, stack, stack_top);
+      if(is_falselike(top)) {
+	pc = ARG1 * 3;		/* offsets are in instructions */
+      }
     }
-  }
     break;
   case _tjump_:{
-    VPOP(top, stack, stack_top);
-    if(!is_falselike(top)) {
-      pc = ARG1 * 3;
+      VPOP(top, stack, stack_top);
+      if(!is_falselike(top)) {
+	pc = ARG1 * 3;
+      }
     }
-  }
     break;
   case _jump_:{
       pc = ARG1 * 3;
@@ -339,64 +337,64 @@ vm_begin:
     }
     break;
   case _callj_:{
-    VPOP(top, stack, stack_top);
+      VPOP(top, stack, stack_top);
 
-    /* unwrap meta */
-    if(is_meta(top)) {
-      top = METAPROC(top);
-    }
-
-    BC args_for_call = ARG1;
-
-    /* special case for apply (which will always be callj) */
-    if(args_for_call == -1) {
-      /* the args are in a list next, expand those */
-      object *args;
-      VPOP(args, stack, stack_top);
-      
-      args_for_call = 0;
-      while(!is_the_empty_list(args)) {
-	VPUSH(car(args), stack, stack_top);
-	args = cdr(args);
-	++args_for_call;
-      }
-    }
-
-    if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
-      fn = top;
-      pc = 0;
-      n_args = args_for_call;
-      env = CENV(fn);
-      goto vm_fn_begin;
-    }
-    else if(is_primitive_proc(top)) {
-      /* build the list the target expects for the call */
-      long ii;
-      object *pfn = top;
-
-      top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
-      /* unwind the stack since primitives don't clean up after
-	 themselves */
-      object *temp;
-      for(ii = 0; ii < args_for_call; ++ii) {
-	VPOP(temp, stack, stack_top);
+      /* unwrap meta */
+      if(is_meta(top)) {
+	top = METAPROC(top);
       }
 
-      if(is_primitive_exception(top)) {
-	object *temp = top;
-	VM_ERROR_RESTART(cdr(temp));
+      BC args_for_call = ARG1;
+
+      /* special case for apply (which will always be callj) */
+      if(args_for_call == -1) {
+	/* the args are in a list next, expand those */
+	object *args;
+	VPOP(args, stack, stack_top);
+
+	args_for_call = 0;
+	while(!is_the_empty_list(args)) {
+	  VPUSH(car(args), stack, stack_top);
+	  args = cdr(args);
+	  ++args_for_call;
+	}
       }
 
-      VPUSH(top, stack, stack_top);
+      if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
+	fn = top;
+	pc = 0;
+	n_args = args_for_call;
+	env = CENV(fn);
+	goto vm_fn_begin;
+      }
+      else if(is_primitive_proc(top)) {
+	/* build the list the target expects for the call */
+	long ii;
+	object *pfn = top;
 
-      RETURN_OPCODE_INSTRUCTIONS;
+	top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
+	/* unwind the stack since primitives don't clean up after
+	   themselves */
+	object *temp;
+	for(ii = 0; ii < args_for_call; ++ii) {
+	  VPOP(temp, stack, stack_top);
+	}
+
+	if(is_primitive_exception(top)) {
+	  object *temp = top;
+	  VM_ERROR_RESTART(cdr(temp));
+	}
+
+	VPUSH(top, stack, stack_top);
+
+	RETURN_OPCODE_INSTRUCTIONS;
+      }
+      else {
+	owrite(stderr, top);
+	fprintf(stderr, "\n");
+	VM_ASSERT(0, "don't know how to invoke");
+      }
     }
-    else {
-      owrite(stderr, top);
-      fprintf(stderr, "\n");
-      VM_ASSERT(0, "don't know how to invoke");
-    }
-  }
     break;
   case _lvar_:{
       int env_num = ARG1;
@@ -430,7 +428,8 @@ vm_begin:
       /* see if we can get it from cache */
       if(is_pair(var)) {
 	val = var;
-      } else {
+      }
+      else {
 	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
 	if(is_primitive_exception(val)) {
 	  VM_ERROR_RESTART(cdr(val));
@@ -447,56 +446,57 @@ vm_begin:
       object *slot = get_hashtab(g->vm_env, var, NULL);
       if(slot) {
 	set_cdr(slot, val);
-      } else {
+      }
+      else {
 	val = cons(var, val);
 	define_global_variable(var, val, g->vm_env);
       }
     }
     break;
-  case _setcc_: {
-    object *new_stack_top;
+  case _setcc_:{
+      object *new_stack_top;
 
-    VPOP(top, stack, stack_top);
-    VPOP(new_stack_top, stack, stack_top);
+      VPOP(top, stack, stack_top);
+      VPOP(new_stack_top, stack, stack_top);
 
-    /* need to copy the stack into the current stack */
-    stack_top = LONG(new_stack_top);
+      /* need to copy the stack into the current stack */
+      stack_top = LONG(new_stack_top);
 
-    stack = make_vector(g->empty_list, stack_top);
-    long idx;
-    for(idx = 0; idx < stack_top; ++idx) {
-      VARRAY(stack)[idx] = VARRAY(top)[idx];
+      stack = make_vector(g->empty_list, stack_top);
+      long idx;
+      for(idx = 0; idx < stack_top; ++idx) {
+	VARRAY(stack)[idx] = VARRAY(top)[idx];
+      }
     }
-  }
     break;
-  case _cc_: {
-    object *cc_env = make_vector(g->empty_list, 2);
-    push_root(&cc_env);
+  case _cc_:{
+      object *cc_env = make_vector(g->empty_list, 2);
+      push_root(&cc_env);
 
-    /* copy the stack */
-    object *new_stack = make_vector(g->empty_list, stack_top);
-    long idx;
-    for(idx = 0; idx < stack_top; ++idx) {
-      VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
+      /* copy the stack */
+      object *new_stack = make_vector(g->empty_list, stack_top);
+      long idx;
+      for(idx = 0; idx < stack_top; ++idx) {
+	VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
+      }
+
+      /* insert it into the environment */
+      VARRAY(cc_env)[0] = new_stack;
+      VARRAY(cc_env)[1] = make_fixnum(stack_top);
+
+      cc_env = cons(cc_env, g->empty_list);
+
+      object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
+      pop_root(&cc_env);
+
+      VPUSH(cc_fn, stack, stack_top);
     }
-
-    /* insert it into the environment */
-    VARRAY(cc_env)[0] = new_stack;
-    VARRAY(cc_env)[1] = make_fixnum(stack_top);
-
-    cc_env = cons(cc_env, g->empty_list);
-
-    object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
-    pop_root(&cc_env);
-
-    VPUSH(cc_fn, stack, stack_top);
-  }
     break;
-  case _incprof_: {
-    if(profiling_enabled) {
-      ARG1++;
+  case _incprof_:{
+      if(profiling_enabled) {
+	ARG1++;
+      }
     }
-  }
     break;
   case _pop_:{
       VPOP(top, stack, stack_top);
@@ -507,7 +507,7 @@ vm_begin:
       /* push this immediately so we don't have to add a root */
       VPUSH(ret_addr, stack, stack_top);
 
-      object **addr = &VARRAY(stack)[stack_top-1];
+      object **addr = &VARRAY(stack)[stack_top - 1];
 
       *addr = cons(g->empty_list, *addr);
       object *num = make_fixnum(ARG1 * 3);
@@ -519,8 +519,7 @@ vm_begin:
     }
     break;
   case _const_:{
-    VPUSH(VARRAY(const_array)[ARG1],
-	    stack, stack_top);
+      VPUSH(VARRAY(const_array)[ARG1], stack, stack_top);
     }
     break;
   default:{
@@ -546,7 +545,8 @@ DEFUN1(set_cc_bytecode) {
 DEFUN1(set_profiling_proc) {
   if(is_falselike(FIRST)) {
     profiling_enabled = 0;
-  } else {
+  }
+  else {
     profiling_enabled = 1;
   }
   return FIRST;
@@ -559,13 +559,14 @@ DEFUN1(set_error_restart_proc) {
 
 #define generate_syminit(opcode) opcode ## _op = make_symbol("" # opcode);
 
-void vm_definer(char *sym, object *value) {
-  object * symbol = make_symbol(sym);
-  object * slot = get_hashtab(g->vm_env, symbol, NULL);
+void vm_definer(char *sym, object * value) {
+  object *symbol = make_symbol(sym);
+  object *slot = get_hashtab(g->vm_env, symbol, NULL);
 
   if(slot) {
     set_cdr(slot, value);
-  } else {
+  }
+  else {
     push_root(&value);
     value = cons(symbol, value);
     define_global_variable(symbol, value, g->vm_env);
@@ -577,7 +578,7 @@ void vm_boot(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
 
-  /* register for sigint */
+    /* register for sigint */
   struct sigaction sa;
   sa.sa_handler = vm_sigint_handler;
   sigaction(SIGINT, &sa, NULL);
@@ -591,11 +592,9 @@ void vm_add_roots(void) {
 void vm_init(void) {
   vm_boot();
 
-  vm_definer("set-macro!",
-	     make_primitive_proc(vm_tag_macro_proc));
+  vm_definer("set-macro!", make_primitive_proc(vm_tag_macro_proc));
 
-  vm_definer("set-cc-bytecode!",
-	     make_primitive_proc(set_cc_bytecode));
+  vm_definer("set-cc-bytecode!", make_primitive_proc(set_cc_bytecode));
 
   vm_definer("set-error-restart!",
 	     make_primitive_proc(set_error_restart_proc));
@@ -611,23 +610,17 @@ void vm_init(void) {
 
 void vm_init_environment(definer defn) {
 
-  defn("symbol->bytecode",
-       make_primitive_proc(symbol_to_code_proc));
+  defn("symbol->bytecode", make_primitive_proc(symbol_to_code_proc));
 
-  defn("bytecode->symbol",
-       make_primitive_proc(code_to_symbol_proc));
+  defn("bytecode->symbol", make_primitive_proc(code_to_symbol_proc));
 
-  defn("set-profiling!",
-       make_primitive_proc(set_profiling_proc));
+  defn("set-profiling!", make_primitive_proc(set_profiling_proc));
 
-  defn("make-bytecode-array",
-       make_primitive_proc(make_bytecode_array_proc));
+  defn("make-bytecode-array", make_primitive_proc(make_bytecode_array_proc));
 
-  defn("bytecode-ref",
-       make_primitive_proc(get_bytecode_proc));
+  defn("bytecode-ref", make_primitive_proc(get_bytecode_proc));
 
-  defn("bytecode-set!",
-       make_primitive_proc(set_bytecode_proc));
+  defn("bytecode-set!", make_primitive_proc(set_bytecode_proc));
 }
 
 void wb(object * fn) {
