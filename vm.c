@@ -36,6 +36,7 @@ char profiling_enabled;
 #define opcode_table(define)			\
   define(args)					\
   define(argsdot)				\
+  define(chainframe)				\
   define(return)				\
   define(const)					\
   define(fn)					\
@@ -269,14 +270,9 @@ vm_begin:
 
       int ii;
       int num_args = ARG1;
-
-      /* resize the top frame if we need to */
-      if(num_args > VSIZE(car(env))) {
-	set_car(env, make_vector(g->empty_list, num_args));
-      }
-
       object *vector = car(env);
       object **vdata = VARRAY(vector);
+
       for(ii = num_args - 1; ii >= 0; --ii) {
 	VPOP(top, stack, stack_top);
 	vdata[ii] = top;
@@ -291,12 +287,6 @@ vm_begin:
       int ii;
       BC req_args = ARG1;
       BC array_size = req_args + 1;
-
-      /* resize the top frame if we need to */
-      if(array_size > VSIZE(car(env))) {
-	set_car(env, make_vector(g->empty_list, array_size));
-      }
-
       object *vector = car(env);
       object **vdata = VARRAY(vector);
 
@@ -315,21 +305,27 @@ vm_begin:
       }
 
       VM_DEBUG("after_args environment", env);
-    }
+  }
+    break;
+  case _chainframe_: {
+    /* generate a fresh frame for the callee */
+    top = make_vector(g->empty_list, ARG1);
+    env = cons(top, env);
+  }
     break;
   case _fjump_:{
-      VPOP(top, stack, stack_top);
-      if(is_falselike(top)) {
-	pc = ARG1 * 3; /* offsets are in instructions */
-      }
+    VPOP(top, stack, stack_top);
+    if(is_falselike(top)) {
+      pc = ARG1 * 3; /* offsets are in instructions */
     }
+  }
     break;
   case _tjump_:{
-      VPOP(top, stack, stack_top);
-      if(!is_falselike(top)) {
-	pc = ARG1 * 3;
-      }
+    VPOP(top, stack, stack_top);
+    if(!is_falselike(top)) {
+      pc = ARG1 * 3;
     }
+  }
     break;
   case _jump_:{
       pc = ARG1 * 3;
@@ -370,13 +366,7 @@ vm_begin:
       fn = top;
       pc = 0;
       n_args = args_for_call;
-
-      /* generate a fresh frame for the callee */
       env = CENV(fn);
-
-      top = make_vector(g->empty_list, n_args + 1);
-      env = cons(top, env);
-
       goto vm_fn_begin;
     }
     else if(is_primitive_proc(top)) {

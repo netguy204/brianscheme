@@ -293,8 +293,12 @@ about its value and optionally with more forms following"
 
 (define (%gen-args args n-so-far)
   (cond
-   ((null? args) (gen 'args n-so-far))
-   ((symbol? args) (gen 'argsdot n-so-far))
+   ((null? args) (seq (gen 'chainframe n-so-far)
+		      (gen 'args n-so-far)))
+		      
+   ((symbol? args) (seq (gen 'chainframe (%fixnum-add n-so-far 1))
+			(gen 'argsdot n-so-far)))
+			
    ((and (pair? args)
 	 (symbol? (first args)))
     (%gen-args (rest args) (%fixnum-add n-so-far 1)))
