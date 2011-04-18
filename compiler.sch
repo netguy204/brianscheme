@@ -197,14 +197,14 @@ about its value and optionally with more forms following"
 	     (comp-list args env)
 	     (comp f env #t #t)
 	     (gen 'incprof 0)
-	     (gen 'fcallj (length args) #t)
+	     (gen 'callj (length args) #t)
 	     (list k)
 	     (unless val? (gen 'pop)))))
      (else
       (seq (comp-list args env)
 	   (comp f env #t #t)
 	   (gen 'incprof 0)
-	   (gen 'fcallj (length args) #f))))))
+	   (gen 'callj (length args) #f))))))
 
 (define (primitive-procedure? obj)
   (and (procedure? obj)
@@ -496,14 +496,7 @@ about its value and optionally with more forms following"
   (is instr 'fn))
 
 (define (optimize code)
-  (when (not (any? fn-opcode? code))
-    ;; nothing closed over our environment so we can recycle it
-    (dolist (op code)
-      (when (and (is op 'fcallj)
-		 (not (arg2 op)))
-	    (set-car! op 'callj))))
   code)
-
 
 (define (make-space spaces)
   (make-string spaces #\space))

@@ -42,7 +42,6 @@ char profiling_enabled;
   define(fjump)					\
   define(tjump)					\
   define(jump)					\
-  define(fcallj)				\
   define(callj)					\
   define(lvar)					\
   define(save)					\
@@ -343,7 +342,7 @@ vm_begin:
       VPUSH(new_fn, stack, stack_top);
     }
     break;
-  case _fcallj_:{
+  case _callj_:{
     VPOP(top, stack, stack_top);
 
     /* unwrap meta */
@@ -352,6 +351,20 @@ vm_begin:
     }
 
     BC args_for_call = ARG1;
+
+    /* special case for apply (which will always be callj) */
+    if(args_for_call == -1) {
+      /* the args are in a list next, expand those */
+      object *args;
+      VPOP(args, stack, stack_top);
+      
+      args_for_call = 0;
+      while(!is_the_empty_list(args)) {
+	VPUSH(car(args), stack, stack_top);
+	args = cdr(args);
+	++args_for_call;
+      }
+    }
 
     if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
       fn = top;
@@ -394,71 +407,6 @@ vm_begin:
       VM_ASSERT(0, "don't know how to invoke");
     }
   }
-    break;
-  case _callj_:{
-      VPOP(top, stack, stack_top);
-
-      /* unwrap meta */
-      if(is_meta(top)) {
-	top = METAPROC(top);
-      }
-
-      BC args_for_call = ARG1;
-
-      /* special case for apply (which will always be callj) */
-      if(args_for_call == -1) {
-	/* the args are in a list next, expand those */
-	object *args;
-	VPOP(args, stack, stack_top);
-
-	args_for_call = 0;
-	while(!is_the_empty_list(args)) {
-	  VPUSH(car(args), stack, stack_top);
-	  args = cdr(args);
-	  ++args_for_call;
-	}
-      }
-
-      if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
-	fn = top;
-	pc = 0;
-	n_args = args_for_call;
-
-	/* we can reuse the cons and frame from our environment to
-	   build the new one */
-	object *fn_env = CENV(fn);
-	set_cdr(env, fn_env);
-
-	goto vm_fn_begin;
-      }
-      else if(is_primitive_proc(top)) {
-	/* build the list the target expects for the call */
-	long ii;
-	object *pfn = top;
-
-	top = pfn->data.primitive_proc.fn(stack, args_for_call, stack_top);
-	/* unwind the stack since primitives don't clean up after
-	   themselves */
-	object *temp;
-	for(ii = 0; ii < args_for_call; ++ii) {
-	  VPOP(temp, stack, stack_top);
-	}
-
-	if(is_primitive_exception(top)) {
-	  object *temp = top;
-	  VM_ERROR_RESTART(cdr(temp));
-	}
-
-	VPUSH(top, stack, stack_top);
-
-	RETURN_OPCODE_INSTRUCTIONS;
-      }
-      else {
-	owrite(stderr, top);
-	fprintf(stderr, "\n");
-	VM_ASSERT(0, "don't know how to invoke");
-      }
-    }
     break;
   case _lvar_:{
       int env_num = ARG1;
