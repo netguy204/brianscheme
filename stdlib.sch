@@ -32,17 +32,6 @@
 (display "Building stdlib..." stderr)
 (write-char #\newline stderr)
 
-(define (list* . args)
-  (letrec ((chase
-	    (lambda (args)
-	      (cond ((null? args) '())
-		    ((null? (cdr args)) (car args))
-		    (else (cons (car args) (chase (cdr args))))))))
-    (chase args)))
-
-(define (apply* proc . args)
-  (apply proc (apply list* args)))
-
 (define (map-vector fn vector)
   (let* ((len (vector-length vector))
 	 (result (make-vector len nil)))

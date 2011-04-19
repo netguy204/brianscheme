@@ -33,12 +33,23 @@
 
 (define (write-dbg1 . args)
   "display the given forms"
-  (printf "debug: %a\n" args))
+  (display "debug: ")
+  (display args)
+  (newline)
+  args)
 
 (define (write-dbg . args)
   "do nothing."
   #t)
 
+;(define write-dbg write-dbg1)
+
+(define (write-passthrough arg)
+  (apply write-dbg arg)
+  arg)
+
+(define (write-passthrough arg)
+  arg)
 
 (define (comp-bound? sym)
   "is the symbol defined in the compiled global environment?"
@@ -291,10 +302,24 @@ about its value and optionally with more forms following"
 			    #t #f))
 	   env "unknown" args))
 
+(define (%gen-frame-fill n-args)
+  (when (%fixnum-greater-than n-args 0)
+    (let loop ((argnum 0)
+	       (result nil))
+      (if (%fixnum-less-than argnum n-args)
+	  (loop (%fixnum-add argnum 1)
+		(seq (gen 'spush 0)
+		     (gen 'lset 0 argnum)
+		     (gen 'pop)
+		     (gen 'pop)
+		     result))
+	  result))))
+
 (define (%gen-args args n-so-far)
+  (write-dbg '%gen-args args n-so-far)
   (cond
    ((null? args) (seq (gen 'chainframe n-so-far)
-		      (gen 'args n-so-far)))
+		      (%gen-frame-fill n-so-far)))
 		      
    ((symbol? args) (seq (gen 'chainframe (%fixnum-add n-so-far 1))
 			(gen 'argsdot n-so-far)))

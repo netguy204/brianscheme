@@ -911,6 +911,17 @@ returns true"
       (vector-set! v idx val))
     v))
 
+(define (list* . args)
+  (letrec ((chase
+	    (lambda (args)
+	      (cond ((null? args) '())
+		    ((null? (cdr args)) (car args))
+		    (else (cons (car args) (chase (cdr args))))))))
+    (chase args)))
+
+(define (apply* proc . args)
+  (apply proc (apply list* args)))
+
 (define-syntax (assert cond)
   "verify that condition is true, throw error otherwise"
   (let ((result (gensym)))

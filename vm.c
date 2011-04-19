@@ -37,6 +37,7 @@ char profiling_enabled;
   define(args)					\
   define(argsdot)				\
   define(chainframe)				\
+  define(spush)					\
   define(return)				\
   define(const)					\
   define(fn)					\
@@ -309,6 +310,13 @@ vm_begin:
       /* generate a fresh frame for the callee */
       top = make_vector(g->empty_list, ARG1);
       env = cons(top, env);
+    }
+    break;
+  case _spush_:{
+      /* push stack item top - N where N=0 would be the next value to
+	 pop. Obviously this operation changes stack_top */
+      top = VARRAY(stack)[stack_top - ARG1 - 1];
+      VPUSH(top, stack, stack_top);
     }
     break;
   case _fjump_:{
