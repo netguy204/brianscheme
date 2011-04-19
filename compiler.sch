@@ -295,14 +295,20 @@ about its value and optionally with more forms following"
 	  (exit 1)))
 
 (define (comp-lambda args body env)
+  "generate code for BODY with ARGS in ENV. Only generates a new
+chainframe if ARGS is non-nil"
   (write-dbg 'comp-lambda args 'body body)
-  (new-fun (seq (%gen-args args 0)
-		(comp-begin body
-			    (cons (make-true-list args) env)
-			    #t #f))
-	   env "unknown" args))
+  (let ((new-env (if args
+		     (cons (make-true-list args) env)
+		     env)))
+    (new-fun (seq (%gen-args args 0)
+		  (comp-begin body
+			      new-env
+			      #t #f))
+	     env "unknown" args)))
 
 (define (%gen-frame-fill n-args)
+  "move N-ARGS values from the stack to the local frame"
   (when (%fixnum-greater-than n-args 0)
     (let loop ((argnum 0)
 	       (result nil))
@@ -313,13 +319,18 @@ about its value and optionally with more forms following"
 		     result))
 	  result))))
 
+(define (%gen-chainframe n-args)
+  "generate a chainframe instruction if N-ARGS is greater than zero"
+  (when (%fixnum-greater-than n-args 0)
+	(gen 'chainframe n-args)))
+
 (define (%gen-args args n-so-far)
   (write-dbg '%gen-args args n-so-far)
   (cond
-   ((null? args) (seq (gen 'chainframe n-so-far)
+   ((null? args) (seq (%gen-chainframe n-so-far)
 		      (%gen-frame-fill n-so-far)))
 
-   ((symbol? args) (seq (gen 'chainframe (%fixnum-add n-so-far 1))
+   ((symbol? args) (seq (%gen-chainframe (%fixnum-add n-so-far 1))
 			(gen 'pushvarargs n-so-far)
 			(gen 'lset 0 n-so-far)
 			(gen 'pop)
