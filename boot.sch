@@ -1298,15 +1298,15 @@ returns true"
    (set! eval (lambda (form) ((compiler form))))
 
    (set! apply (new-fun
-		'((args 2)
-		  (lvar 0 1 ";" 'args)
-		  (lvar 0 0 ";" 'fun)
+		'((swap)
 		  (callj -1)
 		  (return))
 		nil nil nil))
 
    (set-cc-bytecode! (new-fun
-		      '((args 1)
+		      '((chainframe 1)
+			(lset 0 0)
+			(pop)
 			(lvar 1 1)
 			(lvar 1 0)
 			(setcc)
@@ -1315,7 +1315,9 @@ returns true"
 		      nil nil nil))
 
    (set! call/cc (new-fun
-		  '((args 1)
+		  '((chainframe 1)
+		    (lset 0 0)
+		    (pop)
 		    (cc)
 		    (lvar 0 0)
 		    (callj 1))

@@ -34,10 +34,10 @@ char profiling_enabled;
 #define length1(x) (cdr(x) == the_empty_list)
 
 #define opcode_table(define)			\
-  define(args)					\
   define(argsdot)				\
   define(chainframe)				\
   define(spush)					\
+  define(swap)					\
   define(return)				\
   define(const)					\
   define(fn)					\
@@ -263,23 +263,6 @@ vm_begin:
   VM_DEBUG("dispatching", instr);
 
   switch (opcode) {
-  case _args_:{
-      VM_ASSERT(n_args == ARG1,
-		"wrong number of args. expected %d, got %ld\n", ARG1, n_args);
-
-      int ii;
-      int num_args = ARG1;
-      object *vector = car(env);
-      object **vdata = VARRAY(vector);
-
-      for(ii = num_args - 1; ii >= 0; --ii) {
-	VPOP(top, stack, stack_top);
-	vdata[ii] = top;
-      }
-
-      VM_DEBUG("after_args environment", env);
-    }
-    break;
   case _argsdot_:{
       VM_ASSERT(n_args >= ARG1, "wrong number of args");
 
@@ -318,6 +301,12 @@ vm_begin:
       top = VARRAY(stack)[stack_top - ARG1 - 1];
       VPUSH(top, stack, stack_top);
     }
+    break;
+  case _swap_:{
+      top = VARRAY(stack)[stack_top - 1];
+      VARRAY(stack)[stack_top - 1] = VARRAY(stack)[stack_top - 2];
+      VARRAY(stack)[stack_top - 2] = top;
+  }
     break;
   case _fjump_:{
       VPOP(top, stack, stack_top);
