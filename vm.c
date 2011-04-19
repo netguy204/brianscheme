@@ -220,6 +220,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *top;
 
   long initial_top = stack_top - n_args;
+  long fn_top_arg;
   long pc = 0;
 
   /* bootstrap an empty frame for this function since the callj opcode
@@ -244,6 +245,7 @@ vm_fn_begin:
   long num_codes = LONG(car(BYTECODE(fn)));
   BC *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
   const_array = caddr(BYTECODE(fn));
+  fn_top_arg = stack_top - 1;
 
   VM_DEBUG("stack", stack);
 
@@ -276,8 +278,12 @@ vm_begin:
 	result = cons(top, result);
       }
 
+      /* fix up the top arg index */
+      fn_top_arg = stack_top - 1;
+
       VPUSH(result, stack, stack_top);
       pop_root(&result);
+
       VM_DEBUG("after_args environment", env);
     }
     break;
@@ -288,9 +294,8 @@ vm_begin:
     }
     break;
   case _spush_:{
-      /* push stack item top - N where N=0 would be the next value to
-	 pop. Obviously this operation changes stack_top */
-      top = VARRAY(stack)[stack_top - ARG1 - 1];
+      /* push the NARGS - Nth argument onto the stack */
+      top = VARRAY(stack)[fn_top_arg - ARG1];
       VPUSH(top, stack, stack_top);
     }
     break;
@@ -335,7 +340,7 @@ vm_begin:
 
       BC args_for_call = ARG1;
 
-      /* special case for apply (which will always be callj) */
+      /* special case for apply */
       if(args_for_call == -1) {
 	/* the args are in a list next, expand those */
 	object *args;

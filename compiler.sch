@@ -308,10 +308,8 @@ about its value and optionally with more forms following"
 	       (result nil))
       (if (%fixnum-less-than argnum n-args)
 	  (loop (%fixnum-add argnum 1)
-		(seq (gen 'spush 0)
-		     (gen 'lset 0 argnum)
-		     (gen 'pop)
-		     (gen 'pop)
+		(seq (gen 'lset 0 argnum)
+		     (gen 'pop) ; cleans the arg stack for now
 		     result))
 	  result))))
 
