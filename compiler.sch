@@ -320,10 +320,13 @@ about its value and optionally with more forms following"
   (cond
    ((null? args) (seq (gen 'chainframe n-so-far)
 		      (%gen-frame-fill n-so-far)))
-		      
+
    ((symbol? args) (seq (gen 'chainframe (%fixnum-add n-so-far 1))
-			(gen 'argsdot n-so-far)))
-			
+			(gen 'pushvarargs n-so-far)
+			(gen 'lset 0 n-so-far)
+			(gen 'pop)
+			(%gen-frame-fill n-so-far)))
+
    ((and (pair? args)
 	 (symbol? (first args)))
     (%gen-args (rest args) (%fixnum-add n-so-far 1)))

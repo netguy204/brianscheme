@@ -34,7 +34,7 @@ char profiling_enabled;
 #define length1(x) (cdr(x) == the_empty_list)
 
 #define opcode_table(define)			\
-  define(argsdot)				\
+  define(pushvarargs)				\
   define(chainframe)				\
   define(spush)					\
   define(swap)					\
@@ -263,29 +263,21 @@ vm_begin:
   VM_DEBUG("dispatching", instr);
 
   switch (opcode) {
-  case _argsdot_:{
-      VM_ASSERT(n_args >= ARG1, "wrong number of args");
-
-      int ii;
+  case _pushvarargs_:{
       BC req_args = ARG1;
-      BC array_size = req_args + 1;
-      object *vector = car(env);
-      object **vdata = VARRAY(vector);
+      int ii;
 
-      /* push the excess args onto the last position, top is
-         protected */
-      vdata[array_size - 1] = g->empty_list;
-      for(ii = 0; ii < n_args - req_args; ++ii) {
+      const int nvarargs = n_args - req_args;
+      object * result = g->empty_list;
+      push_root(&result);
+
+      for(ii = 0; ii < nvarargs; ++ii) {
 	VPOP(top, stack, stack_top);
-	vdata[array_size - 1] = cons(top, vdata[array_size - 1]);
+	result = cons(top, result);
       }
 
-      /* now pop off the required args into their positions */
-      for(ii = req_args - 1; ii >= 0; --ii) {
-	VPOP(top, stack, stack_top);
-	vdata[ii] = top;
-      }
-
+      VPUSH(result, stack, stack_top);
+      pop_root(&result);
       VM_DEBUG("after_args environment", env);
     }
     break;
