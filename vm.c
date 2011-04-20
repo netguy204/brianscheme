@@ -192,9 +192,10 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
     object *ret_addr;					\
     VPOP(ret_addr, stack, stack_top);			\
     /* retore what we stashed away in save */		\
-    fn = car(cdr(ret_addr));				\
-    pc = LONG(car(ret_addr));				\
-    env = cdr(cdr(ret_addr));				\
+    fn = car(cdr(cdr(ret_addr)));			\
+    pc = LONG(car(cdr(ret_addr)));			\
+    env = cdr(cdr(cdr(ret_addr)));			\
+    fn_top_arg = LONG(car(ret_addr));			\
     /* setup for the next loop */			\
     VPUSH(val, stack, stack_top);			\
     goto vm_fn_begin;					\
@@ -505,6 +506,10 @@ vm_begin:
 
       *addr = cons(g->empty_list, *addr);
       object *num = make_fixnum(ARG1 * 3);
+      set_car(*addr, num);
+
+      num = make_fixnum(fn_top_arg);
+      *addr = cons(g->empty_list, *addr);
       set_car(*addr, num);
     }
     break;
