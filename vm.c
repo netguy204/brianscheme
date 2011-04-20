@@ -270,7 +270,7 @@ vm_begin:
       int ii;
 
       const int nvarargs = n_args - req_args;
-      object * result = g->empty_list;
+      object *result = g->empty_list;
       push_root(&result);
 
       for(ii = 0; ii < nvarargs; ++ii) {
@@ -303,7 +303,7 @@ vm_begin:
       top = VARRAY(stack)[stack_top - 1];
       VARRAY(stack)[stack_top - 1] = VARRAY(stack)[stack_top - 2];
       VARRAY(stack)[stack_top - 2] = top;
-  }
+    }
     break;
   case _fjump_:{
       VPOP(top, stack, stack_top);

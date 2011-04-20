@@ -398,7 +398,7 @@ object *make_uninterned_symbol() {
   return obj;
 }
 
-char is_lazy_symbol(object *obj) {
+char is_lazy_symbol(object * obj) {
   return obj->type == LAZY_SYMBOL;
 }
 
