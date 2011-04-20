@@ -288,6 +288,7 @@
   (cond
    ((%instance? x)   (%instance-class x))
    ((pair? x)        <pair>)
+   ((lazy-symbol? x) <lazy-symbol>)
    ((symbol? x)      <symbol>)
    ((string? x)      <string>)
    ((integer? x)     <integer>)
@@ -801,7 +802,7 @@
   (slot-set! class
 	     'direct-slots
 	     (map (lambda (s)
-		    (if (pair? s) 
+		    (if (pair? s)
 			s
 			(list s)))
 		  (getl initargs 'direct-slots  '())))
@@ -958,6 +959,7 @@
 (define <input-port>  (make-primitive-class nil '<input-port>))
 (define <output-port> (make-primitive-class nil '<output-port>))
 (define <directory-stream> (make-primitive-class nil '<directory-stream>))
+(define <lazy-symbol> (make-primitive-class nil '<lazy-symbol>))
 
 
 ; now we can override this since all of our primitive classes

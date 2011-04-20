@@ -232,6 +232,11 @@
   (write-stream strm "#<directory-stream>"))
 
 (define-method (print-object (strm <output-stream>)
+			     (prim <lazy-symbol>))
+  (write-stream strm "#G")
+  (print-object strm (lazy-symbol-value prim)))
+
+(define-method (print-object (strm <output-stream>)
 			     (prim <alien>))
   (write-stream strm "#<alien>"))
 

@@ -39,7 +39,7 @@ char is_true(object * obj) {
 }
 
 char is_symbol(object * obj) {
-  return obj->type == SYMBOL;
+  return obj->type == SYMBOL || obj->type == LAZY_SYMBOL;
 }
 
 object *make_fixnum(long value) {
@@ -390,13 +390,16 @@ object *find_symbol(char *value) {
   return NULL;
 }
 
-object *make_uninterned_symbol(char *value) {
-  size_t len = strlen(value) + 1;
+long next_uninterned_symbol = 0;
+object *make_uninterned_symbol() {
   object *obj = alloc_object(0);
-  obj->type = SYMBOL;
-  obj->data.symbol.value = MALLOC(len);
-  strncpy(obj->data.symbol.value, value, len);
+  obj->type = LAZY_SYMBOL;
+  LONG(obj) = next_uninterned_symbol++;
   return obj;
+}
+
+char is_lazy_symbol(object *obj) {
+  return obj->type == LAZY_SYMBOL;
 }
 
 object *make_symbol(char *value) {
@@ -407,7 +410,11 @@ object *make_symbol(char *value) {
   if(element != NULL)
     return car(element);
 
-  obj = make_uninterned_symbol(value);
+  size_t len = strlen(value) + 1;
+  obj = alloc_object(0);
+  obj->type = SYMBOL;
+  obj->data.symbol.value = MALLOC(len);
+  strncpy(obj->data.symbol.value, value, len);
 
   push_root(&obj);
   g->symbol_table = cons(obj, g->symbol_table);

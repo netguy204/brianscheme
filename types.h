@@ -24,7 +24,7 @@
 /* first implementing the classic tagged type. This specific
    inplementation is stolen from Peter Michaux's bootstrap-scheme. */
 
-typedef enum {NIL, BOOLEAN, SYMBOL, FIXNUM, FLOATNUM,
+typedef enum {NIL, BOOLEAN, SYMBOL, LAZY_SYMBOL, FIXNUM, FLOATNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
@@ -114,7 +114,9 @@ typedef struct object* (prim_proc)(struct object*,
 
 object *alloc_object(char needs_finalization);
 
-object *make_uninterned_symbol(char *value);
+object *make_uninterned_symbol();
+
+char is_lazy_symbol(object *obj);
 
 object *make_symbol(char *value);
 

@@ -753,8 +753,16 @@ DEFUN1(string_to_symbol_proc) {
   return make_symbol(STRING(FIRST));
 }
 
-DEFUN1(string_to_uninterned_symbol_proc) {
-  return make_uninterned_symbol(STRING(FIRST));
+DEFUN1(gensym_proc) {
+  return make_uninterned_symbol();
+}
+
+DEFUN1(is_lazy_symbol_proc) {
+  return AS_BOOL(is_lazy_symbol(FIRST));
+}
+
+DEFUN1(lazy_symbol_value_proc) {
+  return make_fixnum(LONG(FIRST));
 }
 
 DEFUN1(make_compiled_proc_proc) {
@@ -954,6 +962,9 @@ object *owrite(FILE * out, object * obj) {
     break;
   case SYMBOL:
     fprintf(out, "%s", obj->data.symbol.value);
+    break;
+  case LAZY_SYMBOL:
+    fprintf(out, "#G%ld", LONG(obj));
     break;
   case FIXNUM:
     fprintf(out, "%ld", LONG(obj));
@@ -1500,8 +1511,9 @@ void init_prim_environment(definer defn) {
   add_procedure("string->number", string_to_number_proc);
   add_procedure("symbol->string", symbol_to_string_proc);
   add_procedure("string->symbol", string_to_symbol_proc);
-  add_procedure("string->uninterned-symbol",
-		string_to_uninterned_symbol_proc);
+  add_procedure("gensym", gensym_proc);
+  add_procedure("lazy-symbol?", is_lazy_symbol_proc);
+  add_procedure("lazy-symbol-value", lazy_symbol_value_proc);
 
   add_procedure("%prim-concat", concat_proc);
 
