@@ -190,54 +190,24 @@ about its value and optionally with more forms following"
   (write-dbg 'comp-funcall f 'args args
 	     'val? val? 'more? more?)
 
-  (let ((prim (%primitive? f env (length args))))
-    (cond
-     (prim
-      (if (and (not val?) (not (prim-side-effects? prim)))
-	  (comp-begin args env #f more?)
-	  (seq (comp-list args env)
-	       (gen (prim-opcode prim))
-	       (unless val? (gen 'pop))
-	       (unless more? (gen 'return)))))
-     ((and (starts-with? f 'lambda eq?) (null? (second f)))
-      (unless (null? args) (throw-error "too many arguments"))
-      (comp-begin (cdr (cdr f)) env val? more?))
-     (more?
-      (let ((k (gen-label 'k)))
-	(seq (gen 'save k)
-	     (comp-list args env)
-	     (comp f env #t #t)
-	     (gen 'incprof 0)
-	     (gen 'callj (length args) #t)
-	     (list k)
-	     (unless val? (gen 'pop)))))
-     (else
-      (seq (comp-list args env)
+  (cond
+   ((and (starts-with? f 'lambda eq?) (null? (second f)))
+    (unless (null? args) (throw-error "too many arguments"))
+    (comp-begin (cdr (cdr f)) env val? more?))
+   (more?
+    (let ((k (gen-label 'k)))
+      (seq (gen 'save k)
+	   (comp-list args env)
 	   (comp f env #t #t)
 	   (gen 'incprof 0)
-	   (gen 'callj (length args) #f))))))
-
-(define (primitive-procedure? obj)
-  (and (procedure? obj)
-       (not (compound-procedure? obj))))
-
-(define (environment-names . env)
-  (cond
-   ((or (null? env)
-	(primitive-procedure? (car env)))
-    (cdr (cdr (map first (current-environment)))))
-   ((compound-procedure? (car env))
-    (map first (compound-environment (car env))))
-   (else nil)))
-
-(define (compound->lambda comp)
-  `(lambda ,(compound-args comp)
-      ,(compound-body comp)))
-
-(define (sym-is-syntax? sym)
-  (if (index-eq sym (all-symbols))
-      (syntax-procedure? (eval sym))
-      #f))
+	   (gen 'callj (length args) #t)
+	   (list k)
+	   (unless val? (gen 'pop)))))
+   (else
+    (seq (comp-list args env)
+	 (comp f env #t #t)
+	 (gen 'incprof 0)
+	 (gen 'callj (length args) #f)))))
 
 (define-struct fn
   "a structure representing a compiled function"
@@ -245,54 +215,6 @@ about its value and optionally with more forms following"
    env
    name
    args))
-
-(define (make-prim symbol n-args opcode always? side-effects?)
-  (list 'prim symbol n-args opcode always? side-effects?))
-
-(define (prim? obj)
-  (starts-with? obj 'prim eq?))
-
-(define (prim-symbol prim)
-  (first (rest prim)))
-
-(define (prim-n-args prim)
-  (second (rest prim)))
-
-(define (prim-opcode prim)
-  (third (rest prim)))
-
-(define (prim-always? prim)
-  (fourth (rest prim)))
-
-(define (prim-side-effects? prim)
-  (fifth (rest prim)))
-
-(define *primitive-fns* '())
-;  (map (lambda (fn) (cons 'prim fn))
-;       '((+ 2 + #t #f) (- 2 - #t #f) (* 2 * #t #f) (/ 2 / #t #f)
-;	 (< 2 < #f #f) (> 2 > #f #f)
-;	 (= 2 = #f #f) (eq? 2 eq? #f #f)
-;	 (car 1 car #f #f) (cdr 1 cdr #f #f) (cons 2 cons #f #f)
-;	 (car0 1 car #f #f) (cdr0 1 cdr #f #f)
-;	 (null? 1 null? #f #f))))
-
-;; f is primitive if it's in the table and not shadowed in the
-;; environment and has the right number of arguments.
-(define (%primitive? f env n-args)
-  (write-dbg 'primitive? f 'env env 'n-args n-args)
-  (and (not (in-env? f env))
-       (find (lambda (p)
-	       (and (eq? f (prim-symbol p))
-		    (%fixnum-add n-args (prim-n-args p))))
-	     *primitive-fns*)))
-
-(define (assert-symbols lst)
-  (unless (or (null? lst)
-	      (and (pair? lst)
-		   (every? symbol? lst)))
-	  (error "lambda arglist must be list of symbols"
-		 lst)
-	  (exit 1)))
 
 (define (comp-lambda args body env)
   "generate code for BODY with ARGS in ENV. Only generates a new
@@ -402,9 +324,7 @@ chainframe if ARGS is non-nil"
   (let ((p (in-env? var env)))
     (if p
 	(gen 'lset (first p) (second p) ";" var)
-	(if (assoc var *primitive-fns*)
-	    (throw-error "can't alter the constant" var)
-	    (gen 'gset var)))))
+	(gen 'gset var))))
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))
