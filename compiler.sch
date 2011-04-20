@@ -236,10 +236,15 @@ chainframe if ARGS is non-nil"
 	       (result nil))
       (if (%fixnum-less-than argnum n-args)
 	  (loop (%fixnum-add argnum 1)
-		(seq (gen 'lset 0 argnum)
+		(seq (gen 'spush argnum)
+		     (gen 'lset 0 argnum)
+		     (gen 'pop)
 		     (gen 'pop) ; cleans the arg stack for now
 		     result))
 	  result))))
+
+(define (%gen-pops args)
+  (map (lambda (x) (gen 'pop)) args))
 
 (define (%gen-chainframe n-args)
   "generate a chainframe instruction if N-ARGS is greater than zero"
@@ -486,7 +491,8 @@ variable given that our environment looks like ENV"
   "maintain information about variable references"
   (name
    is-free
-   is-set))
+   is-set
+   stack-idx))
 
 (define-struct global-variable
   "maintain information about a global variable reference"

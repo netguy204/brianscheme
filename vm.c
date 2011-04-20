@@ -36,6 +36,7 @@ char profiling_enabled;
 #define opcode_table(define)			\
   define(pushvarargs)				\
   define(chainframe)				\
+  define(endframe)				\
   define(spush)					\
   define(swap)					\
   define(return)				\
@@ -195,7 +196,7 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
     fn = car(cdr(cdr(ret_addr)));			\
     pc = LONG(car(cdr(ret_addr)));			\
     env = cdr(cdr(cdr(ret_addr)));			\
-    fn_top_arg = LONG(car(ret_addr));			\
+    fn_first_arg = LONG(car(ret_addr));			\
     /* setup for the next loop */			\
     VPUSH(val, stack, stack_top);			\
     goto vm_fn_begin;					\
@@ -221,7 +222,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *top;
 
   long initial_top = stack_top - n_args;
-  long fn_top_arg;
+  long fn_first_arg;
   long pc = 0;
 
   /* bootstrap an empty frame for this function since the callj opcode
@@ -246,7 +247,7 @@ vm_fn_begin:
   long num_codes = LONG(car(BYTECODE(fn)));
   BC *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
   const_array = caddr(BYTECODE(fn));
-  fn_top_arg = stack_top - 1;
+  fn_first_arg = stack_top - n_args;
 
   VM_DEBUG("stack", stack);
 
@@ -279,9 +280,6 @@ vm_begin:
 	result = cons(top, result);
       }
 
-      /* fix up the top arg index */
-      fn_top_arg = stack_top - 1;
-
       VPUSH(result, stack, stack_top);
       pop_root(&result);
 
@@ -294,9 +292,14 @@ vm_begin:
       env = cons(top, env);
     }
     break;
+  case _endframe_: {
+      /* throw away the stack portion of this function's frame */
+      stack_top = fn_first_arg;
+    }
+    break;
   case _spush_:{
       /* push the NARGS - Nth argument onto the stack */
-      top = VARRAY(stack)[fn_top_arg - ARG1];
+      top = VARRAY(stack)[fn_first_arg + ARG1];
       VPUSH(top, stack, stack_top);
     }
     break;
@@ -508,7 +511,7 @@ vm_begin:
       object *num = make_fixnum(ARG1 * 3);
       set_car(*addr, num);
 
-      num = make_fixnum(fn_top_arg);
+      num = make_fixnum(fn_first_arg);
       *addr = cons(g->empty_list, *addr);
       set_car(*addr, num);
     }
