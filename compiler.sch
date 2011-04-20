@@ -79,7 +79,7 @@
 about its value and optionally with more forms following"
   (write-dbg 'comp x 'val? val? 'more? more?)
   (cond
-   ((symbol? x) (comp-var x env val? more?))
+   ((variable-reference? x) (comp-var x env val? more?))
    ((atom? x) (comp-const x val? more?))
    (else
     (record-case x
@@ -252,14 +252,14 @@ chainframe if ARGS is non-nil"
    ((null? args) (seq (%gen-chainframe n-so-far)
 		      (%gen-frame-fill n-so-far)))
 
-   ((symbol? args) (seq (%gen-chainframe (%fixnum-add n-so-far 1))
-			(gen 'pushvarargs n-so-far)
-			(gen 'lset 0 n-so-far)
-			(gen 'pop)
-			(%gen-frame-fill n-so-far)))
+   ((variable? args) (seq (%gen-chainframe (%fixnum-add n-so-far 1))
+			  (gen 'pushvarargs n-so-far)
+			  (gen 'lset 0 n-so-far)
+			  (gen 'pop)
+			  (%gen-frame-fill n-so-far)))
 
    ((and (pair? args)
-	 (symbol? (first args)))
+	 (variable? (first args)))
     (%gen-args (rest args) (%fixnum-add n-so-far 1)))
    (else (throw-error "illegal argument list" args))))
 
@@ -288,7 +288,7 @@ chainframe if ARGS is non-nil"
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
-    (comp-lambda nil (list x) nil))
+    (comp-lambda nil (variable-usages (list x) nil) nil))
 
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
@@ -312,19 +312,41 @@ chainframe if ARGS is non-nil"
    ((symbol? obj) (symbol->string obj))
    (else (throw-error "can't make" obj "a string"))))
 
+(define (update-var-ref ref env)
+  (let ((real-var (variable-reference-variable-ref ref)))
+    (write-dbg 'update-var-ref 'ref ref 'real real-var 'env env)
+    (if (global-variable? real-var)
+	ref
+	(let ((new-ref (var-in-env? (variable-name-ref real-var) env)))
+	  (if (not (null? new-ref))
+	      new-ref
+	      (throw-error "ENV: " env
+			   new-ref "not in env and stack not active yet"))))))
+
 (define (gen-var var env)
+  "given VAR, a variable reference, generate the bytecode to access
+that variable given that our environment looks like ENV"
   (write-dbg 'gen-var var)
-  (let ((p (in-env? var env)))
-    (if (not (null? p))
-	(gen 'lvar (first p) (second p) ";" var)
-	(gen 'gvar var))))
+  (let ((real-var (variable-reference-variable-ref var))
+	(new-ref (update-var-ref var env)))
+
+    (if (global-variable? real-var)
+	(gen 'gvar (global-variable-name-ref real-var))
+	;; we did the lookup again to account for skipped frames
+	(gen 'lvar (variable-reference-frame-ref new-ref)
+	           (variable-reference-number-ref new-ref) ";" new-ref))))
 
 (define (gen-set var env)
+  "given VAR, a variable reference, generate the bytecode to set that
+variable given that our environment looks like ENV"
   (write-dbg 'gen-set var)
-  (let ((p (in-env? var env)))
-    (if p
-	(gen 'lset (first p) (second p) ";" var)
-	(gen 'gset var))))
+  (let ((real-var (variable-reference-variable-ref var))
+	(new-ref (update-var-ref var env)))
+
+    (if (global-variable? real-var)
+	(gen 'gset (global-variable-name-ref real-var))
+	(gen 'lset (variable-reference-frame-ref new-ref)
+	           (variable-reference-number-ref new-ref) ";" var))))
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))
@@ -458,6 +480,146 @@ chainframe if ARGS is non-nil"
 
 (define (optimize code)
   code)
+
+
+(define-struct variable
+  "maintain information about variable references"
+  (name
+   is-free
+   is-set))
+
+(define-struct global-variable
+  "maintain information about a global variable reference"
+  (name))
+
+(define-struct variable-reference
+  "a reference to a variable"
+  (variable
+   frame
+   number))
+
+(define (var-in-env? var env)
+  (let loop ((frame-number 0)
+	     (var-number 0)
+	     (frame (car env))
+	     (frames (cdr env)))
+
+    (cond
+     ((and (null? frame)
+	   (null? frames))
+      nil) ;; variable not found in environment
+     ((null? frame)
+      (loop (%fixnum-add frame-number 1)
+	    0
+	    (car frames)
+	    (cdr frames))) ;; move to next frame
+     ((eq? (variable-name-ref (car frame)) var)
+      (make-variable-reference
+       'variable (car frame)
+       'frame frame-number
+       'number var-number)) ;; found what we're looking for
+     (else
+      (loop frame-number
+	    (%fixnum-add var-number 1)
+	    (cdr frame)
+	    frames)))))
+
+(define (set-reference-free! ref)
+  (variable-is-free-set! (variable-reference-variable-ref ref) #t))
+
+(define (set-reference-set! ref)
+  (variable-is-set-set! (variable-reference-variable-ref ref) #t))
+
+(define (args-to-variables arg-list)
+  (cond
+   ((null? arg-list) nil)
+   ((atom? arg-list) (make-variable 'name arg-list))
+   (else (cons (make-variable 'name (car arg-list))
+	       (args-to-variables (cdr arg-list))))))
+
+(define (variable-usages exp env)
+  (cond
+   ((symbol? exp)
+    ;; if the veriable reference is against a frame other than this
+    ;; one then mark the variable as free. If it's not found then
+    ;; generate a global reference
+    (let ((var (var-in-env? exp env)))
+      (cond
+       ((null? var)
+	(make-variable-reference 'variable (make-global-variable 'name exp)))
+       ((%fixnum-greater-than (variable-reference-frame-ref var) 0)
+	(set-reference-free! var)
+	var)
+       ;; it's in our frame, no need to change its markings
+       (else var))))
+   ((atom? exp) exp)
+   (else
+    (record-case exp
+      (if-compiling (then else)
+	(list 'if-compiling
+	  (variable-usages then env)
+	  (variable-usages else env)))
+      (quote (obj) exp)
+      (begin exps
+        (list* 'begin
+	  (map (lambda (exp)
+		 (variable-usages exp env)) exps)))
+      (set! (sym val)
+	;; if the variable reference is against a frame other than
+	;; this one, then mark the variable free and set. if it's
+	;; against this frame, mark the variable set only. If the
+	;; variable isn't found generate a global set
+	(let* ((var (var-in-env? sym env))
+	       (ref (cond
+		     ((null? var)
+		      (make-variable-reference 'variable
+					       (make-global-variable 'name sym)))
+		     ((%fixnum-greater-than (variable-reference-frame-ref var) 0)
+		      (set-reference-free! var)
+		      (set-reference-set! var)
+		      var)
+		     (else
+		      (set-reference-set! var)
+		      var))))
+	  (list 'set! ref (variable-usages val env))))
+      (if (test then . else)
+	  (list 'if
+            (variable-usages test env)
+	    (variable-usages then env)
+	    (variable-usages (car-else else nil) env)))
+      (lambda (args . body)
+	;; extend the environment with ARGS and then traverse BODY
+	(let* ((new-args (args-to-variables args))
+	       (new-env (cons (make-true-list new-args) env)))
+	  (list* 'lambda
+	    new-args
+	    (map (lambda (exp)
+		   (variable-usages exp new-env)) body))))
+      (else
+       (if (comp-macro? (first exp))
+	   (variable-usages (comp-macroexpand0 exp) env)
+	   (map (lambda (exp)
+		  (variable-usages exp env)) exp)))))))
+
+(define (any-free-variables? args)
+  "#t if any of the variables in the improper list are free"
+  (cond
+   ((null? args) #f)
+   ((atom? args) (variable-is-free-ref args))
+   (else
+    (if (variable-is-free-ref (car args))
+	#t
+	(any-free-variables? (cdr args))))))
+
+(define (set-all-variables-free! args)
+  "set all variables in the improper list to be free"
+  (cond
+   ((atom? args)
+    (variable-is-free-set! args #t))
+   (else
+    (variable-is-free-set! (car args) #t)
+    (set-all-variables-free! (cdr args)))))
+
 
 (define (make-space spaces)
   (make-string spaces #\space))

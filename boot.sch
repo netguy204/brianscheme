@@ -778,7 +778,7 @@ not be quoted or escaped."
                         (vector-length b)))
     (let loop ((idx 0))
       (cond
-       ((< idx (vector-length a))
+       ((%fixnum-less-than idx (vector-length a))
 	(if (equal? (vector-ref a idx)
                     (vector-ref b idx))
 	    (loop (%fixnum-add idx 1))
