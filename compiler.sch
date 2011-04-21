@@ -93,7 +93,8 @@ about its value and optionally with more forms following"
         (seq (comp val env #t #t)
 	     (gen-set sym env)
 	     (when (not val?) (gen 'pop))
-	     (unless more? (gen 'return))))
+	     (unless more? (seq (gen 'endframe 1)
+				(gen 'return)))))
       (if (test then . else)
 	  (let ((else (car-else else nil)))
 	    (comp-if test then else env val? more?)))
@@ -101,7 +102,8 @@ about its value and optionally with more forms following"
 	(when val?
 	  (let ((f (comp-lambda args body env)))
 	    (seq (gen 'fn f)
-		 (unless more? (gen 'return))))))
+		 (unless more? (seq (gen 'endframe 1)
+				    (gen 'return)))))))
 
       ;; generate an invocation
       (else
@@ -140,12 +142,14 @@ about its value and optionally with more forms following"
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
   (when val? (seq (gen 'const x)
-		  (unless more? (gen 'return)))))
+		  (unless more? (seq (gen 'endframe 1)
+				     (gen 'return))))))
 
 (define (comp-var x env val? more?)
   (write-dbg 'comp-var x 'val? val? 'more? more?)
   (when val? (seq (gen-var x env)
-		  (unless more? (gen 'return)))))
+		  (unless more? (seq (gen 'endframe 1)
+				     (gen 'return))))))
 
 (define (false? exp)
   (or (null? exp) (eq? exp #f) (eq? exp 'nil)))
@@ -172,12 +176,14 @@ about its value and optionally with more forms following"
 	     (let ((l2 (gen-label)))
 	       (seq pcode
 		    (gen 'tjump l2) ecode (list l2)
-		    (unless more? (gen 'return)))))
+		    (unless more? (seq (gen 'endframe 1)
+				       (gen 'return))))))
 	    ((null? ecode)
 	     (let ((l1 (gen-label)))
 	       (seq pcode
 		    (gen 'fjump l1) tcode (list l1)
-		    (unless more? (gen 'return)))))
+		    (unless more? (seq (gen 'endframe 1)
+				       (gen 'return))))))
 	    (else
 	     (let ((l1 (gen-label))
 		   (l2 (when more? (gen-label))))
@@ -207,6 +213,7 @@ about its value and optionally with more forms following"
     (seq (comp-list args env)
 	 (comp f env #t #t)
 	 (gen 'incprof 0)
+	 (gen 'endframe (%fixnum-add (length args) 1))
 	 (gen 'callj (length args) #f)))))
 
 (define-struct fn
@@ -239,7 +246,7 @@ chainframe if ARGS is non-nil"
 		(seq (gen 'spush argnum)
 		     (gen 'lset 0 argnum)
 		     (gen 'pop)
-		     (gen 'pop) ; cleans the arg stack for now
+		     (gen 'pop)
 		     result))
 	  result))))
 

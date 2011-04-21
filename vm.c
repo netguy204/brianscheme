@@ -293,8 +293,18 @@ vm_begin:
     }
     break;
   case _endframe_: {
-      /* throw away the stack portion of this function's frame */
-      stack_top = fn_first_arg;
+      /* throw away the stack portion of this function's frame, except
+	 the top N. */
+      /*
+      int ii;
+      const int dist = (stack_top - ARG1) - fn_first_arg;
+      if(dist > 0) {
+	for(ii = 0; ii < ARG1; ++ii) {
+	  VARRAY(stack)[fn_first_arg + ii] = VARRAY(stack)[(stack_top - ARG1) + ii];
+	}
+      }
+      stack_top = fn_first_arg + ARG1;
+      */
     }
     break;
   case _spush_:{
