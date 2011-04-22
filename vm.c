@@ -144,9 +144,9 @@ DEFUN1(code_to_symbol_proc) {
   } while(0)
 
 void vector_push(object * stack, object * thing, long top) {
-  if(top == VSIZE(stack)) {
+  if(unlikely(top == VSIZE(stack))) {
     long old_size = VSIZE(stack);
-    VSIZE(stack) = old_size * 1.8;
+    VSIZE(stack) = old_size * 2;
     VARRAY(stack) = REALLOC(VARRAY(stack), sizeof(object *)
 			    * VSIZE(stack));
     int ii;
@@ -159,7 +159,7 @@ void vector_push(object * stack, object * thing, long top) {
 
 object *vector_pop(object * stack, long top) {
   object *old = VARRAY(stack)[--top];
-  VARRAY(stack)[top] = g->empty_list;
+  /*VARRAY(stack)[top] = g->empty_list;*/
   return old;
 }
 
