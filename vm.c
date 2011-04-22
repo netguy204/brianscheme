@@ -222,7 +222,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *top;
 
   long initial_top = stack_top - n_args;
-  long fn_first_arg;
+  long fn_first_arg = stack_top - n_args;
   long pc = 0;
 
   /* bootstrap an empty frame for this function since the callj opcode
@@ -247,7 +247,6 @@ vm_fn_begin:
   long num_codes = LONG(car(BYTECODE(fn)));
   BC *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
   const_array = caddr(BYTECODE(fn));
-  fn_first_arg = stack_top - n_args;
 
   VM_DEBUG("stack", stack);
 
@@ -295,7 +294,6 @@ vm_begin:
   case _endframe_: {
       /* throw away the stack portion of this function's frame, except
 	 the top N. */
-      /*
       int ii;
       const int dist = (stack_top - ARG1) - fn_first_arg;
       if(dist > 0) {
@@ -304,7 +302,6 @@ vm_begin:
 	}
       }
       stack_top = fn_first_arg + ARG1;
-      */
     }
     break;
   case _spush_:{
@@ -367,6 +364,8 @@ vm_begin:
 	  ++args_for_call;
 	}
       }
+
+      fn_first_arg = stack_top - args_for_call;
 
       if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
 	fn = top;

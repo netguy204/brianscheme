@@ -246,7 +246,6 @@ chainframe if ARGS is non-nil"
 		(seq (gen 'spush argnum)
 		     (gen 'lset 0 argnum)
 		     (gen 'pop)
-		     (gen 'pop)
 		     result))
 	  result))))
 
