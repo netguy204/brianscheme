@@ -141,7 +141,7 @@ about its value and optionally with more forms following"
 
 (define (comp-const x val? more?)
   (write-dbg 'comp-const x 'val? val? 'more? more?)
-  (when val? (seq (gen 'const x)
+  (when val? (seq (gen 'cconst x)
 		  (unless more? (seq (gen 'endframe 1)
 				     (gen 'return))))))
 
@@ -462,7 +462,7 @@ variable given that our environment looks like ENV"
 	(idx 0))
 
     (dolist (inst instrs)
-      (when (is inst '(const fn gvar gset))
+      (when (is inst '(cconst fn gvar gset))
         (push! (arg1 inst) result)
 	(set-car! (cdr inst) idx)
 	(%inc! idx)))
@@ -685,7 +685,7 @@ variable given that our environment looks like ENV"
 	     (arg1 (bytecode-ref bytes (+ off 1)))
 	     (arg2 (bytecode-ref bytes (+ off 2)))
 	     (instr* (bytecode->symbol (integer->char instr)))
-	     (arg1* (if (member instr* '(fn const gvar gset))
+	     (arg1* (if (member instr* '(fn cconst gvar gset))
 			(vector-ref consts arg1)
 			arg1)))
 	(push! (list instr* arg1* arg2)

@@ -41,7 +41,7 @@ char profiling_enabled;
   define(sset)					\
   define(swap)					\
   define(return)				\
-  define(const)					\
+  define(cconst)				\
   define(fn)					\
   define(fjump)					\
   define(tjump)					\
@@ -220,17 +220,50 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
 #define VM_DEBUG(msg, obj)
 #endif
 
+#define NEXT_INSTRUCTION					\
+  do {								\
+    const int tgt = pc;						\
+    pc += 3;							\
+    goto *(&&__pushvarargs__ + disp_tbl[(long)codes[tgt]]);	\
+  } while(0)
+
 object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *const_array;
 
   object *env;
 
-  unsigned char opcode;
   object *top;
 
   long initial_top = stack_top - n_args;
   long fn_first_arg = stack_top - n_args;
   long pc = 0;
+  int ii;
+  int nvarargs;
+  int dist;
+  object *result;
+  object *fn_arg;
+  object *new_fn;
+  int args_for_call;
+  int env_num;
+  int idx;
+  object *next;
+  object *data;
+  object *var;
+  object *val;
+  object *slot;
+  object *new_stack_top;
+  object *cc_env;
+  object *new_stack;
+  object *cc_fn;
+
+  /* build the dispatch table */
+  int disp_tbl[INVALID_BYTECODE];
+
+#define generate_dispatch(opcode)		\
+  disp_tbl[ _ ## opcode ## _] =			\
+    && __ ## opcode ## __ - &&__pushvarargs__;
+
+  opcode_table(generate_dispatch);
 
   /* bootstrap an empty frame for this function since the callj opcode
      won't have built one for us */
@@ -249,33 +282,21 @@ vm_fn_begin:
     return g->false;
   }
 
-  long num_codes = LONG(car(BYTECODE(fn)));
   BC *codes = ALIEN_PTR(cadr(BYTECODE(fn)));
   const_array = caddr(BYTECODE(fn));
 
   VM_DEBUG("stack", stack);
 
-vm_begin:
   if(sigint_set) {
     sigint_set = 0;
     VM_ASSERT(0, "received SIGINT");
   }
 
-  if(pc >= num_codes) {
-    VM_ASSERT(0, "pc %ld flew off the end of memory %ld", pc, num_codes);
-  }
+  NEXT_INSTRUCTION;
 
-  opcode = (unsigned char)(long)codes[pc];
-  pc += 3;			/* instructions are 3 bytes wide */
-
-  VM_DEBUG("dispatching", instr);
-
-  switch (opcode) {
-  case _pushvarargs_:{
-      int ii;
-
-      const int nvarargs = (int)n_args - ARG1;
-      object *result = g->empty_list;
+ __pushvarargs__:
+      nvarargs = (int)n_args - ARG1;
+      result = g->empty_list;
       push_root(&result);
 
       for(ii = 0; ii < nvarargs; ++ii) {
@@ -287,71 +308,80 @@ vm_begin:
       pop_root(&result);
 
       VM_DEBUG("after_args environment", env);
-    }
-    break;
-  case _chainframe_:{
+
+      NEXT_INSTRUCTION;
+
+ __chainframe__:
       /* generate a fresh frame for the callee */
       top = make_vector(g->empty_list, ARG1);
       env = cons(top, env);
-    }
-    break;
-  case _endframe_: {
+
+      NEXT_INSTRUCTION;
+
+ __endframe__:
       /* throw away the stack portion of this function's frame, except
 	 the top N. */
-      int ii;
-      const int dist = (stack_top - ARG1) - fn_first_arg;
+      dist = (stack_top - ARG1) - fn_first_arg;
       if(dist > 0) {
 	for(ii = 0; ii < ARG1; ++ii) {
 	  VARRAY(stack)[fn_first_arg + ii] = VARRAY(stack)[(stack_top - ARG1) + ii];
 	}
       }
       stack_top = fn_first_arg + ARG1;
-    }
-    break;
-  case _spush_:{
+
+      NEXT_INSTRUCTION;
+
+ __spush__:
       /* push the Nth argument onto the stack */
       top = VARRAY(stack)[fn_first_arg + ARG1];
       VPUSH(top, stack, stack_top);
-    }
-    break;
-  case _sset_:{
+
+      NEXT_INSTRUCTION;
+
+ __sset__:
       /* set stack position N to the value at the top of the
 	 stack. leaves the stack unchanged */
       VARRAY(stack)[fn_first_arg + ARG1] = VARRAY(stack)[stack_top - 1];
-    }
-    break;
-  case _swap_:{
+
+      NEXT_INSTRUCTION;
+
+ __swap__:
       top = VARRAY(stack)[stack_top - 1];
       VARRAY(stack)[stack_top - 1] = VARRAY(stack)[stack_top - 2];
       VARRAY(stack)[stack_top - 2] = top;
-    }
-    break;
-  case _fjump_:{
+
+      NEXT_INSTRUCTION;
+
+ __fjump__:
       VPOP(top, stack, stack_top);
       if(is_falselike(top)) {
 	pc = ARG1 * 3;		/* offsets are in instructions */
       }
-    }
-    break;
-  case _tjump_:{
+
+      NEXT_INSTRUCTION;
+
+ __tjump__:
       VPOP(top, stack, stack_top);
       if(!is_falselike(top)) {
 	pc = ARG1 * 3;
       }
-    }
-    break;
-  case _jump_:{
+
+      NEXT_INSTRUCTION;
+
+ __jump__:
       pc = ARG1 * 3;
-    }
-    break;
-  case _fn_:{
-      object *fn_arg = VARRAY(const_array)[ARG1];
-      object *new_fn = make_compiled_proc(BYTECODE(fn_arg),
+
+      NEXT_INSTRUCTION;
+
+ __fn__:
+      fn_arg = VARRAY(const_array)[ARG1];
+      new_fn = make_compiled_proc(BYTECODE(fn_arg),
 					  env);
       VPUSH(new_fn, stack, stack_top);
-    }
-    break;
-  case _callj_:{
+
+      NEXT_INSTRUCTION;
+
+ __callj__:
       VPOP(top, stack, stack_top);
 
       /* unwrap meta */
@@ -359,7 +389,7 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      long args_for_call = ARG1;
+      args_for_call = ARG1;
 
       /* special case for apply */
       if(args_for_call == -1) {
@@ -411,36 +441,38 @@ vm_begin:
 	fprintf(stderr, "\n");
 	VM_ASSERT(0, "don't know how to invoke");
       }
-    }
-    break;
-  case _lvar_:{
-      int env_num = ARG1;
-      int idx = ARG2;
 
-      object *next = env;
+      NEXT_INSTRUCTION;
+
+ __lvar__:
+      env_num = ARG1;
+      idx = ARG2;
+
+      next = env;
       while(env_num-- > 0) {
 	next = cdr(next);
       }
 
-      object *data = VARRAY(car(next))[idx];
+      data = VARRAY(car(next))[idx];
       VPUSH(data, stack, stack_top);
-    }
-    break;
-  case _lset_:{
-      int env_num = ARG1;
-      int idx = ARG2;
 
-      object *next = env;
+      NEXT_INSTRUCTION;
+
+ __lset__:
+      env_num = ARG1;
+      idx = ARG2;
+
+      next = env;
       while(env_num-- > 0) {
 	next = cdr(next);
       }
 
       VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
-    }
-    break;
-  case _gvar_:{
-      object *var = VARRAY(const_array)[ARG1];
-      object *val;
+
+      NEXT_INSTRUCTION;
+
+ __gvar__:
+      var = VARRAY(const_array)[ARG1];
 
       /* see if we can get it from cache */
       if(is_pair(var)) {
@@ -455,12 +487,13 @@ vm_begin:
       }
 
       VPUSH(cdr(val), stack, stack_top);
-    }
-    break;
-  case _gset_:{
-      object *var = VARRAY(const_array)[ARG1];
-      object *val = VARRAY(stack)[stack_top - 1];
-      object *slot = get_hashtab(g->vm_env, var, NULL);
+
+      NEXT_INSTRUCTION;
+
+ __gset__:
+      var = VARRAY(const_array)[ARG1];
+      val = VARRAY(stack)[stack_top - 1];
+      slot = get_hashtab(g->vm_env, var, NULL);
       if(slot) {
 	set_cdr(slot, val);
       }
@@ -468,10 +501,10 @@ vm_begin:
 	val = cons(var, val);
 	define_global_variable(var, val, g->vm_env);
       }
-    }
-    break;
-  case _setcc_:{
-      object *new_stack_top;
+
+      NEXT_INSTRUCTION;
+
+ __setcc__:
 
       VPOP(top, stack, stack_top);
       VPOP(new_stack_top, stack, stack_top);
@@ -480,19 +513,20 @@ vm_begin:
       stack_top = LONG(new_stack_top);
 
       stack = make_vector(g->empty_list, stack_top);
-      long idx;
+
       for(idx = 0; idx < stack_top; ++idx) {
 	VARRAY(stack)[idx] = VARRAY(top)[idx];
       }
-    }
-    break;
-  case _cc_:{
-      object *cc_env = make_vector(g->empty_list, 2);
+
+      NEXT_INSTRUCTION;
+
+ __cc__:
+      cc_env = make_vector(g->empty_list, 2);
       push_root(&cc_env);
 
       /* copy the stack */
-      object *new_stack = make_vector(g->empty_list, stack_top);
-      long idx;
+      new_stack = make_vector(g->empty_list, stack_top);
+
       for(idx = 0; idx < stack_top; ++idx) {
 	VARRAY(new_stack)[idx] = VARRAY(stack)[idx];
       }
@@ -503,44 +537,44 @@ vm_begin:
 
       cc_env = cons(cc_env, g->empty_list);
 
-      object *cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
+      cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
       pop_root(&cc_env);
 
       VPUSH(cc_fn, stack, stack_top);
-    }
-    break;
-  case _incprof_:{
+
+      NEXT_INSTRUCTION;
+
+ __incprof__:
       if(profiling_enabled) {
 	/* disabled temporarily ARG1++; */
       }
-    }
-    break;
-  case _pop_:{
+
+      NEXT_INSTRUCTION;
+
+ __pop__:
       VPOP(top, stack, stack_top);
-    }
-    break;
-  case _save_:{
+
+      NEXT_INSTRUCTION;
+
+ __save__:
       VPUSH(env, stack, stack_top);
       VPUSH(fn, stack, stack_top);
       VPUSH(make_small_fixnum(ARG1 * 3), stack, stack_top);
       VPUSH(make_small_fixnum(fn_first_arg), stack, stack_top);
-    }
-    break;
-  case _return_:{
-      RETURN_OPCODE_INSTRUCTIONS;
-    }
-    break;
-  case _const_:{
-      long idx = ARG1;
-      VPUSH(VARRAY(const_array)[idx], stack, stack_top);
-    }
-    break;
-  default:{
-      VM_ASSERT(0, "don't know how to process opcode %d", (int)opcode);
-    }
-  }
 
-  goto vm_begin;
+      NEXT_INSTRUCTION;
+
+ __return__:
+      RETURN_OPCODE_INSTRUCTIONS;
+
+      NEXT_INSTRUCTION;
+
+ __cconst__:
+      idx = ARG1;
+      VPUSH(VARRAY(const_array)[idx], stack, stack_top);
+
+      NEXT_INSTRUCTION;
+
   VM_RETURN(g->error_sym);
 }
 
