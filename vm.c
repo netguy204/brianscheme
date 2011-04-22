@@ -27,9 +27,9 @@
 
 char profiling_enabled;
 
-#define ARG1 (codes[pc-2])
-#define ARG2 (codes[pc-1])
-#define BC short
+#define ARG1 ((long)(codes[pc-2]))
+#define ARG2 ((long)(codes[pc-1]))
+#define BC void*
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -77,9 +77,9 @@ opcode_table(generate_decls)
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
-#define generate_sym_to_code(opcode)		\
-  if(sym == opcode ## _op) {			\
-    return make_character( _ ## opcode ## _);	\
+#define generate_sym_to_code(opcode)			\
+  if(sym == opcode ## _op) {				\
+    return make_alien( (void*)_ ## opcode ## _, NULL);	\
   }
 
 object *symbol_to_code(object * sym) {
@@ -98,12 +98,18 @@ DEFUN1(make_bytecode_array_proc) {
 
 DEFUN1(get_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  return make_fixnum(bca[LONG(SECOND)]);
+  return make_alien(bca[LONG(SECOND)], NULL);
 }
 
 DEFUN1(set_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  bca[LONG(SECOND)] = (BC) LONG(THIRD);
+  if(is_alien(THIRD)) {
+    bca[LONG(SECOND)] = (BC) ALIEN_PTR(THIRD);
+  } else if(is_fixnum(THIRD)) {
+    bca[LONG(SECOND)] = (BC) LONG(THIRD);
+  } else {
+    bca[LONG(SECOND)] = (BC) -1;
+  }
   return THIRD;
 }
 
@@ -219,7 +225,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
 
   object *env;
 
-  BC opcode;
+  unsigned char opcode;
   object *top;
 
   long initial_top = stack_top - n_args;
@@ -240,7 +246,7 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
 vm_fn_begin:
   if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
     owrite(stderr, fn);
-    VM_ASSERT(0, "object is not compiled-procedure\n");
+    return g->false;
   }
 
   long num_codes = LONG(car(BYTECODE(fn)));
@@ -259,17 +265,16 @@ vm_begin:
     VM_ASSERT(0, "pc %ld flew off the end of memory %ld", pc, num_codes);
   }
 
-  opcode = codes[pc];
+  opcode = (unsigned char)(long)codes[pc];
   pc += 3;			/* instructions are 3 bytes wide */
 
   VM_DEBUG("dispatching", instr);
 
   switch (opcode) {
   case _pushvarargs_:{
-      BC req_args = ARG1;
       int ii;
 
-      const int nvarargs = n_args - req_args;
+      const int nvarargs = (int)n_args - ARG1;
       object *result = g->empty_list;
       push_root(&result);
 
@@ -354,7 +359,7 @@ vm_begin:
 	top = METAPROC(top);
       }
 
-      BC args_for_call = ARG1;
+      long args_for_call = ARG1;
 
       /* special case for apply */
       if(args_for_call == -1) {
@@ -506,7 +511,7 @@ vm_begin:
     break;
   case _incprof_:{
       if(profiling_enabled) {
-	ARG1++;
+	/* disabled temporarily ARG1++; */
       }
     }
     break;
@@ -526,7 +531,8 @@ vm_begin:
     }
     break;
   case _const_:{
-      VPUSH(VARRAY(const_array)[ARG1], stack, stack_top);
+      long idx = ARG1;
+      VPUSH(VARRAY(const_array)[idx], stack, stack_top);
     }
     break;
   default:{

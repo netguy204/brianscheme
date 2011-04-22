@@ -435,7 +435,7 @@ variable given that our environment looks like ENV"
       (let ((instr (vector-ref instr-vector idx))
 	    (off (%fixnum-mul idx 3)))
 
-	(bytecode-set! result off (char->integer (opcode instr)))
+	(bytecode-set! result off (opcode instr))
 
 	(if (cdr instr)
 	    (begin
