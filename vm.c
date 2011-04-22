@@ -230,8 +230,6 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
      won't have built one for us */
 
   env = CENV(fn);
-  env = cons(g->empty_vector, env);
-
   top = g->empty_list;
 
   push_root(&stack);
