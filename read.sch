@@ -258,22 +258,15 @@
 		 (set-global-unquoted! sym sym))
 	   sym)))))
 
-;; TEST: turn off CLOS
-(define (read-stream-char stream)
-  (read-char stream))
-
-(define (unread-stream-char stream char)
-  (unread-char char stream))
-
 ;; Take over for old reader
 (define old-read read-port)
 
 (define (read-stream stream)
-  (read:read stream))
+  (read:read (ensure-pushback-stream stream)))
 
 (define (read-port port)
   "Read an expression from a port."
-  (read-stream port))
+  (read-stream (make <native-input-stream> 'port port)))
 
 (define read read-port)
 
