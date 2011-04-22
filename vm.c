@@ -27,9 +27,9 @@
 
 char profiling_enabled;
 
-#define ARG1 ((long)(codes[pc-2]))
-#define ARG2 ((long)(codes[pc-1]))
-#define BC void*
+#define ARG1 ((codes[pc-2]))
+#define ARG2 ((codes[pc-1]))
+#define BC short
 
 #define length1(x) (cdr(x) == the_empty_list)
 
@@ -79,7 +79,7 @@ opcode_table(generate_decls)
    bytecode */
 #define generate_sym_to_code(opcode)			\
   if(sym == opcode ## _op) {				\
-    return make_alien( (void*)_ ## opcode ## _, NULL);	\
+    return make_fixnum( _ ## opcode ## _);		\
   }
 
 object *symbol_to_code(object * sym) {
@@ -98,18 +98,12 @@ DEFUN1(make_bytecode_array_proc) {
 
 DEFUN1(get_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  return make_alien(bca[LONG(SECOND)], NULL);
+  return make_fixnum(bca[LONG(SECOND)]);
 }
 
 DEFUN1(set_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  if(is_alien(THIRD)) {
-    bca[LONG(SECOND)] = (BC) ALIEN_PTR(THIRD);
-  } else if(is_fixnum(THIRD)) {
-    bca[LONG(SECOND)] = (BC) LONG(THIRD);
-  } else {
-    bca[LONG(SECOND)] = (BC) -1;
-  }
+  bca[LONG(SECOND)] = (BC) LONG(THIRD);
   return THIRD;
 }
 
