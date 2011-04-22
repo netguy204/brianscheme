@@ -123,12 +123,11 @@ DEFUN1(code_to_symbol_proc) {
 #define VM_ERROR_RESTART(obj)			\
   do {						\
     VPUSH(obj, stack, stack_top);		\
+    fn_first_arg = stack_top - 1;		\
     fn = g->vm_error_restart;			\
     pc = 0;					\
     n_args = 1;					\
     env = CENV(g->vm_error_restart);		\
-    top = make_vector(g->empty_list, 2);	\
-    env = cons(top, env);			\
     goto vm_fn_begin;				\
   } while(0)
 
@@ -159,7 +158,7 @@ void vector_push(object * stack, object * thing, long top) {
 
 object *vector_pop(object * stack, long top) {
   object *old = VARRAY(stack)[--top];
-  /*VARRAY(stack)[top] = g->empty_list;*/
+  VARRAY(stack)[top] = g->empty_list;
   return old;
 }
 
