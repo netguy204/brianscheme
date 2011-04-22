@@ -38,6 +38,7 @@ char profiling_enabled;
   define(chainframe)				\
   define(endframe)				\
   define(spush)					\
+  define(sset)					\
   define(swap)					\
   define(return)				\
   define(const)					\
@@ -305,9 +306,15 @@ vm_begin:
     }
     break;
   case _spush_:{
-      /* push the NARGS - Nth argument onto the stack */
+      /* push the Nth argument onto the stack */
       top = VARRAY(stack)[fn_first_arg + ARG1];
       VPUSH(top, stack, stack_top);
+    }
+    break;
+  case _sset_:{
+      /* set stack position N to the value at the top of the
+	 stack. leaves the stack unchanged */
+      VARRAY(stack)[fn_first_arg + ARG1] = VARRAY(stack)[stack_top - 1];
     }
     break;
   case _swap_:{

@@ -750,7 +750,8 @@ not be quoted or escaped."
      (else (loop (cdr remainder))))))
 
 (define (filter fn lst)
-  "create a new list that includes only the elements of lst for which fn evaluates true"
+  "create a new list that includes only the elements of lst for which
+fn evaluates true"
   (let loop ((remainder lst)
 	     (result nil))
     (cond

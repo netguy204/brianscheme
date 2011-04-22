@@ -227,51 +227,73 @@ about its value and optionally with more forms following"
   "generate code for BODY with ARGS in ENV. Only generates a new
 chainframe if ARGS is non-nil"
   (write-dbg 'comp-lambda args 'body body)
-  (let ((new-env (if args
-		     (cons (make-true-list args) env)
-		     env)))
-    (new-fun (seq (%gen-args args 0)
-		  (comp-begin body
-			      new-env
-			      #t #f))
-	     env "unknown" args)))
 
-(define (%gen-frame-fill n-args)
-  "move N-ARGS values from the stack to the local frame"
-  (when (%fixnum-greater-than n-args 0)
-    (let loop ((argnum 0)
-	       (result nil))
-      (if (%fixnum-less-than argnum n-args)
-	  (loop (%fixnum-add argnum 1)
-		(seq (gen 'spush argnum)
-		     (gen 'lset 0 argnum)
-		     (gen 'pop)
-		     result))
-	  result))))
+  ;; compute the set of free variables and the set of stack variables
+  (let ((free-args (filter variable-is-free-ref (make-true-list args)))
+	(stack-idx 0)
+	(frame-idx 0))
 
-(define (%gen-pops args)
-  (map (lambda (x) (gen 'pop)) args))
+    ;; assign frame positions to the free variables
+    (dolist (arg free-args)
+      (variable-idx-set! arg frame-idx)
+      (%inc! frame-idx))
 
-(define (%gen-chainframe n-args)
-  "generate a chainframe instruction if N-ARGS is greater than zero"
-  (when (%fixnum-greater-than n-args 0)
-	(gen 'chainframe n-args)))
+    ;; assign stack positions to each of the remaining arguments
+    (dolist (arg (make-true-list args))
+      (unless (variable-is-free-ref arg)
+        (variable-idx-set! arg stack-idx))
+      (%inc! stack-idx))
 
-(define (%gen-args args n-so-far)
-  (write-dbg '%gen-args args n-so-far)
+    (let ((new-env (if free-args
+		       (cons free-args env)
+		       env)))
+
+      (new-fun (seq (%gen-args args)
+		    (comp-begin body
+				new-env
+				#t #f))
+	       env "unknown" args))))
+
+(define (%count-free-args args)
+  (reduce (lambda (count arg)
+	    (if (variable-is-free-ref arg)
+		(%fixnum-add count 1)
+		count))
+	  (make-true-list args)
+	  0))
+
+(define (%gen-chainframe args)
+  "generate a chainframe instruction if there are any free variables"
+  (let ((n-free-args (%count-free-args args)))
+    (when (%fixnum-greater-than n-free-args 0)
+      (gen 'chainframe n-free-args))))
+
+(define (%gen-args args)
+  (%gen-args-iter args args 0))
+
+(define (%gen-args-iter args full-args n-so-far)
+  (write-dbg '%gen-args-iter args n-so-far)
   (cond
-   ((null? args) (seq (%gen-chainframe n-so-far)
-		      (%gen-frame-fill n-so-far)))
+   ((null? args)
+    (%gen-chainframe full-args))
 
-   ((variable? args) (seq (%gen-chainframe (%fixnum-add n-so-far 1))
-			  (gen 'pushvarargs n-so-far)
-			  (gen 'lset 0 n-so-far)
-			  (gen 'pop)
-			  (%gen-frame-fill n-so-far)))
+   ((variable? args)
+    (seq (%gen-chainframe full-args)
+	 (gen 'pushvarargs n-so-far)
+	 (when (variable-is-free-ref args)
+	   (gen 'lset 0 (variable-idx-ref args)))))
 
    ((and (pair? args)
 	 (variable? (first args)))
-    (%gen-args (rest args) (%fixnum-add n-so-far 1)))
+    (let ((arg (first args)))
+      (if (variable-is-free-ref arg)
+	  (seq (%gen-args-iter (rest args) full-args
+			       (%fixnum-add n-so-far 1))
+	       (gen 'spush n-so-far)
+	       (gen 'lset 0 (variable-idx-ref arg))
+	       (gen 'pop))
+	  (%gen-args-iter (rest args) full-args
+			  (%fixnum-add n-so-far 1)))))
    (else (throw-error "illegal argument list" args))))
 
 ;; this doesn't do error checking like the method before
@@ -331,8 +353,10 @@ chainframe if ARGS is non-nil"
 	(let ((new-ref (var-in-env? (variable-name-ref real-var) env)))
 	  (if (not (null? new-ref))
 	      new-ref
-	      (throw-error "ENV: " env
-			   new-ref "not in env and stack not active yet"))))))
+	      (when (variable-is-free-ref real-var)
+	        (throw-error
+		 "ENV: " env
+		 new-ref "not in env and it's marked free")))))))
 
 (define (gen-var var env)
   "given VAR, a variable reference, generate the bytecode to access
@@ -341,11 +365,17 @@ that variable given that our environment looks like ENV"
   (let ((real-var (variable-reference-variable-ref var))
 	(new-ref (update-var-ref var env)))
 
-    (if (global-variable? real-var)
-	(gen 'gvar (global-variable-name-ref real-var))
-	;; we did the lookup again to account for skipped frames
-	(gen 'lvar (variable-reference-frame-ref new-ref)
-	           (variable-reference-number-ref new-ref) ";" new-ref))))
+    (cond
+     ((global-variable? real-var)
+      (gen 'gvar (global-variable-name-ref real-var)))
+
+     ;; we did the lookup again to account for skipped frames
+     ((variable-is-free-ref real-var)
+      (gen 'lvar
+	   (variable-reference-frame-ref new-ref)
+	   (variable-idx-ref real-var) ";" new-ref))
+     (else
+      (gen 'spush (variable-idx-ref real-var) -1 ";" real-var)))))
 
 (define (gen-set var env)
   "given VAR, a variable reference, generate the bytecode to set that
@@ -354,10 +384,17 @@ variable given that our environment looks like ENV"
   (let ((real-var (variable-reference-variable-ref var))
 	(new-ref (update-var-ref var env)))
 
-    (if (global-variable? real-var)
-	(gen 'gset (global-variable-name-ref real-var))
-	(gen 'lset (variable-reference-frame-ref new-ref)
-	           (variable-reference-number-ref new-ref) ";" var))))
+    (cond
+     ((global-variable? real-var)
+      (gen 'gset (global-variable-name-ref real-var)))
+
+     ((variable-is-free-ref real-var)
+      (gen 'lset
+	   (variable-reference-frame-ref new-ref)
+	   (variable-idx-ref real-var) ";" var))
+
+     (else
+      (gen 'sset (variable-idx-ref real-var) ";" var)))))
 
 (define (in-env? symbol env)
   (let ((frame (find (lambda (f) (member? symbol f)) env)))
@@ -498,7 +535,7 @@ variable given that our environment looks like ENV"
   (name
    is-free
    is-set
-   stack-idx))
+   idx))
 
 (define-struct global-variable
   "maintain information about a global variable reference"
