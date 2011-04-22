@@ -110,6 +110,11 @@ typedef struct object {
 typedef struct object* (prim_proc)(struct object*,
 				   long, long);
 
+#define is_small_fixnum(obj) ((((unsigned long)obj) & 0x0001) == 1)
+#define make_small_fixnum(val) (object*)(((unsigned long)val << 1) | 0x0001)
+#define SMALL_FIXNUM(obj) (((unsigned long)obj) >> 1)
+#define TAGGED(obj) ((((unsigned long)obj) & 0x0001) == 1)
+
 /* some basic functions for dealing with tagged types */
 
 object *alloc_object(char needs_finalization);

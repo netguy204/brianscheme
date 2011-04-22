@@ -189,17 +189,17 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
     VPOP(val, stack, stack_top);			\
     VM_RETURN(val);					\
   } else {						\
+    object *retval;					\
     object *val;					\
+    VPOP(retval, stack, stack_top);			\
     VPOP(val, stack, stack_top);			\
-    object *ret_addr;					\
-    VPOP(ret_addr, stack, stack_top);			\
-    /* retore what we stashed away in save */		\
-    fn = car(cdr(cdr(ret_addr)));			\
-    pc = LONG(car(cdr(ret_addr)));			\
-    env = cdr(cdr(cdr(ret_addr)));			\
-    fn_first_arg = LONG(car(ret_addr));			\
+    fn_first_arg = SMALL_FIXNUM(val);			\
+    VPOP(val, stack, stack_top);			\
+    pc = SMALL_FIXNUM(val);				\
+    VPOP(fn, stack, stack_top);				\
+    VPOP(env, stack, stack_top);			\
     /* setup for the next loop */			\
-    VPUSH(val, stack, stack_top);			\
+    VPUSH(retval, stack, stack_top);			\
     goto vm_fn_begin;					\
   }
 
@@ -517,19 +517,10 @@ vm_begin:
     }
     break;
   case _save_:{
-      object *ret_addr = cons(fn, env);
-      /* push this immediately so we don't have to add a root */
-      VPUSH(ret_addr, stack, stack_top);
-
-      object **addr = &VARRAY(stack)[stack_top - 1];
-
-      *addr = cons(g->empty_list, *addr);
-      object *num = make_fixnum(ARG1 * 3);
-      set_car(*addr, num);
-
-      num = make_fixnum(fn_first_arg);
-      *addr = cons(g->empty_list, *addr);
-      set_car(*addr, num);
+      VPUSH(env, stack, stack_top);
+      VPUSH(fn, stack, stack_top);
+      VPUSH(make_small_fixnum(ARG1 * 3), stack, stack_top);
+      VPUSH(make_small_fixnum(fn_first_arg), stack, stack_top);
     }
     break;
   case _return_:{

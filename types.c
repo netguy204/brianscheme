@@ -23,23 +23,23 @@
 #include "gc.h"
 
 char is_the_empty_list(object * obj) {
-  return obj == g->empty_list;
+  return !TAGGED(obj) && obj == g->empty_list;
 }
 
 char is_boolean(object * obj) {
-  return obj->type == BOOLEAN;
+  return !TAGGED(obj) && obj->type == BOOLEAN;
 }
 
 char is_false(object * obj) {
-  return obj == g->false;
+  return !TAGGED(obj) && obj == g->false;
 }
 
 char is_true(object * obj) {
-  return obj == g->true;
+  return !TAGGED(obj) && obj == g->true;
 }
 
 char is_symbol(object * obj) {
-  return obj->type == SYMBOL || obj->type == LAZY_SYMBOL;
+  return !TAGGED(obj) && (obj->type == SYMBOL || obj->type == LAZY_SYMBOL);
 }
 
 object *make_fixnum(long value) {
@@ -50,7 +50,7 @@ object *make_fixnum(long value) {
 }
 
 char is_fixnum(object * obj) {
-  return obj->type == FIXNUM;
+  return !TAGGED(obj) && obj->type == FIXNUM;
 }
 
 object *make_real(double value) {
@@ -61,7 +61,7 @@ object *make_real(double value) {
 }
 
 char is_real(object * obj) {
-  return obj->type == FLOATNUM;
+  return !TAGGED(obj) && obj->type == FLOATNUM;
 }
 
 object *make_character(char value) {
@@ -69,7 +69,7 @@ object *make_character(char value) {
 }
 
 char is_character(object * obj) {
-  return obj->type == CHARACTER;
+  return !TAGGED(obj) && obj->type == CHARACTER;
 }
 
 object *make_empty_string(long len) {
@@ -97,7 +97,7 @@ object *make_string(char *value) {
 }
 
 char is_string(object * obj) {
-  return obj->type == STRING;
+  return !TAGGED(obj) && obj->type == STRING;
 }
 
 static long Cons_Count = 0;
@@ -115,7 +115,7 @@ long get_cons_count() {
 }
 
 char is_pair(object * obj) {
-  return obj->type == PAIR;
+  return !TAGGED(obj) && obj->type == PAIR;
 }
 
 object *car(object * pair) {
@@ -153,11 +153,11 @@ object *make_vector(object * fill, long size) {
 }
 
 char is_vector(object * obj) {
-  return obj->type == VECTOR;
+  return !TAGGED(obj) && obj->type == VECTOR;
 }
 
 char is_alien(object * obj) {
-  return obj->type == ALIEN;
+  return !TAGGED(obj) && obj->type == ALIEN;
 }
 
 object *make_alien(void *ptr, object * releaser) {
@@ -177,7 +177,7 @@ object *make_alien_fn(void (*fn) (void), object * releaser) {
 }
 
 char is_meta(object * obj) {
-  return obj->type == META_PROC;
+  return !TAGGED(obj) && obj->type == META_PROC;
 }
 
 object *make_meta_proc(object * proc, object * meta) {
@@ -222,7 +222,7 @@ object *make_hashtab(long size) {
 }
 
 char is_hashtab(object * obj) {
-  return obj->type == HASH_TABLE;
+  return !TAGGED(obj) && obj->type == HASH_TABLE;
 }
 
 void set_hashtab(object * tab, object * key, object * val) {
@@ -265,7 +265,7 @@ object *make_primitive_proc(prim_proc fn) {
 }
 
 char is_primitive_proc(object * obj) {
-  return obj->type == PRIMITIVE_PROC;
+  return !TAGGED(obj) && obj->type == PRIMITIVE_PROC;
 }
 
 object *make_compound_proc(object * parameters, object * body, object * env) {
@@ -283,15 +283,15 @@ object *make_compound_proc(object * parameters, object * body, object * env) {
 }
 
 char is_compound_proc(object * obj) {
-  return obj->type == COMPOUND_PROC;
+  return !TAGGED(obj) && obj->type == COMPOUND_PROC;
 }
 
 char is_syntax_proc(object * obj) {
-  return obj->type == SYNTAX_PROC;
+  return !TAGGED(obj) && obj->type == SYNTAX_PROC;
 }
 
 char is_compiled_syntax_proc(object * obj) {
-  return obj->type == COMPILED_SYNTAX_PROC;
+  return !TAGGED(obj) && obj->type == COMPILED_SYNTAX_PROC;
 }
 
 object *make_compiled_proc(object * bytecode, object * env) {
@@ -305,7 +305,7 @@ object *make_compiled_proc(object * bytecode, object * env) {
 }
 
 char is_compiled_proc(object * obj) {
-  return obj->type == COMPILED_PROC;
+  return !TAGGED(obj) && obj->type == COMPILED_PROC;
 }
 
 object *make_input_port(FILE * stream, char is_pipe) {
@@ -319,19 +319,19 @@ object *make_input_port(FILE * stream, char is_pipe) {
 }
 
 char is_input_port(object * obj) {
-  return obj->type == INPUT_PORT;
+  return !TAGGED(obj) && obj->type == INPUT_PORT;
 }
 
 char is_output_port(object * obj) {
-  return obj->type == OUTPUT_PORT;
+  return !TAGGED(obj) && obj->type == OUTPUT_PORT;
 }
 
 char is_output_port_pipe(object * obj) {
-  return obj->data.output_port.is_pipe;
+  return !TAGGED(obj) && obj->data.output_port.is_pipe;
 }
 
 char is_input_port_pipe(object * obj) {
-  return obj->data.input_port.is_pipe;
+  return !TAGGED(obj) && obj->data.input_port.is_pipe;
 }
 
 char is_output_port_opened(object * obj) {
@@ -351,7 +351,7 @@ void set_input_port_opened(object * obj, char opened) {
 }
 
 char is_dir_stream(object * obj) {
-  return obj->type == DIR_STREAM;
+  return !TAGGED(obj) && obj->type == DIR_STREAM;
 }
 
 char is_eof_object(object * obj) {
@@ -399,7 +399,7 @@ object *make_uninterned_symbol() {
 }
 
 char is_lazy_symbol(object * obj) {
-  return obj->type == LAZY_SYMBOL;
+  return !TAGGED(obj) && obj->type == LAZY_SYMBOL;
 }
 
 object *make_symbol(char *value) {

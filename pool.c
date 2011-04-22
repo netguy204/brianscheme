@@ -77,6 +77,8 @@ void *pool_alloc(pool_t * source_pool, size_t size) {
   size_t s = sizeof(size_t);
   if(size <= source_pool->min_alloc)
     size = source_pool->min_alloc;
+  /* next 8 byte aligned size */
+  size = (size + 8 - 1) & ~(8 - 1);
 
   cur = source_pool->first;
   if(cur->misses > miss_limit) {

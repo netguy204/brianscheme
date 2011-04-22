@@ -392,6 +392,8 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
 
   if(root == NULL)
     return;
+  if(is_small_fixnum(root))
+    return;
   if(root->color == g->current_color)
     return;
 
@@ -405,17 +407,19 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
 
   /* we do the same thing a lot... make a macro! */
   object *temp;
-#define maybe_move(obj)						\
-  do {								\
-    temp = obj;							\
-    if(temp->color != g->current_color) {			\
-      move_object_to_head(temp, &(g->Active_Heap_Objects), to_set);\
-      temp->color = g->current_color;				\
-    }								\
+#define maybe_move(obj)							\
+  do {									\
+    temp = obj;								\
+    if(!is_small_fixnum(temp) && temp->color != g->current_color) {	\
+      move_object_to_head(temp, &(g->Active_Heap_Objects), to_set);	\
+      temp->color = g->current_color;					\
+    }									\
   } while(0)
 
   while(scan_iter != NULL) {
     /* scan fields */
+    if(is_small_fixnum(scan_iter)) break;
+
     switch (scan_iter->type) {
     case PAIR:
       maybe_move(CAR(scan_iter));

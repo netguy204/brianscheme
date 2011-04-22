@@ -948,6 +948,11 @@ object *owrite(FILE * out, object * obj) {
     return throw_message("object is primitive #<NULL>");
   }
 
+  if(is_small_fixnum(obj)) {
+    fprintf(out, "#<small %ld >", SMALL_FIXNUM(obj));
+    return g->true;
+  }
+
   if(is_hashtab(obj) && obj == g->env) {
     fprintf(out, "#<global-environment-hashtab>");
     return g->true;
