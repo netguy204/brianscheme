@@ -371,23 +371,29 @@ DEFUN1(cons_proc) {
 DEFUN1(car_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    return throw_message("car expects list");
+    return throw_message("car expects pair");
   return car(first);
 }
 
 DEFUN1(cdr_proc) {
   object *first = FIRST;
   if(!is_pair(first) && !is_the_empty_list(first))
-    return throw_message("cdr expects list");
+    return throw_message("cdr expects pair");
   return cdr(FIRST);
 }
 
 DEFUN1(set_car_proc) {
+  if(!is_pair(FIRST)) {
+    return throw_message("set-car expects pair");
+  }
   set_car(FIRST, SECOND);
   return SECOND;
 }
 
 DEFUN1(set_cdr_proc) {
+  if(!is_pair(FIRST)) {
+    return throw_message("set-cdr expects pair");
+  }
   set_cdr(FIRST, SECOND);
   return SECOND;
 }
@@ -647,6 +653,9 @@ DEFUN1(apply_proc) {
 object *obj_read(FILE * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
+  if(!is_input_port(in_port)) {
+    return throw_message("read-port expects input-port");
+  }
   object *result = obj_read(INPUT(in_port));
   return (result == NULL) ? g->eof_object : result;
 }
@@ -654,6 +663,9 @@ DEFUN1(read_proc) {
 DEFUN1(write_proc) {
   object *port = SECOND;
   object *obj = FIRST;
+  if(!is_output_port(port)) {
+    return throw_message("write-port expects port");
+  }
   owrite(OUTPUT(port), obj);
   return g->true;
 }
@@ -661,12 +673,18 @@ DEFUN1(write_proc) {
 DEFUN1(write_char_proc) {
   object *port = SECOND;
   object *ch = FIRST;
+  if(!is_character(ch) || !is_output_port(port)) {
+    return throw_message("write-char expects output port and character");
+  }
   putc(CHAR(ch), OUTPUT(port));
   return g->true;
 }
 
 DEFUN1(read_char_proc) {
   object *port = FIRST;
+  if(!is_input_port(port)) {
+    return throw_message("read-char expects input port");
+  }
   int result = getc(INPUT(port));
   return (result == EOF) ? g->eof_object : make_character(result);
 }
@@ -717,10 +735,17 @@ DEFUN1(make_string_proc) {
 }
 
 DEFUN1(string_ref_proc) {
+  if(!is_string(FIRST) || !is_fixnum(SECOND)) {
+    return throw_message("string-ref invalid arguments");
+  }
+
   return make_character(STRING(FIRST)[LONG(SECOND)]);
 }
 
 DEFUN1(string_set_proc) {
+  if(!is_string(FIRST) || !is_fixnum(SECOND) || !is_character(THIRD)) {
+    return throw_message("string-set invalid arguments");
+  }
   STRING(FIRST)[LONG(SECOND)] = CHAR(THIRD);
   return FIRST;
 }
@@ -1456,8 +1481,8 @@ void init_prim_environment(definer defn) {
   add_procedure("cons", cons_proc);
   add_procedure("car", car_proc);
   add_procedure("cdr", cdr_proc);
-  add_procedure("%set-car!", set_car_proc);
-  add_procedure("%set-cdr!", set_cdr_proc);
+  add_procedure("set-car!", set_car_proc);
+  add_procedure("set-cdr!", set_cdr_proc);
   add_procedure("vector?", is_vector_proc);
   add_procedure("make-vector", make_vector_proc);
   add_procedure("vector-length", vector_length_proc);

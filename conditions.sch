@@ -119,7 +119,7 @@
 (define (raise obj)
   "throw object up to the currently installed *condition-handler*"
   (if (conditions:handlers?)
-      ((conditions:top-handler) (list obj (cdr (return-trace))))
+      ((conditions:top-handler) (list obj))
       (begin
 	(write-port "unhandled condition: " stderr)
 	(write-port obj stderr)
