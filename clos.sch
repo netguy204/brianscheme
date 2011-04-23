@@ -403,10 +403,6 @@ characters"
   (write-stream stdout-stream
 		(apply* sprintf string args)))
 
-(define (instance-of? class instance)
-  "true if instance is of type class or one of its subtypes"
-  (and (memq class (class-cpl (class-of instance))) #t))
-
 (define (string-buffer-example)
   "example of using string-buffer"
   (set! tt (make-string-buffer "hello crazy world"))

@@ -447,6 +447,10 @@
 (define (method-procedure method)
   (slot-ref method 'procedure))
 
+(define (instance-of? class instance)
+  "true if instance is of type class or one of its subtypes"
+  (and (memq class (class-cpl (class-of instance))) #t))
+
 ;
 ; The next 7 clusters define the 6 initial classes.  It takes 7 to 6
 ; because the first and fourth both contribute to <class>.
@@ -583,6 +587,10 @@
 (define (make-generic)
   (make <generic>))
 
+(define (generic-function? closure)
+  (and (%instance? closure)
+       (instance-of? <generic> closure)))
+
 (define (make-method specializers procedure)
   (make <method>
     'specializers specializers
@@ -647,8 +655,8 @@
 		   (collect-if
 		    (lambda (m)
 		      (not (every eq?
-				  (method-specializers m)
-				  (method-specializers method))))
+				(method-specializers m)
+				(method-specializers method))))
 		    (slot-ref generic 'methods))))
   (%set-instance-proc! generic (compute-apply-generic generic)))
 
@@ -1000,6 +1008,34 @@
 		       compute-apply-methods))
 
 	(%set-instance-proc! generic (compute-apply-generic generic)))
+
+
+(define (cacheable-generic-function? closure)
+  (and (generic-function? closure)
+       (not (member? closure generic-invocation-generics))))
+
+(define (rewrite-generic-closure-callsite exp)
+  (let ((cached-apply (gensym))
+	(cached-methods (gensym))
+	(cached-args-cls (gensym))
+	(evald-generic (gensym))
+	(evald-args (gensym))
+	(arg-classes (gensym)))
+
+    `(let-static ((,cached-apply nil)
+		  (,cached-methods nil)
+		  (,cached-args-cls nil))
+       (let* ((,evald-generic ,(first exp))
+	      (,evald-args (list ,@(rest exp)))
+	      (,arg-classes (map class-of ,evald-args)))
+
+	 (unless (and ,cached-args-cls
+		      (equal? ,cached-args-cls ,arg-classes))
+	   (set! ,cached-apply (compute-apply-methods ,evald-generic))
+	   (set! ,cached-methods ((compute-methods ,evald-generic)
+				  ,evald-args))
+	   (set! ,cached-args-cls ,arg-classes))
+	 (,cached-apply ,cached-methods ,evald-args)))))
 
 ;
 ; All done.

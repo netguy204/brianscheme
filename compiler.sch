@@ -70,6 +70,15 @@
   (and (comp-bound? sym)
        (compiled-syntax-procedure? (comp-global-ref sym))))
 
+(define (cacheable-generic-function? closure)
+  "this will be overriden in clos/clos.sch"
+  #f)
+
+(define (comp-cacheable-generic? sym)
+  "true if SYM currently refers to a callsite cacheable generic"
+  (and (comp-bound? sym)
+       (cacheable-generic-function? (comp-global-ref sym))))
+
 (define (comp-macroexpand0 form)
   "expand form using a macro found in the compiled environment"
   (apply (comp-global-ref (car form)) (cdr form)))
@@ -645,10 +654,14 @@ variable given that our environment looks like ENV"
 	    (map (lambda (exp)
 		   (variable-usages exp new-env)) body))))
       (else
-       (if (comp-macro? (first exp))
-	   (variable-usages (comp-macroexpand0 exp) env)
-	   (map (lambda (exp)
-		  (variable-usages exp env)) exp)))))))
+       (cond
+	((comp-macro? (first exp))
+	 (variable-usages (comp-macroexpand0 exp) env))
+	((comp-cacheable-generic? (first exp))
+	 (variable-usages (rewrite-generic-closure-callsite exp) env))
+	(else
+	 (map (lambda (exp)
+		(variable-usages exp env)) exp))))))))
 
 (define (any-free-variables? args)
   "#t if any of the variables in the improper list are free"
