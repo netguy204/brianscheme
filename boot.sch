@@ -165,14 +165,13 @@
 
      (iter l nil)) nil))
 
-(define (mapr fn lst)
-  ((lambda (iter)
-     (set! iter (lambda (done rest)
-		  (if (null? rest)
-		      done
-		      (iter (cons (fn (car rest)) done) (cdr rest)))))
+(define (mapr-iter fn done rest)
+  (if (null? rest)
+      done
+      (mapr-iter fn (cons (fn (car rest)) done) (cdr rest))))
 
-     (iter nil lst)) nil))
+(define (mapr fn lst)
+  (mapr-iter fn nil lst))
 
 (define (map fn lst)
   (reverse (mapr fn lst)))
