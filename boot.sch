@@ -1239,6 +1239,62 @@ returns true"
                              (add-check (rest lst)))))))
     (cons 'begin (add-check types))))
 
+(define (set-difference a b)
+  "computes the set difference a - b"
+  (filter (lambda (e)
+	    (not (member? e b))) a))
+
+(define (static-rewrite-sets exp bound)
+  "rewrite EXP with the variables in BOUND being statically bound"
+  (cond
+   ((symbol? exp)
+    (if (member? exp bound)
+	`(car ,exp)
+	exp))
+   ((atom? exp) exp)
+   (else
+    (record-case exp
+      (if-compiling (then else)
+        (list 'if-compiling
+	      (static-rewrite-sets then bound)
+	      (static-rewrite-sets else bound)))
+      (quote (obj) obj)
+      (begin exps
+	     (cons 'begin (map (lambda (exp)
+				 (static-rewrite-sets exp bound)) exps)))
+      (set! (sym val)
+	    (if (member? sym bound)
+		(list 'set-car! sym (static-rewrite-sets val bound))
+		(list 'set! sym (static-rewrite-sets val bound))))
+      (if (test then . else)
+	  (let ((else (car-else else nil)))
+	    (list 'if
+		  (static-rewrite-sets test bound)
+		  (static-rewrite-sets then bound)
+		  (static-rewrite-sets else bound))))
+      (lambda (args . body)
+	(let ((new-bindings (set-difference bound (make-true-list args))))
+	  `(lambda ,args
+	     ,@(map (lambda (exp)
+		      (static-rewrite-sets exp new-bindings))
+		    body))))
+      (else
+       (if (macro? (first exp))
+	   (static-rewrite-sets (macroexpand0 exp) bound)
+	   (map (lambda (e)
+		  (static-rewrite-sets e bound))
+		exp)))))))
+
+(define-syntax (let-static clauses . body)
+  "bind clauses statically such that they will"
+  `(let ,(map (lambda (clause)
+		(list (first clause) (list 'quote (list (second clause)))))
+	      clauses)
+     ,@(let ((bound (map first clauses)))
+	 (map (lambda (exp)
+		(static-rewrite-sets exp bound))
+	      body))))
+
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
 ;; execute and if we're compiling the if clauses will execute (due to
@@ -1246,6 +1302,7 @@ returns true"
 (define-syntax (if-compiling conseq else)
   "execute conseq only if we're compiling. otherwise execute else"
   else)
+
 
 (if-compiling
  ;; IF SIDE OF BRANCH: we're compiling this file for the first time,
