@@ -330,7 +330,7 @@ chainframe if ARGS is non-nil"
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
-    (comp-lambda nil (variable-usages (list x) nil) nil))
+    (comp-lambda nil (list (variable-usages x nil)) nil))
 
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
@@ -662,26 +662,6 @@ variable given that our environment looks like ENV"
 	(else
 	 (map (lambda (exp)
 		(variable-usages exp env)) exp))))))))
-
-(define (any-free-variables? args)
-  "#t if any of the variables in the improper list are free"
-  (cond
-   ((null? args) #f)
-   ((atom? args) (variable-is-free-ref args))
-   (else
-    (if (variable-is-free-ref (car args))
-	#t
-	(any-free-variables? (cdr args))))))
-
-(define (set-all-variables-free! args)
-  "set all variables in the improper list to be free"
-  (cond
-   ((atom? args)
-    (variable-is-free-set! args #t))
-   (else
-    (variable-is-free-set! (car args) #t)
-    (set-all-variables-free! (cdr args)))))
-
 
 (define (make-space spaces)
   (make-string spaces #\space))

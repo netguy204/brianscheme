@@ -1025,17 +1025,21 @@
     `(let-static ((,cached-apply nil)
 		  (,cached-methods nil)
 		  (,cached-args-cls nil))
-       (let* ((,evald-generic ,(first exp))
-	      (,evald-args (list ,@(rest exp)))
-	      (,arg-classes (map class-of ,evald-args)))
+       (let ((,evald-generic ,(first exp))
+	     (,evald-args (list ,@(rest exp))))
 
-	 (unless (and ,cached-args-cls
-		      (equal? ,cached-args-cls ,arg-classes))
-	   (set! ,cached-apply (compute-apply-methods ,evald-generic))
-	   (set! ,cached-methods ((compute-methods ,evald-generic)
-				  ,evald-args))
-	   (set! ,cached-args-cls ,arg-classes))
+	 (let ((,arg-classes (map class-of ,evald-args)))
+
+	   (unless (and ,cached-args-cls
+			(equal? ,cached-args-cls ,arg-classes))
+	     (set! ,cached-apply (compute-apply-methods ,evald-generic))
+	     (set! ,cached-methods ((compute-methods ,evald-generic)
+				    ,evald-args))
+	     (set! ,cached-args-cls ,arg-classes)))
 	 (,cached-apply ,cached-methods ,evald-args)))))
+
+;; temp turn it off again
+;(define (cacheable-generic-function? closure) #f)
 
 ;
 ; All done.

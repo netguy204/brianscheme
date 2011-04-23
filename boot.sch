@@ -1258,7 +1258,7 @@ returns true"
         (list 'if-compiling
 	      (static-rewrite-sets then bound)
 	      (static-rewrite-sets else bound)))
-      (quote (obj) obj)
+      (quote (obj) exp)
       (begin exps
 	     (cons 'begin (map (lambda (exp)
 				 (static-rewrite-sets exp bound)) exps)))
