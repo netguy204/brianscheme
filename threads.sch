@@ -54,7 +54,7 @@
     (let ((read-ports  (map [slot-ref _ 'port] reads))
 	  (write-ports (map [slot-ref _ 'port] writes)))
       (let ((avail (select read-ports write-ports '()
-			   0 (slot-ref sleeper 'sleep))))
+			   0 (if sleeper (slot-ref sleeper 'sleep) 0))))
 	(if (equal? avail '(() () ()))
 	    (unwait-thread sleeper)
 	    (let ((read-map (map cons read-ports reads))
@@ -113,6 +113,11 @@
 (define (thread-sleep! usec)
   (slot-set! threads:current 'sleep usec)
   (slot-set! threads:current 'waiting 'sleep)
+  (thread-yield!))
+
+(define (thread-wait-read! port)
+  (slot-set! threads:current 'port port)
+  (slot-set! threads:current 'waiting 'read)
   (thread-yield!))
 
 ;; Set up the main thread
