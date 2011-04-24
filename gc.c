@@ -417,7 +417,10 @@ void move_reachable(object * root, doubly_linked_list * to_set) {
 
   while(scan_iter != NULL) {
     /* scan fields */
-    if(is_small_fixnum(scan_iter)) break;
+    if(is_small_fixnum(scan_iter)) {
+      scan_iter = scan_iter->prev;
+      continue;
+    }
 
     switch (scan_iter->type) {
     case PAIR:
