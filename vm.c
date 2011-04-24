@@ -31,7 +31,7 @@ char profiling_enabled;
 #define ARG2 ((codes[pc-1]))
 #define BC short
 
-#define length1(x) (cdr(x) == the_empty_list)
+#define length1(x) (CDR(x) == the_empty_list)
 
 #define opcode_table(define)			\
   define(pushvarargs)				\
@@ -397,8 +397,8 @@ vm_fn_begin:
 
 	args_for_call = 0;
 	while(!is_the_empty_list(args)) {
-	  VPUSH(car(args), stack, stack_top);
-	  args = cdr(args);
+	  VPUSH(CAR(args), stack, stack_top);
+	  args = CDR(args);
 	  ++args_for_call;
 	}
       }
@@ -427,7 +427,7 @@ vm_fn_begin:
 
 	if(is_primitive_exception(top)) {
 	  object *temp = top;
-	  VM_ERROR_RESTART(cdr(temp));
+	  VM_ERROR_RESTART(CDR(temp));
 	}
 
 	VPUSH(top, stack, stack_top);
@@ -448,10 +448,10 @@ vm_fn_begin:
 
       next = env;
       while(env_num-- > 0) {
-	next = cdr(next);
+	next = CDR(next);
       }
 
-      data = VARRAY(car(next))[idx];
+      data = VARRAY(CAR(next))[idx];
       VPUSH(data, stack, stack_top);
 
       NEXT_INSTRUCTION;
@@ -462,10 +462,10 @@ vm_fn_begin:
 
       next = env;
       while(env_num-- > 0) {
-	next = cdr(next);
+	next = CDR(next);
       }
 
-      VARRAY(car(next))[idx] = VARRAY(stack)[stack_top - 1];
+      VARRAY(CAR(next))[idx] = VARRAY(stack)[stack_top - 1];
 
       NEXT_INSTRUCTION;
 
@@ -479,12 +479,12 @@ vm_fn_begin:
       else {
 	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
 	if(is_primitive_exception(val)) {
-	  VM_ERROR_RESTART(cdr(val));
+	  VM_ERROR_RESTART(CDR(val));
 	}
 	VARRAY(const_array)[ARG1] = val;
       }
 
-      VPUSH(cdr(val), stack, stack_top);
+      VPUSH(CDR(val), stack, stack_top);
 
       NEXT_INSTRUCTION;
 
@@ -493,7 +493,7 @@ vm_fn_begin:
       val = VARRAY(stack)[stack_top - 1];
       slot = get_hashtab(g->vm_env, var, NULL);
       if(slot) {
-	set_cdr(slot, val);
+	CDR(slot) = val;
       }
       else {
 	val = cons(var, val);
