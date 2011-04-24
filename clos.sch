@@ -335,41 +335,40 @@
 
 (define-method (write-stream (strm <string-buffer>)
 			     (char <char>))
-  ;; ensure there is sufficient storage
-  (when (= (slot-ref strm 'string-length)
-	   (slot-ref strm 'storage-length))
+  (let ((string-length (slot-ref strm 'string-length))
+	(storage-length (slot-ref strm 'storage-length))
+	(string (slot-ref strm 'string)))
 
-	(let* ((old-length (slot-ref strm 'string-length))
-	       (new-length (* 2 old-length))
-	       (new-string (make-string new-length)))
+   ;; ensure there is sufficient storage
+   (when (= string-length storage-length)
+     (let* ((new-length (* 2 storage-length))
+	    (new-string (make-string new-length)))
 
-	  (slot-set! strm 'string
-		     (%copy-into new-string
-				 (slot-ref strm 'string)
-				 old-length))
-	  (slot-set! strm 'storage-length new-length)))
+       (slot-set! strm 'string
+		  (%copy-into new-string
+			      string
+			      string-length))
+       (slot-set! strm 'storage-length new-length)
+       (set! string new-string)))
 
-  ;; append the character
-  (string-set!
-   (slot-ref strm 'string)
-   (slot-ref strm 'string-length)
-   char)
 
-  ;; increment the string size
-  (slot-set! strm 'string-length
-	     (+ 1 (slot-ref strm 'string-length)))
+   ;; append the character
+   (string-set! string string-length char)
 
-  #t)
+   ;; increment the string size
+   (slot-set! strm 'string-length (+ 1 string-length))
+
+   #t))
 
 (define-method (read-stream-char (strm <string-buffer>))
-  (if (= (slot-ref strm 'read-index)
-	 (slot-ref strm 'string-length))
-      *eof-object*
-      (let ((val (string-ref (slot-ref strm 'string)
-			     (slot-ref strm 'read-index))))
-	(slot-set! strm 'read-index
-		   (+ 1 (slot-ref strm 'read-index)))
-	val)))
+  (let ((read-index (slot-ref strm 'read-index))
+	(string-length (slot-ref strm 'string-length)))
+
+   (if (= read-index string-length)
+       *eof-object*
+       (let ((val (string-ref (slot-ref strm 'string) read-index)))
+	 (slot-set! strm 'read-index (+ 1 read-index))
+	 val))))
 
 (define (sprintf string . args)
   "splice arguments into string at locations specified by the format
@@ -426,15 +425,14 @@ characters"
 	'buffer nil)))
 
 (define-method (read-stream-char (strm <pushback-input-stream>))
-  (let ((buf (slot-ref strm 'buffer))
-	(wrapped (slot-ref strm 'wrapped-stream)))
+  (let ((buf (slot-ref strm 'buffer)))
 
     (if buf
 	(let ((char (car buf)))
 	  (slot-set! strm 'buffer (cdr buf))
 	  char)
 	;; no buffer, read stream directly
-	(read-stream-char wrapped))))
+	(read-stream-char (slot-ref strm 'wrapped-stream)))))
 
 (define-generic unread-stream-char
   "return a character read from a stream back to that stream to be

@@ -391,14 +391,14 @@ chainframe if ARGS is non-nil"
 
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
-		      (string (car opt))
+		      (comp-stringify (car opt))
 		      "L")))
       (write-dbg 'gen-label prefix)
       (set! label-num (%fixnum-add label-num 1))
       (string->symbol
        (prim-concat prefix (number->string label-num))))))
 
-(define (string obj)
+(define (comp-stringify obj)
   (cond
    ((string? obj) obj)
    ((symbol? obj) (symbol->string obj))
