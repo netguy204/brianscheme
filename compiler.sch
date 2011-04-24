@@ -271,14 +271,12 @@ about its value and optionally with more forms following"
       (seq (gen 'save k)
 	   (comp-list args env)
 	   (comp f env #t #t)
-	   (gen 'incprof 0)
 	   (gen 'callj (length args) #t)
 	   (list k)
 	   (unless val? (gen 'pop)))))
    (else
     (seq (comp-list args env)
 	 (comp f env #t #t)
-	 (gen 'incprof 0)
 	 (gen 'endframe (%fixnum-add (length args) 1))
 	 (gen 'callj (length args))))))
 

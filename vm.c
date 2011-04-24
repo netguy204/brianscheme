@@ -54,7 +54,6 @@ char profiling_enabled;
   define(gset)					\
   define(setcc)					\
   define(cc)					\
-  define(incprof)				\
   define(pop)					\
   define(cons)					\
   define(car)					\
@@ -539,13 +538,6 @@ vm_fn_begin:
       pop_root(&cc_env);
 
       VPUSH(cc_fn, stack, stack_top);
-
-      NEXT_INSTRUCTION;
-
- __incprof__:
-      if(profiling_enabled) {
-	/* disabled temporarily ARG1++; */
-      }
 
       NEXT_INSTRUCTION;
 
