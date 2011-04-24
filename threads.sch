@@ -123,3 +123,10 @@
 ;; Set up the main thread
 (set! threads:current (make-thread #f 'main))
 (set! threads:suspended '())
+
+(define (threads:wrap-io)
+  "Wrap standard I/O functions in thread yields."
+  (let ((old-read-char read-char))
+    (define (read-char port)
+      (thread-wait-read! port)
+      (old-read-char port))))
