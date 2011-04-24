@@ -79,3 +79,11 @@
   (mergesort! (copy-list lst) test key))
 
 (define stable-sort sort)
+
+;; Define a better map using the old one
+(let ((oldmap map))
+  (define (map fn . lists)
+    (if (any? null? lists)
+	()
+	(cons (apply fn (oldmap car lists))
+	      (apply map (cons fn (oldmap cdr lists)))))))
