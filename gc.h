@@ -28,7 +28,6 @@ object *push_root(object **stack);
 void pop_root(object **stack);
 
 object *alloc_object(char needs_finalization);
-long get_alloc_count();
 
 void *xmalloc(size_t size); /* exit() on failure */
 void *MALLOC(size_t size);  /* mmap()ed */
@@ -63,7 +62,6 @@ typedef struct global_state {
   struct stack_set *Finalizable_Objects;
   struct stack_set *Finalizable_Objects_Next;
 
-  long Alloc_Count;
   long Next_Heap_Extension;
 
   char current_color;

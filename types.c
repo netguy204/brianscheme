@@ -23,7 +23,7 @@
 #include "gc.h"
 
 char is_the_empty_list(object * obj) {
-  return !TAGGED(obj) && obj == g->empty_list;
+  return obj == g->empty_list;
 }
 
 char is_boolean(object * obj) {
@@ -100,18 +100,12 @@ char is_string(object * obj) {
   return !TAGGED(obj) && obj->type == STRING;
 }
 
-static long Cons_Count = 0;
 object *cons(object * car, object * cdr) {
   object *obj = alloc_object(0);
   obj->type = PAIR;
   obj->data.pair.car = car;
   obj->data.pair.cdr = cdr;
-  ++Cons_Count;
   return obj;
-}
-
-long get_cons_count() {
-  return Cons_Count;
 }
 
 char is_pair(object * obj) {
@@ -390,7 +384,7 @@ object *find_symbol(char *value) {
   return NULL;
 }
 
-long next_uninterned_symbol = 0;
+static long next_uninterned_symbol = 0;
 object *make_uninterned_symbol() {
   object *obj = alloc_object(0);
   obj->type = LAZY_SYMBOL;

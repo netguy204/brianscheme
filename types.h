@@ -195,10 +195,6 @@ char is_meta(object *obj);
 
 object *make_meta_proc(object *proc, object *meta);
 
-/* statistics */
-long get_alloc_count();
-long get_cons_count();
-
 #define caar(obj) car(car(obj))
 #define cadr(obj) car(cdr(obj))
 #define cddr(obj) cdr(cdr(obj))

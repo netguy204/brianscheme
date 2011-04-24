@@ -313,7 +313,6 @@ void gc_init(void) {
 
   g->global_pool = pool;
   g->Next_Free_Object = NULL;
-  g->Alloc_Count = 0;
   g->Next_Heap_Extension = 1000;
   g->current_color = 0;
 
@@ -556,6 +555,3 @@ object *alloc_object(char needs_finalization) {
   return obj;
 }
 
-long get_alloc_count() {
-  return g->Alloc_Count;
-}

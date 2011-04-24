@@ -1014,34 +1014,46 @@
   (and (generic-function? closure)
        (not (member? closure generic-invocation-generics))))
 
-(define (rewrite-generic-closure-callsite exp)
-  (let ((cached-apply (gensym))
-	(cached-methods (gensym))
-	(cached-args-cls (gensym))
-	(evald-generic (gensym))
-	(evald-args (gensym))
-	(arg-classes (gensym)))
+(define (compute-equiv-function generic methods)
+  "compute the equivalent method for a given generic and set of
+applicable methods"
+  (let* ((procs (map method-procedure methods))
+	 (args nil) ;; not thread safe!
+	 (bound (reduce (lambda (next-proc proc)
+			  (lambda ()
+			    (apply proc (cons next-proc args))))
+			(reverse procs)
+			(lambda ()
+			  (throw-error "No applicable methods/next methods.")))))
+    (lambda (real-args)
+      (set! args real-args)
+      (bound))))
 
-    `(let-static ((,cached-apply nil)
-		  (,cached-methods nil)
+(define (rewrite-generic-closure-callsite exp)
+  (let ((cached-function (gensym))
+	(cached-args-cls (gensym))
+	(evald-args (gensym)))
+    ;(display (list 'rewrite exp)) (newline)
+    `(let-static ((,cached-function nil)
 		  (,cached-args-cls nil)
-		  (,evald-args nil)
-		  (,evald-generic nil))
+		  (,evald-args nil))
        (set! ,evald-args (list ,@(rest exp)))
 
        (if (equal? ,cached-args-cls (mapr class-of ,evald-args))
-	   (,cached-apply ,cached-methods ,evald-args) ;; hit cache
+	   ;(display (display 'hit ,evald-args)) (newline)
+	   (,cached-function ,evald-args) ;; hit cache
 
 	   (begin
+	     ;(display (list 'miss ,evald-args)) (newline)
 	     ;; fill the cache
-	     (set! ,evald-generic ,(first exp))
-	     (set! ,cached-apply (compute-apply-methods ,evald-generic))
-	     (set! ,cached-methods ((compute-methods ,evald-generic)
-				    ,evald-args))
+	     (set! ,cached-function
+		   (compute-equiv-function ,(first exp)
+					   ((compute-methods ,(first exp))
+					    ,evald-args)))
 	     (set! ,cached-args-cls (mapr class-of ,evald-args))
 
 	     ;; do the call
-	     (,cached-apply ,cached-methods ,evald-args))))))
+	     (,cached-function ,evald-args))))))
 
 ;; temp turn it off again
 ;(define (cacheable-generic-function? closure) #f)

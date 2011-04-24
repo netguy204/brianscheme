@@ -156,14 +156,14 @@
 ;; Note the trick to confine the scope of iter. Normally we'd use
 ;; let/letrec here but their definition depends on map so we better
 ;; not touch them yet.
-(define (reverse l)
-  ((lambda (iter)
-     (set! iter (lambda (in out)
-		  (if (null? in)
-		      out
-		      (iter (cdr in) (cons (car in) out)))))
 
-     (iter l nil)) nil))
+(define (reverse-iter in out)
+  (if (null? in)
+      out
+      (reverse-iter (cdr in) (cons (car in) out))))
+
+(define (reverse l)
+  (reverse-iter l nil))
 
 (define (mapr-iter fn done rest)
   (if (null? rest)

@@ -855,24 +855,6 @@ DEFUN1(exit_proc) {
   return g->false;
 }
 
-DEFUN1(stats_proc) {
-  object *temp = cons(make_fixnum(get_cons_count()), g->empty_list);
-  push_root(&temp);
-  temp = cons(make_symbol("cons"), temp);
-
-  object *result = cons(temp, g->empty_list);
-  push_root(&result);
-
-  temp = cons(make_fixnum(get_alloc_count()), g->empty_list);
-  temp = cons(make_symbol("alloc"), temp);
-  result = cons(temp, result);
-
-  pop_root(&result);
-  pop_root(&temp);
-
-  return result;
-}
-
 DEFUN1(clock_proc) {
   return make_fixnum(clock());
 }
@@ -1548,7 +1530,6 @@ void init_prim_environment(definer defn) {
   add_procedure("%prim-concat", concat_proc);
 
   add_procedure("exit", exit_proc);
-  add_procedure("interpreter-stats", stats_proc);
   add_procedure("clock", clock_proc);
   add_procedure("getpid", getpid_proc);
   add_procedure("%date-string", date_string_proc);
