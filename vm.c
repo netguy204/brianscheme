@@ -55,7 +55,12 @@ char profiling_enabled;
   define(setcc)					\
   define(cc)					\
   define(incprof)				\
-  define(pop)
+  define(pop)					\
+  define(cons)					\
+  define(car)					\
+  define(cdr)					\
+  define(setcar)				\
+  define(setcdr)
 
 /* generate the symbol variable declarations */
 #define generate_decls(opcode) object * opcode ## _op;
@@ -546,6 +551,46 @@ vm_fn_begin:
 
  __pop__:
       VPOP(top, stack, stack_top);
+
+      NEXT_INSTRUCTION;
+
+ __cons__:
+      VARRAY(stack)[stack_top - 2] =
+	cons(VARRAY(stack)[stack_top - 2],
+	     VARRAY(stack)[stack_top - 1]);
+      stack_top = stack_top - 1;
+
+      NEXT_INSTRUCTION;
+
+ __car__:
+      top = VARRAY(stack)[stack_top - 1];
+      VM_ASSERT(is_pair(top) || is_the_empty_list(top), "car expects pair");
+      VARRAY(stack)[stack_top - 1] = CAR(top);
+
+      NEXT_INSTRUCTION;
+
+ __cdr__:
+      top = VARRAY(stack)[stack_top - 1];
+      VM_ASSERT(is_pair(top) || is_the_empty_list(top), "cdr expects pair");
+      VARRAY(stack)[stack_top - 1] = CDR(top);
+
+      NEXT_INSTRUCTION;
+
+ __setcar__:
+      top = VARRAY(stack)[stack_top - 2];
+      VM_ASSERT(is_pair(top), "set-car! expects pair");
+      CAR(top) = VARRAY(stack)[stack_top - 1];
+      VARRAY(stack)[stack_top - 2] = VARRAY(stack)[stack_top - 1];
+      stack_top = stack_top - 1;
+
+      NEXT_INSTRUCTION;
+
+ __setcdr__:
+      top = VARRAY(stack)[stack_top - 2];
+      VM_ASSERT(is_pair(top), "set-cdr! expects pair");
+      CDR(top) = VARRAY(stack)[stack_top - 1];
+      VARRAY(stack)[stack_top - 2] = VARRAY(stack)[stack_top - 1];
+      stack_top = stack_top - 1;
 
       NEXT_INSTRUCTION;
 

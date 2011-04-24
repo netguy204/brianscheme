@@ -372,6 +372,7 @@
     (let ((new (%allocate-entity class
 				 (length (class-slots class)))))
       (slot-set! new 'methods '())
+      (slot-set! new 'invalidators '())
       new))
 
    ((eq? class <method>)
@@ -565,7 +566,7 @@
 (define <generic>
   (make <entity-class>
     'direct-supers (list <object>)
-    'direct-slots (list 'methods)
+    'direct-slots (list 'methods 'invalidators)
     'class-name '<generic>))
 
 (define <method>
@@ -1010,6 +1011,27 @@
 	(%set-instance-proc! generic (compute-apply-generic generic)))
 
 
+(define-generic invalidate-caches
+  "invalidate any caches attached to a generic")
+
+(define-method (invalidate-caches (generic <generic>))
+  (let ((invalidators (slot-ref generic 'invalidators)))
+    (dolist (fn invalidators)
+      (fn))))
+
+(define-generic add-invalidator
+  "attach an invalidation hook to a generic")
+
+(define-method (add-invalidator (generic <generic>) fn)
+  (slot-set! generic 'invalidators
+	     (cons fn (slot-ref generic 'invalidators))))
+
+;; install the cache invalidating form of add-method
+(let ((old-add-method add-method))
+  (define (add-method generic method)
+    (invalidate-caches generic)
+    (old-add-method generic method)))
+
 (define (cacheable-generic-function? closure)
   (and (generic-function? closure)
        (not (member? closure generic-invocation-generics))))
@@ -1033,19 +1055,15 @@ applicable methods"
   (let ((cached-function (gensym))
 	(cached-args-cls (gensym))
 	(evald-args (gensym)))
-    ;(display (list 'rewrite exp)) (newline)
     `(let-static ((,cached-function nil)
 		  (,cached-args-cls nil)
 		  (,evald-args nil))
        (set! ,evald-args (list ,@(rest exp)))
 
        (if (equal? ,cached-args-cls (mapr class-of ,evald-args))
-	   ;(display (display 'hit ,evald-args)) (newline)
 	   (,cached-function ,evald-args) ;; hit cache
 
 	   (begin
-	     ;(display (list 'miss ,evald-args)) (newline)
-	     ;; fill the cache
 	     (set! ,cached-function
 		   (compute-equiv-function ,(first exp)
 					   ((compute-methods ,(first exp))

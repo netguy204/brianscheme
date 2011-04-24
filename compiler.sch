@@ -201,14 +201,71 @@ about its value and optionally with more forms following"
 		    (list l1) ecode
 		    (when more? (list l2))))))))))
 
+(define (gen opcode . args)
+  (write-dbg 'gen opcode 'args args)
+  (list (cons opcode args)))
+
+(define (seq . code)
+  (append-all code))
+
+(set! *bytecode-primitives*
+      `((cons 2 ,(gen 'cons))
+	(car 1 ,(gen 'car))
+	(cdr 1 ,(gen 'cdr))
+	(set-car! 2 ,(gen 'setcar))
+	(set-cdr! 2 ,(gen 'setcdr))
+	(first 1 ,(gen 'car))
+	(second 1 ,(seq (gen 'cdr)
+			(gen 'car)))
+	(third 1 ,(seq (gen 'cdr)
+		       (gen 'cdr)
+		       (gen 'car)))))
+
+(define (bytecode-primitive? sym)
+  (find (lambda (op) (eq? (first op) sym)) *bytecode-primitives*))
+
+(define (primitive-nargs sym)
+  (second (bytecode-primitive? sym)))
+
+(define (primitive-bytecode sym)
+  (third (bytecode-primitive? sym)))
+
+(define (ref-to-symbol fn)
+  "try to convert a variable reference to a symbol"
+  (cond
+   ((variable-reference? fn)
+    (let ((var (variable-reference-variable-ref fn)))
+      (cond
+       ((global-variable? var)
+	(global-variable-name-ref var))
+       (else fn))))
+   (else fn)))
+
 (define (comp-funcall f args env val? more?)
   (write-dbg 'comp-funcall f 'args args
 	     'val? val? 'more? more?)
 
   (cond
+   ;; special case invocations that correspond to bytecode primitives
+   ;(display f) (newline)
+   ((bytecode-primitive? (ref-to-symbol f))
+    (let ((sym (ref-to-symbol f)))
+      ;; NOTE: all primitive bytecodes are for value not effect so we
+      ;; can skip them entirely if (not val?)
+      (unless (%fixnum-equal (length args) (primitive-nargs sym))
+	      (throw-error "primitive" sym "requires exactly" (primitive-nargs sym)
+			   "arguments. You supplied " (length args)))
+      (seq (comp-list args env)
+	   (primitive-bytecode sym)
+	   (unless val? (gen 'pop))
+	   (unless more? (seq (gen 'endframe 1)
+			      (gen 'return))))))
+
+   ;; inline calls to no-arg lambda
    ((and (starts-with? f 'lambda eq?) (null? (second f)))
     (unless (null? args) (throw-error "too many arguments"))
     (comp-begin (cdr (cdr f)) env val? more?))
+
    (more?
     (let ((k (gen-label 'k)))
       (seq (gen 'save k)
@@ -223,7 +280,7 @@ about its value and optionally with more forms following"
 	 (comp f env #t #t)
 	 (gen 'incprof 0)
 	 (gen 'endframe (%fixnum-add (length args) 1))
-	 (gen 'callj (length args) #f)))))
+	 (gen 'callj (length args))))))
 
 (define-struct fn
   "a structure representing a compiled function"
@@ -340,13 +397,6 @@ chainframe if ARGS is non-nil"
       (set! label-num (%fixnum-add label-num 1))
       (string->symbol
        (prim-concat prefix (number->string label-num))))))
-
-(define (gen opcode . args)
-  (write-dbg 'gen opcode 'args args)
-  (list (cons opcode args)))
-
-(define (seq . code)
-  (append-all code))
 
 (define (string obj)
   (cond
