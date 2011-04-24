@@ -697,6 +697,10 @@ DEFUN1(unread_char_proc) {
   return g->true;
 }
 
+DEFUN1(fileno_proc) {
+  return make_fixnum(fileno(INPUT(FIRST)));
+}
+
 DEFUN1(flush_output_proc) {
   return AS_BOOL(fflush(OUTPUT(FIRST)) == 0);
 }
@@ -1504,6 +1508,7 @@ void init_prim_environment(definer defn) {
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
   add_procedure("%unread-char", unread_char_proc);
+  add_procedure("%fileno", fileno_proc);
   add_procedure("%flush-output", flush_output_proc);
   add_procedure("%port-dump", port_dump_proc);
 
