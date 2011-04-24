@@ -36,6 +36,7 @@ object *cdr(object *pair);
 #define SECOND (VARRAY(args)[stack_top-(n_args-1)])
 #define THIRD (VARRAY(args)[stack_top-(n_args-2)])
 #define FOURTH (VARRAY(args)[stack_top-(n_args-3)])
+#define FIFTH (VARRAY(args)[stack_top-(n_args-4)])
 
 #define AS_BOOL(x) (x ? g->true : g->false)
 
