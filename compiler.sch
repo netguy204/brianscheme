@@ -211,10 +211,11 @@ about its value and optionally with more forms following"
 (set! *bytecode-primitives*
       `((cons 2 ,(gen 'cons))
 	(car 1 ,(gen 'car))
+	(first 1 ,(gen 'car))
 	(cdr 1 ,(gen 'cdr))
+	(rest 1 ,(gen 'cdr))
 	(set-car! 2 ,(gen 'setcar))
 	(set-cdr! 2 ,(gen 'setcdr))
-	(first 1 ,(gen 'car))
 	(second 1 ,(seq (gen 'cdr)
 			(gen 'car)))
 	(third 1 ,(seq (gen 'cdr)
