@@ -211,13 +211,15 @@
       #f
       (if (eq? (first (car clauses)) 'else)
 	  `(begin . ,(rest (car clauses)))
-	  (let0 ((result (gensym)))
-	    `(let0 ((,result ,(first (car clauses))))
-	       (if ,result
-		   ,(if (rest (car clauses))
-			`(begin . ,(rest (car clauses)))
-			result)
-		   (cond . ,(cdr clauses))))))))
+	  (if (rest (car clauses))
+	      `(if ,(first (car clauses))
+		   (begin . ,(rest (car clauses)))
+		   (cond . ,(cdr clauses)))
+	      (let0 ((result (gensym)))
+		    `(let0 ((,result ,(first (car clauses))))
+			   (if ,result
+			       ,result
+			       (cond . ,(cdr clauses)))))))))
 
 (define (append-all lists)
   "append the lists inside the argument together end-to-end"
