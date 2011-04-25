@@ -22,6 +22,7 @@
 #include <math.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include "types.h"
 #include "interp.h"
@@ -930,6 +931,20 @@ DEFUN1(date_string_proc) {
   return make_string(asctime(localtime(&curtime)));
 }
 
+DEFUN1(gettimeofday_proc) {
+  struct timeval tv;
+  struct timezone tz;
+  gettimeofday(&tv, &tz);
+  object *sec = make_fixnum(tv.tv_sec);
+  push_root(&sec);
+  object *usec = make_fixnum(tv.tv_usec);
+  push_root(&usec);
+  object *ret = cons(sec, usec);
+  pop_root(&usec);
+  pop_root(&sec);
+  return ret;
+}
+
 DEFUN1(clocks_per_sec_proc) {
   return make_fixnum(CLOCKS_PER_SEC);
 }
@@ -1597,6 +1612,7 @@ void init_prim_environment(definer defn) {
   add_procedure("clock", clock_proc);
   add_procedure("getpid", getpid_proc);
   add_procedure("%date-string", date_string_proc);
+  add_procedure("gettimeofday", gettimeofday_proc);
   add_procedure("clocks-per-sec", clocks_per_sec_proc);
   add_procedure("getcwd", getcwd_proc);
   add_procedure("%chdir", chdir_proc);
