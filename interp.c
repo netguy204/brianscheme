@@ -20,6 +20,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include "types.h"
@@ -695,6 +696,67 @@ DEFUN1(unread_char_proc) {
 
   ungetc(CHAR(ch), INPUT(port));
   return g->true;
+}
+
+DEFUN1(fileno_proc) {
+  return make_fixnum(fileno(INPUT(FIRST)));
+}
+
+void list_to_fd_set(object *lst, fd_set *set) {
+  if (is_the_empty_list(lst))
+    return;
+  FD_SET(LONG(CAR(lst)), set);
+  list_to_fd_set(CDR(lst), set);
+}
+
+object* fd_set_to_list(object **lst, fd_set *set) {
+  int i;
+  for (i = 0; i < FD_SETSIZE; i++) {
+    if (FD_ISSET(i, set)) {
+      *lst = cons(make_fixnum(i), *lst);
+    }
+  }
+  return *lst;
+}
+
+DEFUN1(select_proc) {
+  fd_set read, write, excp;
+  FD_ZERO(&read);
+  FD_ZERO(&write);
+  FD_ZERO(&excp);
+  list_to_fd_set(FIRST, &read);
+  list_to_fd_set(SECOND, &write);
+  list_to_fd_set(THIRD, &excp);
+  struct timeval timeout;
+  timeout.tv_sec = LONG(FOURTH);
+  timeout.tv_usec = LONG(FIFTH);
+  struct timeval *timeptr = &timeout;
+  if (timeout.tv_sec == 0 && timeout.tv_usec == 0)
+    timeptr = NULL;
+  while (select(FD_SETSIZE, &read, &write, &excp, timeptr) < 0) {
+    if (errno == EBADF)
+      throw_message("invalid file descriptor");
+    else if (errno == EINVAL)
+      throw_message("invalid select() timeout");
+    else if (errno != EINTR)
+      throw_message("select interrupted");
+  }
+  object *lst = g->empty_list;
+  push_root(&lst);
+  object *read_lst = g->empty_list;
+  object *write_lst = g->empty_list;
+  object *excp_lst = g->empty_list;
+  push_root(&read_lst);
+  push_root(&write_lst);
+  push_root(&excp_lst);
+  lst = cons(fd_set_to_list(&read_lst, &read),
+	     cons(fd_set_to_list(&write_lst, &write),
+		  cons(fd_set_to_list(&excp_lst, &excp), g->empty_list)));
+  pop_root(&excp_lst);
+  pop_root(&write_lst);
+  pop_root(&read_lst);
+  pop_root(&lst);
+  return lst;
 }
 
 DEFUN1(flush_output_proc) {
@@ -1504,6 +1566,8 @@ void init_prim_environment(definer defn) {
   add_procedure("read-char", read_char_proc);
   add_procedure("write-char", write_char_proc);
   add_procedure("%unread-char", unread_char_proc);
+  add_procedure("%fileno", fileno_proc);
+  add_procedure("%select", select_proc);
   add_procedure("%flush-output", flush_output_proc);
   add_procedure("%port-dump", port_dump_proc);
 

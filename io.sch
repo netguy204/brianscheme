@@ -122,3 +122,28 @@
   "Put a single character back into the read buffer."
   (assert-types (ch char?) (port input-port?))
   (%unread-char ch port))
+
+(define (port? port)
+  "Return #t if object is a port."
+  (or (input-port? port) (output-port? port)))
+
+(define (fileno port)
+  "Return file descriptor number for the given port."
+  (assert-types (port port?))
+  (%fileno port))
+
+(define (select reads writes excps sec usec)
+  "Wait for I/O availability on a port, or until timeout. Returns
+three lists, corresponding to the read, write, and exceptions lists,
+where the listed ports have non-blocking actions available."
+  (let ((fileno-or-pass (lambda (x) (if (port? x) (fileno x) x))))
+    (let ((readnos (map fileno-or-pass reads))
+	  (writenos (map fileno-or-pass writes))
+	  (excpnos (map fileno-or-pass excps)))
+      (let ((read-map (map cons readnos reads))
+	    (write-map (map cons writenos writes))
+	    (excp-map (map cons excpnos excps)))
+	(let ((avail (%select readnos writenos excpnos sec usec))
+	      (remap (lambda (mapping lst)
+		       (map (compose cdr (rcurry assoc mapping)) lst))))
+	  (map remap (list read-map write-map excp-map) avail))))))
