@@ -5,8 +5,8 @@
 
 (define threads:suspended '())
 (define threads:waiting '())
-(define threads:running (make-queue))
-(define threads:current #f)
+(define threads:ready (make-queue))
+(define threads:running #f)
 
 (define thread-counter 0)
 
@@ -35,7 +35,7 @@
 (define (unwait-thread thread)
   (set! threads:waiting (delete thread threads:waiting))
   (slot-set! thread 'waiting #f)
-  (enqueue! threads:running thread))
+  (enqueue! threads:ready thread))
 
 (define (wait-for-threads)
   (let ((reads '())
@@ -67,21 +67,21 @@
 
 (define (next-thread)
   "Run the next thread in the queue."
-  (if (queue-empty? threads:running)
+  (if (queue-empty? threads:ready)
       (wait-for-threads)
       (begin				; Run the next queued thread
-	(set! threads:current (dequeue! threads:running))
-	((slot-ref threads:current 'call) #t))))
+	(set! threads:running (dequeue! threads:ready))
+	((slot-ref threads:running 'call) #t))))
 
 (define (thread-yield* fn)
-  (slot-set! threads:current 'call fn)
-  (if (slot-ref threads:current 'waiting)
-      (push! threads:current threads:waiting)
-      (enqueue! threads:running threads:current))
+  (slot-set! threads:running 'call fn)
+  (if (slot-ref threads:running 'waiting)
+      (push! threads:running threads:waiting)
+      (enqueue! threads:ready threads:running))
   (next-thread))
 
 (define (end-thread)
-  (slot-set! threads:current 'dead #t)
+  (slot-set! threads:running 'dead #t)
   (next-thread))
 
 ;; User functions
@@ -99,29 +99,29 @@
   (slot-ref thread 'name))
 
 (define (current-thread)
-  threads:current)
+  threads:running)
 
 (define (thread-start! thread)
   (when (member? thread threads:suspended)
 	(set! threads:suspended (delete thread threads:suspended))
-	(enqueue! threads:running thread))
+	(enqueue! threads:ready thread))
   thread)
 
 (define-syntax (thread-yield!)
   '(call/cc thread-yield*))
 
 (define (thread-sleep! usec)
-  (slot-set! threads:current 'sleep usec)
-  (slot-set! threads:current 'waiting 'sleep)
+  (slot-set! threads:running 'sleep usec)
+  (slot-set! threads:running 'waiting 'sleep)
   (thread-yield!))
 
 (define (thread-wait-read! port)
-  (slot-set! threads:current 'port port)
-  (slot-set! threads:current 'waiting 'read)
+  (slot-set! threads:running 'port port)
+  (slot-set! threads:running 'waiting 'read)
   (thread-yield!))
 
 ;; Set up the main thread
-(set! threads:current (make-thread #f 'main))
+(set! threads:running (make-thread #f 'main))
 (set! threads:suspended '())
 
 (define (threads:wrap-io)
