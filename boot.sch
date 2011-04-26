@@ -999,8 +999,8 @@ returns true"
 	    (,result (begin . ,body))
 	    (,end (clock)))
        (for-each display
-		 (list "execution took " (- ,end ,start)
-		       "/" (clocks-per-sec) " seconds"))
+		 (list "execution took " (/ (- ,end ,start) (integer->real (clocks-per-sec)))
+		       " seconds"))
        (newline)
        ,result)))
 
