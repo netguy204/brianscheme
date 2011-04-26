@@ -69,7 +69,7 @@ pool_t *create_pool(size_t min_alloc, size_t init_alloc, void **init) {
     first->free_start += init_alloc;
   }
 
-  init_memory_pool(first->free_end - first->free_start, first->free_start);
+  init_memory_pool(first->free_end - first->free_start - 8, first->free_start);
 
   return new_pool;
 }
@@ -95,7 +95,7 @@ void *pool_alloc(pool_t * source_pool, size_t size) {
     source_pool->first = last;
 
     /* add it to the managed set */
-    add_new_area(last->free_start, last->free_end - last->free_start, source_pool->pools->free_start);
+    add_new_area(last->free_start, last->free_end - last->free_start - 8, source_pool->pools->free_start);
 
     /* call ourselves recursively to try again to satisfy the request */
     return pool_alloc(source_pool, size);
