@@ -2,7 +2,13 @@ TARGETS = bsch bsch.preboot bschsfx
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c pool.c socket.c
+SOURCES = \
+	interp.c \
+	types.c read.c \
+	 gc.c vm.c hashtab.c \
+	ffi.c pool.c \
+	socket.c tlsf.c
+
 HEADERS = $(subst .c,.h,$(SOURCES))
 
 OBJECTS = $(subst .c,.o,$(SOURCES))
@@ -20,9 +26,15 @@ ifeq ($(PROF),1)
 	CFLAGS = -g -pg -W -Wall $(EXTFLAGS)
 	LDFLAGS += -g -pg
 else
+ifeq ($(COV),1)
+	CFLAGS = -g -fprofile-arcs -ftest-coverage -W -Wall $(EXTFLAGS)
+	LDFLAGS += -g -fprofile-arcs -ftest-coverage
+else
 	CFLAGS = -g -W -Wall $(EXTFLAGS)
 endif
 endif
+endif
+
 
 bsch: bschsfx $(IMAGE)
 	cat $^ > $@
