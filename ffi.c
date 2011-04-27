@@ -90,23 +90,25 @@ DEFUN1(free_ptr) {
   return g->true;
 }
 
-DEFUN1(free_ffi_alien_object) {
-  object *alien = FIRST;
+void free_ffi_alien_object(object * alien) {
   object *releaser = ALIEN_RELEASER(alien);
 
   if(is_the_empty_list(releaser)) {
-    return g->false;
+    return;
   }
 
-  /* build the list to eval */
-  object *list = g->empty_list;
-  push_root(&list);
-  list = cons(alien, list);
+  ALIEN_RELEASER(alien) = g->empty_list;
 
-  /* send it to apply and return the result */
-  object *result = apply(releaser, list);
-  pop_root(&list);
-  return result;
+  if(releaser == g->free_ptr_fn) {
+    FREE(ALIEN_PTR(alien));
+  }
+}
+
+DEFUN1(free_ffi_alien_object_proc) {
+  object *alien = FIRST;
+  free_ffi_alien_object(alien);
+  ALIEN_RELEASER(alien) = g->empty_list;
+  return g->empty_list;
 }
 
 DEFUN1(ffi_make_cif) {

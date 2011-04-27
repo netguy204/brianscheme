@@ -25,12 +25,6 @@ freed later."
    retspec
    fn-ptr))
 
-(define (ffi:free-cif cif)
-  (assert (ffi:cif? cif))
-  (ffi:free (ffi:cif-cif-ref cif))
-  (ffi:free (ffi:cif-argspec-ref cif))
-  (ffi:free (ffi:cif-retspec-ref cif)))
-
 (define (ffi:make-function-spec return args)
   "create callspec for a function of the given signature"
   (let ((cif (ffi:make-cif))
@@ -118,12 +112,6 @@ freed later."
    list
    ptr-list))
 
-(define (ffi:free-values values)
-  (assert (ffi:values? values))
-  (ffi:free (ffi:values-array-ref values))
-  (for-each ffi:free (ffi:values-list-ref values))
-  (for-each ffi:free (ffi:values-ptr-list-ref values)))
-
 (define (ffi:make-value-array args)
   "convert a list of scheme and alien arguments into a void**"
   (let* ((values (ffi:make-pointer-array (length args)))
@@ -157,10 +145,6 @@ freed later."
 
     ;; cleanup
     (let ((call-result (ffi:from-alien result ,result-type)))
-      (ffi:free-values values)
-      ;(ffi:free-cif fnspec)
-      (ffi:free result)
-
       call-result)))
 
 (define-syntax (with-library handle-and-name . body)
