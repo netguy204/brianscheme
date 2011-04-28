@@ -76,39 +76,18 @@ DEFUN1(dlsym2_proc) {
   return make_alien(ptr, g->empty_list);
 }
 
-
-
 DEFUN1(dlclose_proc) {
   void *handle = ALIEN_PTR(FIRST);
   lt_dlclose(handle);
   return g->true;
 }
 
-DEFUN1(free_ptr) {
-  void *ptr = ALIEN_PTR(FIRST);
-  FREE(ptr);
-  return g->true;
-}
-
 void free_ffi_alien_object(object * alien) {
   object *releaser = ALIEN_RELEASER(alien);
-
-  if(is_the_empty_list(releaser)) {
-    return;
-  }
-
-  ALIEN_RELEASER(alien) = g->empty_list;
 
   if(releaser == g->free_ptr_fn) {
     FREE(ALIEN_PTR(alien));
   }
-}
-
-DEFUN1(free_ffi_alien_object_proc) {
-  object *alien = FIRST;
-  free_ffi_alien_object(alien);
-  ALIEN_RELEASER(alien) = g->empty_list;
-  return g->empty_list;
 }
 
 DEFUN1(ffi_make_cif) {
@@ -295,7 +274,15 @@ DEFUN1(ffi_address_of) {
 
 DEFUN1(string_to_alien) {
   char *str = STRING(FIRST);
-  return make_alien(strdup(str), g->free_ptr_fn);
+
+  long length = strlen(str) + 1;
+  char *copy = MALLOC(length);
+  int ii = 0;
+  for(; ii < length + 1; ++ii) {
+    copy[ii] = str[ii];
+  }
+
+  return make_alien(copy, g->free_ptr_fn);
 }
 
 DEFUN1(alien_to_string) {
@@ -324,7 +311,6 @@ DEFUN1(alien_to_primitive) {
 
 void ffi_add_roots() {
   lt_dlinit();
-  push_root(&(g->free_ptr_fn));
 }
 
 void init_ffi(definer defn) {
@@ -332,8 +318,7 @@ void init_ffi(definer defn) {
   defn(scheme_name,						\
        make_primitive_proc(c_name))
 
-  g->free_ptr_fn = make_primitive_proc(free_ptr);
-  push_root(&(g->free_ptr_fn));
+  g->free_ptr_fn = make_symbol("free_ptr");
 
   add_procedure("ffi:dlopen", dlopen_proc);
   add_procedure("ffi:dlsym", dlsym_proc);
@@ -353,7 +338,6 @@ void init_ffi(definer defn) {
   add_procedure("ffi:primitive", ffi_primitive_type);
   add_procedure("ffi:prep-cif", ffi_prep_cif_proc);
   add_procedure("ffi:call", ffi_call_proc);
-  add_procedure("ffi:free", free_ffi_alien_object);
 
   add_procedure("ffi:string-to-alien", string_to_alien);
   add_procedure("ffi:alien-to-string", alien_to_string);
