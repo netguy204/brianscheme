@@ -280,6 +280,14 @@ that decompose it according to the structure of var-forms"
 	   (,name . ,(map second bindings))))
       `(let0 ,(destructure-all-bindings name-or-bindings) . ,bindings-or-body)))
 
+(define-syntax (if-let binding then else)
+  "evaluate then with binding in scope if bound variable is not
+falselike. Otherwise evaluate else"
+  `(let ,binding
+       (if ,(caar binding)
+	   ,then
+	   ,else)))
+
 (define-syntax (let* bindings . body)
   `(let*0 ,(destructure-all-bindings bindings) . ,body))
 
@@ -1319,7 +1327,7 @@ returns true"
 
    (define (compile-file name)
      "read and compile all forms in file"
-     (let ((file (find-library name)))
+    (let ((file (find-library name)))
        (if file
            (letrec ((in (open-input-port file))
                     (iter (lambda (form)
