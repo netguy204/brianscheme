@@ -306,7 +306,8 @@
    ((output-port? x) <output-port>)
    ((syntax-procedure? x) <syntax-procedure>)
    ((procedure? x)   <procedure>)
-   ((directory-stream? x) <directory-stream>)))
+   ((directory-stream? x) <directory-stream>)
+   ((small-integer? x) <small-integer>)))
 
 
 ;
@@ -957,6 +958,9 @@
 (define <integer>     (make <class>
 			'direct-supers (list <number>)
 			'class-name '<integer>))
+(define <small-integer>     (make <class>
+			      'direct-supers (list <number>)
+			      'class-name '<small-integer>))
 (define <real>        (make <class>
 			'direct-supers (list <number>)
 			'class-name '<real>))

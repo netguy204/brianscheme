@@ -84,17 +84,32 @@
   (let ((cenv (call/cc compiled-environment)))
     (vector->list (vector-ref (car cenv) 0))))
 
-(define (return-point? stack-entry)
-  (and (pair? stack-entry)
-       (integer? (first stack-entry))
-       (not (null? (cdr stack-entry)))
-       (procedure? (second stack-entry))))
+(define (stack->return-points stack)
+  (let ((rstack (apply vector (reverse stack)))
+	(items (length stack))
+	(result nil))
+
+    (let loop ((idx 0))
+      ;; looking for a small-num, small-num, proc, pair pattern
+      (if (> items (+ idx 3))
+	  (begin
+	    (if (and (small-integer? (vector-ref rstack idx))
+		     (small-integer? (vector-ref rstack (+ idx 1)))
+		     (procedure? (vector-ref rstack (+ idx 2)))
+		     (or (pair? (vector-ref rstack (+ idx 3)))
+			 (null? (vector-ref rstack (+ idx 3)))))
+		(begin
+		  (push! (vector-ref rstack (+ idx 2)) result)
+		  (loop (+ idx 4)))
+		(loop (+ idx 1))))
+
+	  result))))
 
 (define (return-procedures)
-  (map second (filter return-point? (get-stack))))
+  (stack->return-points (get-stack)))
 
-(define (sym-is-compiled? sym)
-  (compiled-procedure? (global-ref sym)))
+(define (sym-is-proc? sym)
+  (procedure? (global-ref sym)))
 
 (define (remove-sequential lst)
   (reverse (reduce (lambda (old next)
@@ -104,13 +119,13 @@
 
 (define (return-trace)
   (let ((proc->sym (make-hashtab-eq 100))
-	(returns (remove-sequential (return-procedures))))
-    (dolist (proc-sym (filter sym-is-compiled? (all-symbols)))
+	(returns (return-procedures)))
+    (dolist (proc-sym (filter sym-is-proc? (all-symbols)))
       (hashtab-set! proc->sym (global-ref proc-sym) proc-sym))
 
-    (cdddr (reverse (map (lambda (proc)
-			   (hashtab-ref proc->sym proc proc))
-			 returns)))))
+    (reverse (map (lambda (proc)
+		    (hashtab-ref proc->sym proc proc))
+		  returns))))
 
 (define (print-return-trace)
   (dolist-idx ((frame idx) (return-trace))
@@ -119,9 +134,9 @@
 (define (raise obj)
   "throw object up to the currently installed *condition-handler*"
   (if (conditions:handlers?)
-      ((conditions:top-handler) (list obj))
+      ((conditions:top-handler) (list obj (return-trace)))
       (begin
-	(write-port "unhandled condition: " stderr)
+	(write-port "unhandled condition: " (return-trace))
 	(write-port obj stderr)
 	(newline)
 	(exit 1))))
