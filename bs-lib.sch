@@ -54,32 +54,6 @@
 (define *tmp-file* ".git/BS_EDIT"
   "Temporary EDITOR file.")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 (define *props* '(id priority status category user date title comments))
 
 (define *priorities* '(low normal high urgent)
