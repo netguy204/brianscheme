@@ -54,6 +54,32 @@
 (define *tmp-file* ".git/BS_EDIT"
   "Temporary EDITOR file.")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (define *props* '(id priority status category user date title comments))
 
 (define *priorities* '(low normal high urgent)
@@ -330,11 +356,15 @@
       (call-with-input-file (config-file) read-port)
       (get-git-config)))
 
+(define (eof-to-empty line)
+  (if (eof-object? line) "" line))
+
 (define (get-git-config)
   "Derive a config from Git."
   (let* ((name-in (open-input-pipe "git config user.name"))
          (mail-in (open-input-pipe "git config user.email"))
-         (res (list 'user (read-line name-in) 'email (read-line mail-in))))
+         (res (list 'user (eof-to-empty (read-line name-in))
+		    'email (eof-to-empty (read-line mail-in)))))
     (close-input-port name-in)
     (close-input-port mail-in)
     (if (or (= 0 (string-length (plist-get res 'user)))
