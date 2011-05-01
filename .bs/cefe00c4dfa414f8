@@ -1,0 +1,9 @@
+(id	"cefe00c4dfa414f8"
+priority	normal
+status	open
+category	bug
+user	"Brian Taylor <el.wubo@gmail.com>"
+date	"Fri Apr 29 22:42:41 2011"
+title	"inline lambdas in the head position"
+comments	("Code like:\n((lambda (x) (+ 1 x)) 1)\n\nis trivial to inline since no escape analysis is necessary. This\noptimization would significantly reduce the pressure on GC because\nit would prevent (let ..) from allocating a closure and would\nconvert many free variable references into formal variable references\nso we would reduce the number of environment frames necessary as\nwell.\n\n\n")
+)

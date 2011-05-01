@@ -398,8 +398,8 @@ chainframe if ARGS is non-nil"
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
-    (comp-lambda nil (list (variable-usages x nil)) nil))
-;;(alpha-convert x nil nil)
+    (comp-lambda nil (list (variable-usages (alpha-convert x nil nil) nil)) nil))
+
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
 		      (comp-stringify (car opt))
@@ -832,7 +832,9 @@ variable given that our environment looks like ENV"
   (car notepad))
 
 (define (push-note! notepad note)
-  (set-car! notepad (cons note (get-notes notepad))))
+  (if (null? notepad)
+      (throw-error "notepad is null. can't save" note)
+      (set-car! notepad (cons note (get-notes notepad)))))
 
 (define (remap-if-defined sym remapped)
   (if-let ((new (assq sym remapped)))
@@ -875,6 +877,8 @@ variable given that our environment looks like ENV"
 	       found))))))
 
 (define (alpha-convert exp vars inline-notes)
+  (write-port (list 'alpha-convert exp vars inline-notes) stdout)
+  (newline)
   (cond
    ((symbol? exp)
     (remap-if-defined exp vars))
@@ -911,7 +915,7 @@ variable given that our environment looks like ENV"
       (lambda (largs . body)
 	(let ((free-args (filter (lambda (var)
 				   (not (member? (car var)
-						 largs)))
+						 (make-true-list largs))))
 				 vars)))
 	  `(lambda ,largs
 	     ,@(map (lambda (e)
@@ -920,8 +924,10 @@ variable given that our environment looks like ENV"
       
       (else
        (if (comp-macro? (first exp))
+	   ;; expand and retry
 	   (alpha-convert (comp-macroexpand0 exp) vars inline-notes)
 
+	   ;; check for head lambdas
 	   (if (and (pair? (first exp))
 		    (eq? 'lambda (first (first exp))))
 	       ;; head is lambda and thus inline-able
@@ -933,11 +939,11 @@ variable given that our environment looks like ENV"
 		   (if inline-notes
 		       (begin
 			 (push-note! inline-notes remapped)
-			 (generate-inlined args (append remapped vars) parms body inline-notes))
+			 (generate-inlined args vars (append remapped vars) parms body inline-notes))
 		       ;; we're starting an inline block, make a notepad
 		       (let ((notepad (make-notepad)))
 			 (push-note! notepad remapped)
-			 (let ((inlined (generate-inlined args (append remapped vars) parms body notepad)))
+			 (let ((inlined (generate-inlined args vars (append remapped vars) parms body notepad)))
 			   `(inlined-lambda ,(append-all (get-notes notepad))
 					    ,inlined))))))
 	       ;; build up non-inlined call
@@ -945,46 +951,40 @@ variable given that our environment looks like ENV"
 		      (alpha-convert e vars inline-notes))
 		    exp))))))))
 
-(define (generate-sets args parms remapped inline-notes)
+(define (generate-sets args parms premapped remapped inline-notes)
+  ;(printf "generate-sets args: %a parms: %a remapped: %a\n"
+  ;	  args parms remapped)
   (cond
+   ((null? args) nil)
+
    ((symbol? args)
     ;; this is a dotted list
     (list
      `(set! ,(remap-if-defined args remapped)
 	    (list . ,(map (lambda (parm)
-			    ;; is it bad that this has notes from an outside scope?
-			    (alpha-convert parm remapped inline-notes))
+			    (alpha-convert parm premapped inline-notes))
 			  parms)))))
    ((pair? args)
     (cons
      `(set! ,(remap-if-defined (car args) remapped)
-	    ,(alpha-convert (car parms) remapped inline-notes))
-     (generate-sets (cdr args) (cdr parms) remapped inline-notes)))
+	    ,(alpha-convert (car parms) premapped inline-notes))
+     (generate-sets (cdr args) (cdr parms) premapped remapped inline-notes)))
+
+   (else (throw-error "unrecognized argument " args))))
    
-   ((null? args) nil)))
 
 
-(define (generate-inlined args remapped parms body notepad)
+(define (generate-inlined args premapped remapped parms body notepad)
+  ;;(printf "generate-inlined args: %a body: %a premapped: %a remapped: %a\n" args body premapped remapped)
   `(begin
      ;; generate the sets
-     ,@(generate-sets args parms remapped notepad)
+     ,@(generate-sets args parms premapped remapped notepad)
      
      ;; inline the body
      ,@(map (lambda (form)
+	      ;;(printf "converting form: %a\n" form)
 	      (alpha-convert form remapped notepad))
 	    body)))
-
-(define (make-lambda-args args remap)
-  (cond
-   ((symbol? args)
-    (cdr (assq args remap)))
-
-   ((null? args) nil)
-   
-   ((pair? args)
-    (cons (cdr (assq (car args) remap))
-	  (make-lambda-args (cdr args) remap)))))
-
 
 (provide 'compiler)
 

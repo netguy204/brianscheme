@@ -386,7 +386,7 @@ falselike. Otherwise evaluate else"
   (let loop ((remaining lst))
     (cond
      ((null? remaining) nil)
-     ((eq (car remaining) val) remaining)
+     ((eq? (car remaining) val) remaining)
      (else (loop (cdr remaining))))))
 
 (define (member obj lst)
@@ -856,7 +856,10 @@ it's found. return not-found otherwised"
 			  (if (pair? not-found)
 			      (car not-found)
 			      (error "GETL couldn't find" name)))
-			 ((eq? (car tail) name) (cadr tail))
+			 ((and (pair? tail)
+			       (pair? (cdr tail))
+			       (eq? (car tail) name)) (cadr tail))
+			 ((atom? tail) (throw-error "getl not valid on" initargs))
 			 (else (scan (cddr tail)))))))
     (scan initargs)))
 
