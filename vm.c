@@ -27,9 +27,9 @@
 
 char profiling_enabled;
 
-#define ARG1 ((codes[pc-2]))
-#define ARG2 ((codes[pc-1]))
-#define BC short
+#define ARG1 ((long)(codes[pc-2]))
+#define ARG2 ((long)(codes[pc-1]))
+#define BC void*
 
 #define length1(x) (CDR(x) == the_empty_list)
 
@@ -79,11 +79,15 @@ opcode_table(generate_decls)
        opcode_table(generate_string)
      };
 
+/* the dispatch table will be built by vm_execute */
+void* dispatch_table[INVALID_BYTECODE];
+char build_dispatch_table = 0;
+
 /* generate a function that converts a symbol into the corresponding
    bytecode */
-#define generate_sym_to_code(opcode)			\
-  if(sym == opcode ## _op) {				\
-    return make_fixnum( _ ## opcode ## _);		\
+#define generate_sym_to_code(opcode)					\
+  if(sym == opcode ## _op) {						\
+    return make_alien( dispatch_table[_ ## opcode ## _], g->empty_list); \
   }
 
 object *symbol_to_code(object * sym) {
@@ -102,12 +106,16 @@ DEFUN1(make_bytecode_array_proc) {
 
 DEFUN1(get_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  return make_fixnum(bca[LONG(SECOND)]);
+  return make_alien(bca[LONG(SECOND)], g->empty_list);
 }
 
 DEFUN1(set_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  bca[LONG(SECOND)] = (BC) LONG(THIRD);
+  if(is_alien(THIRD)) {
+    bca[LONG(SECOND)] = (BC) ALIEN_PTR(THIRD);
+  } else {
+    bca[LONG(SECOND)] = (BC) LONG(THIRD);
+  }
   return THIRD;
 }
 
@@ -221,7 +229,7 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
   do {								\
     const int tgt = pc;						\
     pc += 3;							\
-    goto *(&&__pushvarargs__ + disp_tbl[(long)codes[tgt]]);	\
+    goto *codes[tgt];						\
   } while(0)
 
 object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
@@ -253,14 +261,17 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
   object *new_stack;
   object *cc_fn;
 
-  /* build the dispatch table */
-  int disp_tbl[INVALID_BYTECODE];
+  if(build_dispatch_table) {
+    /* build the dispatch table and exit immediately */
 
 #define generate_dispatch(opcode)		\
-  disp_tbl[ _ ## opcode ## _] =			\
-    && __ ## opcode ## __ - &&__pushvarargs__;
+    dispatch_table[ _ ## opcode ## _] =		\
+      && __ ## opcode ## __;
 
-  opcode_table(generate_dispatch);
+    opcode_table(generate_dispatch);
+    build_dispatch_table = 0;
+    return g->error_sym;
+  }
 
   /* bootstrap an empty frame for this function since the callj opcode
      won't have built one for us */
@@ -658,7 +669,11 @@ void vm_boot(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
 
-    /* register for sigint */
+  /* ask the vm to generate the jump table */
+  build_dispatch_table = 1;
+  vm_execute(NULL, NULL, 0, 0);
+
+  /* register for sigint */
   struct sigaction sa;
   sa.sa_handler = vm_sigint_handler;
   sigaction(SIGINT, &sa, NULL);
