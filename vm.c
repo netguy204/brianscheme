@@ -393,9 +393,12 @@ vm_fn_begin:
 	/* the args are in a list next, expand those */
 	object *args;
 	VPOP(args, stack, stack_top);
+	VM_ASSERT(is_pair(args) || is_the_empty_list(args), "cannot apply fn to non list");
 
 	args_for_call = 0;
 	while(!is_the_empty_list(args)) {
+	  VM_ASSERT(is_pair(args), "cannot apply fn to improper list");
+
 	  VPUSH(CAR(args), stack, stack_top);
 	  args = CDR(args);
 	  ++args_for_call;

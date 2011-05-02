@@ -280,6 +280,14 @@ that decompose it according to the structure of var-forms"
 	   (,name . ,(map second bindings))))
       `(let0 ,(destructure-all-bindings name-or-bindings) . ,bindings-or-body)))
 
+(define-syntax (if-let binding then else)
+  "evaluate then with binding in scope if bound variable is not
+falselike. Otherwise evaluate else"
+  `(let ,binding
+       (if ,(caar binding)
+	   ,then
+	   ,else)))
+
 (define-syntax (let* bindings . body)
   `(let*0 ,(destructure-all-bindings bindings) . ,body))
 
@@ -378,7 +386,7 @@ that decompose it according to the structure of var-forms"
   (let loop ((remaining lst))
     (cond
      ((null? remaining) nil)
-     ((eq (car remaining) val) remaining)
+     ((eq? (car remaining) val) remaining)
      (else (loop (cdr remaining))))))
 
 (define (member obj lst)
@@ -538,9 +546,9 @@ body. always executes at least once"
       (loop (%fixnum-add n 1))))
   #t)
 
-(define-syntax (dotimes (idx max) . body)
+(define-syntax (dotimes idx-and-max . body)
   "execute body max times with idx going from 0 to max-1"
-  `(do-times (lambda (,idx) . ,body) ,max))
+  `(do-times (lambda (,(first idx-and-max)) . ,body) ,(second idx-and-max)))
 
 (define (throw-error . objs)
   (apply error objs)
@@ -848,7 +856,10 @@ it's found. return not-found otherwised"
 			  (if (pair? not-found)
 			      (car not-found)
 			      (error "GETL couldn't find" name)))
-			 ((eq? (car tail) name) (cadr tail))
+			 ((and (pair? tail)
+			       (pair? (cdr tail))
+			       (eq? (car tail) name)) (cadr tail))
+			 ((atom? tail) (throw-error "getl not valid on" initargs))
 			 (else (scan (cddr tail)))))))
     (scan initargs)))
 
@@ -999,8 +1010,8 @@ returns true"
 	    (,result (begin . ,body))
 	    (,end (clock)))
        (for-each display
-		 (list "execution took " (- ,end ,start)
-		       "/" (clocks-per-sec) " seconds"))
+		 (list "execution took " (/ (- ,end ,start) (integer->real (clocks-per-sec)))
+		       " seconds"))
        (newline)
        ,result)))
 
@@ -1319,7 +1330,7 @@ returns true"
 
    (define (compile-file name)
      "read and compile all forms in file"
-     (let ((file (find-library name)))
+    (let ((file (find-library name)))
        (if file
            (letrec ((in (open-input-port file))
                     (iter (lambda (form)

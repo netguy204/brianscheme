@@ -113,6 +113,8 @@ about its value and optionally with more forms following"
 	    (seq (gen 'fn f)
 		 (unless more? (seq (gen 'endframe 1)
 				    (gen 'return)))))))
+      (inlined-lambda (args body)
+	(comp-begin (cdr body) env val? more?))
 
       ;; generate an invocation
       (else
@@ -208,6 +210,7 @@ about its value and optionally with more forms following"
 (define (seq . code)
   (append-all code))
 
+
 (set! *bytecode-primitives*
       `((cons 2 ,(gen 'cons))
 	(car 1 ,(gen 'car))
@@ -221,6 +224,7 @@ about its value and optionally with more forms following"
 	(third 1 ,(seq (gen 'cdr)
 		       (gen 'cdr)
 		       (gen 'car)))))
+
 
 (define (bytecode-primitive? sym)
   (find (lambda (op) (eq? (first op) sym)) *bytecode-primitives*))
@@ -294,9 +298,14 @@ chainframe if ARGS is non-nil"
   (write-dbg 'comp-lambda args 'body body)
 
   ;; compute the set of free variables and the set of stack variables
-  (let ((free-args (filter variable-is-free-ref (make-true-list args)))
-	(stack-idx 0)
-	(frame-idx 0))
+  (let* ((inline-args (reduce (lambda (found form)
+				(find-inlined-vars form found))
+			      body nil))
+	 (free-inline (filter variable-is-free-ref inline-args))
+	 (unfree-inline (filter (lambda (f) (not (variable-is-free-ref f))) inline-args))
+	 (free-args (filter variable-is-free-ref (append (make-true-list args) free-inline)))
+	 (stack-idx 0)
+	 (frame-idx 0))
 
     ;; assign frame positions to the free variables
     (dolist (arg free-args)
@@ -304,7 +313,7 @@ chainframe if ARGS is non-nil"
       (%inc! frame-idx))
 
     ;; assign stack positions to each of the remaining arguments
-    (dolist (arg (make-true-list args))
+    (dolist (arg (append (make-true-list args) unfree-inline))
       (unless (variable-is-free-ref arg)
         (variable-idx-set! arg stack-idx))
       (%inc! stack-idx))
@@ -313,7 +322,12 @@ chainframe if ARGS is non-nil"
 		       (cons free-args env)
 		       env)))
 
-      (new-fun (seq (%gen-args args)
+      (new-fun (seq (%gen-args args free-inline)
+		    ;; make room on stack for unfree
+		    (apply seq
+		      (map (lambda (v)
+			     (gen 'cconst '()))
+			   unfree-inline))
 		    (comp-begin body
 				new-env
 				#t #f))
@@ -327,23 +341,24 @@ chainframe if ARGS is non-nil"
 	  (make-true-list args)
 	  0))
 
-(define (%gen-chainframe args)
+(define (%gen-chainframe args free-inline)
   "generate a chainframe instruction if there are any free variables"
-  (let ((n-free-args (%count-free-args args)))
+  (let ((n-free-args (%fixnum-add (%count-free-args args)
+				  (%count-free-args free-inline))))
     (when (%fixnum-greater-than n-free-args 0)
       (gen 'chainframe n-free-args))))
 
-(define (%gen-args args)
-  (%gen-args-iter args args 0))
+(define (%gen-args args free-inline)
+  (%gen-args-iter args args free-inline 0))
 
-(define (%gen-args-iter args full-args n-so-far)
+(define (%gen-args-iter args full-args free-inline n-so-far)
   (write-dbg '%gen-args-iter args n-so-far)
   (cond
    ((null? args)
-    (%gen-chainframe full-args))
+    (%gen-chainframe full-args free-inline))
 
    ((variable? args)
-    (seq (%gen-chainframe full-args)
+    (seq (%gen-chainframe full-args free-inline)
 	 (gen 'pushvarargs n-so-far)
 	 (when (variable-is-free-ref args)
 	   (gen 'lset 0 (variable-idx-ref args)))))
@@ -353,11 +368,13 @@ chainframe if ARGS is non-nil"
     (let ((arg (first args)))
       (if (variable-is-free-ref arg)
 	  (seq (%gen-args-iter (rest args) full-args
+			       free-inline
 			       (%fixnum-add n-so-far 1))
 	       (gen 'spush n-so-far)
 	       (gen 'lset 0 (variable-idx-ref arg))
 	       (gen 'pop))
 	  (%gen-args-iter (rest args) full-args
+			  free-inline
 			  (%fixnum-add n-so-far 1)))))
    (else (throw-error "illegal argument list" args))))
 
@@ -386,7 +403,7 @@ chainframe if ARGS is non-nil"
 (let ((label-num 0))
   (define (compiler x)
     (set! label-num 0)
-    (comp-lambda nil (list (variable-usages x nil)) nil))
+    (comp-lambda nil (list (variable-usages (alpha-convert x nil nil) nil)) nil))
 
   (define (gen-label . opt)
     (let ((prefix (if (pair? opt)
@@ -702,6 +719,14 @@ variable given that our environment looks like ENV"
 	    new-args
 	    (map (lambda (exp)
 		   (variable-usages exp new-env)) body))))
+
+      (inlined-lambda (args body)
+	;; append ARGS to the current frame of ENV since they will be
+	;; pulled up in the final stage
+	(let* ((new-args (args-to-variables (map cdr args)))
+	       (new-env (cons (append new-args (car env)) (cdr env))))
+	  `(inlined-lambda ,new-args ,(variable-usages body new-env))))
+
       (else
        (cond
 	((comp-macro? (first exp))
@@ -788,6 +813,183 @@ variable given that our environment looks like ENV"
               (iter (read-port in)))
           #t)
         (throw-error "failed to find" name))))
+
+(define (zip2 l1 l2)
+  (let ((result nil))
+    (let loop ((r1 l1)
+	       (r2 l2))
+      (if (and r1 r2)
+	  (begin
+	    (push! (cons (car r1)
+			 (car r2))
+		   result)
+	    (loop (cdr r1)
+		  (cdr r2)))
+	  (reverse result)))))
+
+(define (make-new-names vars)
+  (map (lambda (var) (cons var (gensym))) vars))
+
+(define (make-notepad)
+  (cons nil nil))
+
+(define (get-notes notepad)
+  (car notepad))
+
+(define (push-note! notepad note)
+  (if (null? notepad)
+      (throw-error "notepad is null. can't save" note)
+      (set-car! notepad (cons note (get-notes notepad)))))
+
+(define (remap-if-defined sym remapped)
+  (if-let ((new (assq sym remapped)))
+	  (cdr new)
+	  sym))
+
+(define (find-inlined-vars exp found)
+  (cond
+   ((atom? exp)
+    found)
+   (else
+    (record-case exp
+      (if-compiling (then else)
+	 (find-inlined-vars then (find-inlined-vars else)))
+      (quote (obj) found)
+      (begin exps
+        (reduce (lambda (found exp)
+		  (find-inlined-vars exp found))
+		exps
+		found))
+      (set! (sym val)
+	    (find-inlined-vars val found))
+      (if (test then . else)
+	  (find-inlined-vars test
+	    (find-inlined-vars then
+	       (if else (find-inlined-vars (car else) found)))))
+      (lambda (args . body)
+	(reduce (lambda (found exp)
+		  (find-inlined-vars exp found))
+		body
+		found))
+      (inlined-lambda (args body)
+	;; inlinings always bubble up so no need to search body
+	(append args found))
+
+      (else
+       (reduce (lambda (found exp)
+		 (find-inlined-vars exp found))
+	       exp
+	       found))))))
+
+(define (alpha-convert exp vars inline-notes)
+  ;;(write-port (list 'alpha-convert exp vars inline-notes) stdout) (newline)
+  (cond
+   ((symbol? exp)
+    (remap-if-defined exp vars))
+
+   ((atom? exp) exp)
+
+   (else
+    (record-case exp
+      (if-compiling (then else)
+        (list 'if-compiling
+	      (alpha-convert then vars inline-notes)
+	      (alpha-convert else vars inline-notes)))
+
+      (quote (obj) (list 'quote obj))
+
+      (begin exps
+	(cons 'begin
+	      (map (lambda (exp)
+		     (alpha-convert exp vars inline-notes))
+		   exps)))
+
+      (set! (sym val)
+        (list 'set!
+	      (alpha-convert sym vars inline-notes)
+	      (alpha-convert val vars inline-notes)))
+
+      (if (test then . else)
+	  (list 'if
+		(alpha-convert test vars inline-notes)
+		(alpha-convert then vars inline-notes)
+		(if else
+		    (alpha-convert (car else) vars inline-notes))))
+
+      (lambda (largs . body)
+	(let* ((args-list (make-true-list largs))
+	       (free-args (filter (lambda (var)
+				    (not (member? (car var) args-list)))
+				 vars)))
+	  `(lambda ,largs
+	     . ,(map (lambda (e)
+		       (alpha-convert e free-args nil))
+		     body))))
+
+      (else
+       (if (comp-macro? (first exp))
+	   ;; expand and retry
+	   (alpha-convert (comp-macroexpand0 exp) vars inline-notes)
+
+	   ;; check for head lambdas
+	   (if (and (pair? (first exp))
+		    (eq? 'lambda (first (first exp))))
+	       ;; head is lambda and thus inline-able
+	       (record (rest (first exp))
+	         (args . body)
+		 (let ((remapped (make-new-names (make-true-list args)))
+		       (parms (rest exp)))
+
+		   (if inline-notes
+		       ;; we're already in an inline block, append to notepad
+		       (begin
+			 (push-note! inline-notes remapped)
+			 (generate-inlined args vars (append remapped vars) parms body inline-notes))
+		       ;; we're starting an inline block, make a notepad
+		       (let ((notepad (make-notepad)))
+			 (push-note! notepad remapped)
+			 (let ((inlined (generate-inlined args vars (append remapped vars) parms body notepad)))
+			   `(inlined-lambda ,(append-all (get-notes notepad))
+					    ,inlined))))))
+	       ;; build up non-inlined call
+	       (map (lambda (e)
+		      (alpha-convert e vars inline-notes))
+		    exp))))))))
+
+(define (generate-sets args parms premapped remapped inline-notes)
+  ;(printf "generate-sets args: %a parms: %a remapped: %a\n"
+  ;	  args parms remapped)
+  (cond
+   ((null? args) nil)
+
+   ((symbol? args)
+    ;; this is a dotted list
+    (list
+     `(set! ,(remap-if-defined args remapped)
+	    (list . ,(map (lambda (parm)
+			    (alpha-convert parm premapped inline-notes))
+			  parms)))))
+   ((pair? args)
+    (cons
+     `(set! ,(remap-if-defined (car args) remapped)
+	    ,(alpha-convert (car parms) premapped inline-notes))
+     (generate-sets (cdr args) (cdr parms) premapped remapped inline-notes)))
+
+   (else (throw-error "unrecognized argument " args))))
+
+
+
+(define (generate-inlined args premapped remapped parms body notepad)
+  ;;(printf "generate-inlined args: %a body: %a premapped: %a remapped: %a\n" args body premapped remapped)
+  `(begin
+     ;; generate the sets
+     ,@(generate-sets args parms premapped remapped notepad)
+
+     ;; inline the body
+     ,@(map (lambda (form)
+	      ;;(printf "converting form: %a\n" form)
+	      (alpha-convert form remapped notepad))
+	    body)))
 
 (provide 'compiler)
 

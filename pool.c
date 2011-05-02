@@ -26,6 +26,7 @@
 #include <zlib.h>
 #include "pool.h"
 #include "gc.h"
+#include "tlsf.h"
 
 #define ZCHUNK 16384
 
@@ -63,8 +64,12 @@ pool_t *create_pool(size_t min_alloc, size_t init_alloc, void **init) {
   new_pool->first = new_pool->pools;
   new_pool->min_alloc = min_alloc;
 
-  if(init_alloc > 0 && init != NULL)
-    *init = pool_alloc(new_pool, init_alloc);
+  if(init_alloc > 0 && init != NULL) {
+    *init = first->free_start;
+    first->free_start += init_alloc;
+  }
+
+  init_memory_pool(first->free_end - first->free_start, first->free_start);
 
   return new_pool;
 }
@@ -72,74 +77,29 @@ pool_t *create_pool(size_t min_alloc, size_t init_alloc, void **init) {
 /* Returns a pointer to the allocated size bytes from the given
  * pool. */
 void *pool_alloc(pool_t * source_pool, size_t size) {
-  subpool_t *cur, *last;
-  void *chunk = NULL;
-  size_t s = sizeof(size_t);
-  if(size <= source_pool->min_alloc)
-    size = source_pool->min_alloc;
   /* next 8 byte aligned size */
   size = (size + 8 - 1) & ~(8 - 1);
 
-  cur = source_pool->first;
-  if(cur->misses > miss_limit) {
-    /* this pool doesn't seem to be any good anymore */
-    source_pool->first = source_pool->first->next;
-  }
+  void * storage = malloc_ex(size, source_pool->pools->free_start);
+  if(storage != NULL) {
+    return storage;
+  } else {
+    subpool_t *last = source_pool->first;
 
-  do {
-    /* Check this pool's free list. */
-    if(cur->freedb != NULL) {
-      freed_t *p = cur->freedp - 1;
-      while(p >= cur->freedb) {
-	if(p->size >= size) {
-	  cur->misses = 0;
-	  void *chunk = p->p;
-	  memmove(p, p + 1, (cur->freedp - p - 1) * sizeof(freed_t));
-	  cur->freedp--;
-	  return chunk;
-	}
-	p--;
-      }
-    }
-
-    if((size + s) <= (size_t) (cur->free_end - cur->free_start)) {
-      /* cut off a chunk and return it */
-      chunk = cur->free_start;
-      cur->free_start += size + s;
-      cur->misses = 0;
-    }
-    else {
-      /* current pool is too small */
-      cur->misses++;
-    }
-
-    last = cur;
-    cur = cur->next;
-  }
-  while(cur != NULL && chunk == NULL);
-
-  /* No existing pools had enough room. Make a new one. */
-  if(chunk == NULL) {
     /* double the size of the last one */
     size_t new_size = last->size * pool_scale;
-    if(new_size <= (size + s)) {
-      /* square requested size if its much bigger */
-      new_size = (size + s) * pool_scale * pool_scale;
-    }
 
     /* create new subpool */
     last->next = create_subpool_node(new_size);
-    cur = last->next;
+    last = last->next;
+    source_pool->first = last;
 
-    if(cur == NULL)		/* failed to allocate subpool */
-      return NULL;
+    /* add it to the managed set */
+    add_new_area(last->free_start, last->free_end - last->free_start, source_pool->pools->free_start);
 
-    /* chop off requested amount */
-    chunk = cur->free_start;
-    cur->free_start += size + s;
+    /* call ourselves recursively to try again to satisfy the request */
+    return pool_alloc(source_pool, size);
   }
-  ((size_t *) chunk)[0] = size;
-  return chunk + s;
 }
 
 /* Reallocate pool memory at location. */
@@ -148,47 +108,14 @@ void *pool_realloc(pool_t * source_pool, void *p, size_t new) {
   if(old >= new)
     return p;
   void *np = pool_alloc(source_pool, new);
-  pool_free(source_pool, p);
   memcpy(np, p, old);
+  pool_free(source_pool, p);
   return np;
 }
 
 /* Return memory to the pool. */
 void pool_free(pool_t * source_pool, void *p) {
-  subpool_t *cur, *next;
-
-  /* Locate the right pool. */
-  cur = source_pool->first;
-  next = cur->next;
-  while(next != NULL) {
-    if(p >= ((void *)cur) && p < ((void *)next))
-      break;
-    cur = next;
-    next = cur->next;
-  }
-
-  /* Add to the free list. */
-  if(cur->freedb == NULL) {
-    cur->freedb = pool_alloc(source_pool, init_freed_stack * sizeof(freed_t));
-    cur->freedp = cur->freedb;
-    cur->freed_size = init_freed_stack;
-  }
-  if(((size_t) (cur->freedp - cur->freedb))
-     > ((size_t) (cur->freed_size - 3))) {
-    cur->freed_size *= pool_scale;
-    fflush(stdout);
-    freed_t *stack = pool_realloc(source_pool, cur->freedb,
-				  cur->freed_size * sizeof(freed_t));
-    /* Old stack may end up on itself here. */
-    fflush(stdout);
-    size_t diff = cur->freedp - cur->freedb;
-    cur->freedb = stack;
-    cur->freedp = stack + diff;
-  }
-  size_t size = *(((size_t *) p) - 1);
-  cur->freedp->size = size;
-  cur->freedp->p = p;
-  cur->freedp++;
+  free_ex(p, source_pool->pools->free_start);
 }
 
 subpool_t *create_subpool_node(size_t size) {
@@ -301,7 +228,7 @@ void *pool_load(char *file, off_t offset) {
     fprintf(stderr, "error: empty image file: %s\n", file);
     return NULL;
   }
-  return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
+  return first + hdr + sizeof(subpool_t) + sizeof(pool_t);
 }
 
 /* Load a compressed pool. Rather than mmap() a file, we just mmap()
@@ -349,5 +276,5 @@ void *pool_loadz(char *file, off_t offset) {
     return NULL;
   }
   gzclose(gz);
-  return first + hdr + sizeof(subpool_t) + sizeof(pool_t) + sizeof(size_t);
+  return first + hdr + sizeof(subpool_t) + sizeof(pool_t);
 }

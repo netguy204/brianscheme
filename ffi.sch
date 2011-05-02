@@ -18,20 +18,14 @@
 ;
 
 (define-struct ffi:cif
-  "internal representation of cif. holds onto stuff that needs to be
-freed later."
+  "internal representation of cif. holds on to stuff that needs to be
+garbage collected no earlier than the cif"
   (cif
    argspec
    retspec
    fn-ptr))
 
-(define (ffi:free-cif cif)
-  (assert (ffi:cif? cif))
-  (ffi:free (ffi:cif-cif-ref cif))
-  (ffi:free (ffi:cif-argspec-ref cif))
-  (ffi:free (ffi:cif-retspec-ref cif)))
-
-(define (ffi:make-function-spec return args)
+(define (ffi:make-function-spec return args fnptr)
   "create callspec for a function of the given signature"
   (let ((cif (ffi:make-cif))
 	(argspec (ffi:make-pointer-array (length args)))
@@ -47,7 +41,8 @@ freed later."
 
     (make-ffi:cif 'cif cif
 		  'argspec argspec
-		  'retspec retspec)))
+		  'retspec retspec
+		  'fn-ptr fnptr)))
 
 (define-struct ffi:alien-type
   "a wrapped alien type"
@@ -118,12 +113,6 @@ freed later."
    list
    ptr-list))
 
-(define (ffi:free-values values)
-  (assert (ffi:values? values))
-  (ffi:free (ffi:values-array-ref values))
-  (for-each ffi:free (ffi:values-list-ref values))
-  (for-each ffi:free (ffi:values-ptr-list-ref values)))
-
 (define (ffi:make-value-array args)
   "convert a list of scheme and alien arguments into a void**"
   (let* ((values (ffi:make-pointer-array (length args)))
@@ -137,30 +126,17 @@ freed later."
 		     'list value-list
 		     'ptr-list value-ptr-list)))
 
-(define-syntax (ffi:funcall fnptr result-type . args)
+(define (ffi:funcall fnptr result-type . args)
   "call alien function expecting result and using default assumed alien types for the given arguments if they're not already alien. This macro may mutate fnptr to cache its function signature"
-  `(let* ((values (ffi:make-value-array (list . ,args)))
-	  (result (ffi:empty-alien ,result-type))
-	  (result-ptr (ffi:address-of result))
-	  (fnspec (if (ffi:cif? ,fnptr)
-		      ,fnptr
-		      (ffi:make-function-spec
-		       ,result-type
-		       (map ffi:alien-type (list . ,args))))))
-
-     ;; cache the cif
-     (unless (ffi:cif? ,fnptr)
-       (ffi:cif-fn-ptr-set! fnspec ,fnptr)
-       (set! ,fnptr fnspec))
+  (let* ((values (ffi:make-value-array args))
+	 (result (ffi:empty-alien result-type))
+	 (result-ptr (ffi:address-of result))
+	 (fnspec (ffi:make-function-spec result-type (map ffi:alien-type args) fnptr)))
 
      (ffi:call (ffi:cif-cif-ref fnspec) (ffi:cif-fn-ptr-ref fnspec) result-ptr (ffi:values-array-ref values))
 
     ;; cleanup
-    (let ((call-result (ffi:from-alien result ,result-type)))
-      (ffi:free-values values)
-      ;(ffi:free-cif fnspec)
-      (ffi:free result)
-
+    (let ((call-result (ffi:from-alien result result-type)))
       call-result)))
 
 (define-syntax (with-library handle-and-name . body)

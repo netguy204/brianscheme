@@ -155,7 +155,7 @@ char is_alien(object * obj) {
 }
 
 object *make_alien(void *ptr, object * releaser) {
-  object *obj = alloc_object(0);
+  object *obj = alloc_object(1);
   obj->type = ALIEN;
   ALIEN_PTR(obj) = ptr;
   ALIEN_RELEASER(obj) = releaser;

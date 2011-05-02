@@ -22,6 +22,7 @@
 #include "hashtab.h"
 #include "pool.h"
 #include "gc.h"
+#include "ffi.h"
 
 /* enable gc debuging by defining
  * DEBUG_GC
@@ -471,6 +472,10 @@ void finalize_object(object * head) {
     break;
   case HASH_TABLE:
     htb_destroy(HTAB(head));
+    break;
+  case ALIEN:
+    free_ffi_alien_object(head);
+    break;
   default:
     break;
   }

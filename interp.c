@@ -184,6 +184,10 @@ DEFUN1(is_real_proc) {
   return AS_BOOL(is_real(FIRST));
 }
 
+DEFUN1(is_small_fixnum_proc) {
+  return AS_BOOL(is_small_fixnum(FIRST));
+}
+
 DEFUN1(is_char_proc) {
   return AS_BOOL(is_character(FIRST));
 }
@@ -823,6 +827,9 @@ DEFUN1(number_to_string_proc) {
   else if(is_real(FIRST)) {
     snprintf(buffer, 100, "%.15lg", DOUBLE(FIRST));
   }
+  else if(is_small_fixnum(FIRST)) {
+    snprintf(buffer, 100, "%ld", SMALL_FIXNUM(FIRST));
+  }
   else {
     return throw_message("obj is not a number");
   }
@@ -1276,6 +1283,11 @@ object *expand_macro(object * macro, object * args, object * env, int level,
 
 object *interp1(object * exp, object * env, int level,
 		object * prim_call_stack, long prim_stack_top) {
+  if(g->empty_list->type != THE_EMPTY_LIST) {
+    fprintf(stderr, "all sanity lost\n");
+    exit(1);
+  }
+
   /* we break the usual convention of assuming our own arguments are
    * protected here because the tail recursive call can rebind these
    * two items to something new
@@ -1491,6 +1503,7 @@ void init_prim_environment(definer defn) {
   add_procedure("boolean?", is_boolean_proc);
   add_procedure("symbol?", is_symbol_proc);
   add_procedure("integer?", is_integer_proc);
+  add_procedure("small-integer?", is_small_fixnum_proc);
   add_procedure("real?", is_real_proc);
   add_procedure("char?", is_char_proc);
   add_procedure("string?", is_string_proc);
