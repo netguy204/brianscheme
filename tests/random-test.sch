@@ -36,9 +36,9 @@
   (with-curses win
     (let ((total 0)
           (in 0)
-          (step 500))
+          (step 0))
       (while #t
-        (set! step (+ 400 (random 200)))
+        (set! step (+ 1000 (random 200)))
         (set! total (+ total step))
         (dotimes (i step)
            (let ((x (- (random 2.0) 1.0))
