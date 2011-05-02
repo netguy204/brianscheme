@@ -197,16 +197,15 @@ reloaded."
 	    (ffi:deref (ffi:get-array-pointer alien-arg-array 0))))
   (newline))
 
-;calls test_fn in the ffi.c file with a function pointer that will
-;invoke closure-target when called. Note that create-closure does not
-;currently protect the provided function (which can be any arbitrary
-;invokeable thing) from gc so it should be protected by other
-;means... here closure-target protected by being a global.
+;;calls test_fn in the ffi.c file with a function pointer that will
+;;invoke closure-target when called. Note that create-closure does not
+;;currently protect the provided function (which can be any arbitrary
+;;invokeable thing) from gc so it should be protected by other
+;;means... here closure-target protected by being a global.
 (define (closure-test)
-  (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-uint)))
+  (let* ((cif (ffi:make-function-spec 'ffi-void (list 'ffi-uint) nil))
 	 (closure (ffi:create-closure (ffi:cif-cif-ref cif)
-				      closure-target
-				      (ffi:alien-to-int 0))))
+				      closure-target)))
     (test-fn closure)))
 
 (define (ffi:fork-test)
