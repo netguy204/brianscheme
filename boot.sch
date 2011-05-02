@@ -546,9 +546,9 @@ body. always executes at least once"
       (loop (%fixnum-add n 1))))
   #t)
 
-(define-syntax (dotimes (idx max) . body)
+(define-syntax (dotimes idx-and-max . body)
   "execute body max times with idx going from 0 to max-1"
-  `(do-times (lambda (,idx) . ,body) ,max))
+  `(do-times (lambda (,(first idx-and-max)) . ,body) ,(second idx-and-max)))
 
 (define (throw-error . objs)
   (apply error objs)

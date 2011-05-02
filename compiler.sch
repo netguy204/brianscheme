@@ -210,6 +210,7 @@ about its value and optionally with more forms following"
 (define (seq . code)
   (append-all code))
 
+
 (set! *bytecode-primitives*
       `((cons 2 ,(gen 'cons))
 	(car 1 ,(gen 'car))
@@ -223,6 +224,7 @@ about its value and optionally with more forms following"
 	(third 1 ,(seq (gen 'cdr)
 		       (gen 'cdr)
 		       (gen 'car)))))
+
 
 (define (bytecode-primitive? sym)
   (find (lambda (op) (eq? (first op) sym)) *bytecode-primitives*))
@@ -320,7 +322,7 @@ chainframe if ARGS is non-nil"
 		       (cons free-args env)
 		       env)))
 
-      (new-fun (seq (%gen-args args)
+      (new-fun (seq (%gen-args args free-inline)
 		    ;; make room on stack for unfree
 		    (apply seq
 		      (map (lambda (v)
@@ -339,23 +341,24 @@ chainframe if ARGS is non-nil"
 	  (make-true-list args)
 	  0))
 
-(define (%gen-chainframe args)
+(define (%gen-chainframe args free-inline)
   "generate a chainframe instruction if there are any free variables"
-  (let ((n-free-args (%count-free-args args)))
+  (let ((n-free-args (%fixnum-add (%count-free-args args)
+				  (%count-free-args free-inline))))
     (when (%fixnum-greater-than n-free-args 0)
       (gen 'chainframe n-free-args))))
 
-(define (%gen-args args)
-  (%gen-args-iter args args 0))
+(define (%gen-args args free-inline)
+  (%gen-args-iter args args free-inline 0))
 
-(define (%gen-args-iter args full-args n-so-far)
+(define (%gen-args-iter args full-args free-inline n-so-far)
   (write-dbg '%gen-args-iter args n-so-far)
   (cond
    ((null? args)
-    (%gen-chainframe full-args))
+    (%gen-chainframe full-args free-inline))
 
    ((variable? args)
-    (seq (%gen-chainframe full-args)
+    (seq (%gen-chainframe full-args free-inline)
 	 (gen 'pushvarargs n-so-far)
 	 (when (variable-is-free-ref args)
 	   (gen 'lset 0 (variable-idx-ref args)))))
@@ -365,11 +368,13 @@ chainframe if ARGS is non-nil"
     (let ((arg (first args)))
       (if (variable-is-free-ref arg)
 	  (seq (%gen-args-iter (rest args) full-args
+			       free-inline
 			       (%fixnum-add n-so-far 1))
 	       (gen 'spush n-so-far)
 	       (gen 'lset 0 (variable-idx-ref arg))
 	       (gen 'pop))
 	  (%gen-args-iter (rest args) full-args
+			  free-inline
 			  (%fixnum-add n-so-far 1)))))
    (else (throw-error "illegal argument list" args))))
 
@@ -869,7 +874,7 @@ variable given that our environment looks like ENV"
       (inlined-lambda (args body)
 	;; inlinings always bubble up so no need to search body
 	(append args found))
-      
+
       (else
        (reduce (lambda (found exp)
 		 (find-inlined-vars exp found))
@@ -877,51 +882,50 @@ variable given that our environment looks like ENV"
 	       found))))))
 
 (define (alpha-convert exp vars inline-notes)
-  (write-port (list 'alpha-convert exp vars inline-notes) stdout)
-  (newline)
+  ;;(write-port (list 'alpha-convert exp vars inline-notes) stdout) (newline)
   (cond
    ((symbol? exp)
     (remap-if-defined exp vars))
 
    ((atom? exp) exp)
-     
-   (else 
+
+   (else
     (record-case exp
       (if-compiling (then else)
-        (list 'if-compiling 
+        (list 'if-compiling
 	      (alpha-convert then vars inline-notes)
 	      (alpha-convert else vars inline-notes)))
-            
+
       (quote (obj) (list 'quote obj))
-      
+
       (begin exps
-	(cons 'begin 
+	(cons 'begin
 	      (map (lambda (exp)
 		     (alpha-convert exp vars inline-notes))
 		   exps)))
-      
+
       (set! (sym val)
         (list 'set!
 	      (alpha-convert sym vars inline-notes)
 	      (alpha-convert val vars inline-notes)))
-      
+
       (if (test then . else)
 	  (list 'if
 		(alpha-convert test vars inline-notes)
 		(alpha-convert then vars inline-notes)
 		(if else
 		    (alpha-convert (car else) vars inline-notes))))
-      
+
       (lambda (largs . body)
-	(let ((free-args (filter (lambda (var)
-				   (not (member? (car var)
-						 (make-true-list largs))))
+	(let* ((args-list (make-true-list largs))
+	       (free-args (filter (lambda (var)
+				    (not (member? (car var) args-list)))
 				 vars)))
 	  `(lambda ,largs
-	     ,@(map (lambda (e)
-		      (alpha-convert e free-args inline-notes))
-		    body))))
-      
+	     . ,(map (lambda (e)
+		       (alpha-convert e free-args nil))
+		     body))))
+
       (else
        (if (comp-macro? (first exp))
 	   ;; expand and retry
@@ -935,8 +939,9 @@ variable given that our environment looks like ENV"
 	         (args . body)
 		 (let ((remapped (make-new-names (make-true-list args)))
 		       (parms (rest exp)))
-		   
+
 		   (if inline-notes
+		       ;; we're already in an inline block, append to notepad
 		       (begin
 			 (push-note! inline-notes remapped)
 			 (generate-inlined args vars (append remapped vars) parms body inline-notes))
@@ -971,7 +976,7 @@ variable given that our environment looks like ENV"
      (generate-sets (cdr args) (cdr parms) premapped remapped inline-notes)))
 
    (else (throw-error "unrecognized argument " args))))
-   
+
 
 
 (define (generate-inlined args premapped remapped parms body notepad)
@@ -979,7 +984,7 @@ variable given that our environment looks like ENV"
   `(begin
      ;; generate the sets
      ,@(generate-sets args parms premapped remapped notepad)
-     
+
      ;; inline the body
      ,@(map (lambda (form)
 	      ;;(printf "converting form: %a\n" form)
