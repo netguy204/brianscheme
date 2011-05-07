@@ -247,7 +247,8 @@ DEFUN1(is_compiled_proc_proc) {
 }
 
 DEFUN1(add_fixnum_proc) {
-  return make_fixnum(LONG(FIRST) + LONG(SECOND));
+  long result = LONG(FIRST) + LONG(SECOND);
+  return make_fixnum(result);
 }
 
 DEFUN1(add_real_proc) {
@@ -255,7 +256,8 @@ DEFUN1(add_real_proc) {
 }
 
 DEFUN1(sub_fixnum_proc) {
-  return make_fixnum(LONG(FIRST) - LONG(SECOND));
+  long result = LONG(FIRST) - LONG(SECOND);
+  return make_fixnum(result);
 }
 
 DEFUN1(sub_real_proc) {
@@ -405,20 +407,28 @@ DEFUN1(set_cdr_proc) {
 }
 
 DEFUN1(is_eq_proc) {
+  if(FIRST == SECOND) {
+    return g->true;
+  }
+
+  if(TAGGED(FIRST) || TAGGED(SECOND)) {
+    /* all tagged values should have passed the first check if
+       equal */
+    return g->false;
+  }
+
   if(FIRST->type != SECOND->type) {
     return g->false;
   }
   switch (FIRST->type) {
-  case FIXNUM:
-    return (LONG(FIRST) == LONG(SECOND)) ? g->true : g->false;
   case FLOATNUM:
-    return (DOUBLE(FIRST) == DOUBLE(SECOND)) ? g->true : g->false;
+    return AS_BOOL(DOUBLE(FIRST) == DOUBLE(SECOND));
   case CHARACTER:
-    return (CHAR(FIRST) == CHAR(SECOND)) ? g->true : g->false;
+    return AS_BOOL(CHAR(FIRST) == CHAR(SECOND));
   case STRING:
-    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ? g->true : g->false;
+    return AS_BOOL(strcmp(STRING(FIRST), STRING(SECOND)) == 0);
   default:
-    return (FIRST == SECOND) ? g->true : g->false;
+    return g->false;
   }
 }
 
@@ -1039,6 +1049,11 @@ object *owrite(FILE * out, object * obj) {
     return throw_message("object is primitive #<NULL>");
   }
 
+  if(is_fixnum(obj)) {
+    fprintf(out, "%ld", LONG(obj));
+    return g->true;
+  }
+
   if(is_small_fixnum(obj)) {
     fprintf(out, "#<small %ld >", SMALL_FIXNUM(obj));
     return g->true;
@@ -1046,6 +1061,11 @@ object *owrite(FILE * out, object * obj) {
 
   if(is_hashtab(obj) && obj == g->env) {
     fprintf(out, "#<global-environment-hashtab>");
+    return g->true;
+  }
+
+  if(is_lazy_symbol(obj)) {
+    fprintf(out, "#G%ld", PRIM_UNINTERNED_SYMBOL(obj));
     return g->true;
   }
 
@@ -1058,12 +1078,6 @@ object *owrite(FILE * out, object * obj) {
     break;
   case SYMBOL:
     fprintf(out, "%s", obj->data.symbol.value);
-    break;
-  case LAZY_SYMBOL:
-    fprintf(out, "#G%ld", LONG(obj));
-    break;
-  case FIXNUM:
-    fprintf(out, "%ld", LONG(obj));
     break;
   case FLOATNUM:
     fprintf(out, "%lf", DOUBLE(obj));
