@@ -122,9 +122,9 @@ DEFUN1(set_bytecode_proc) {
 /* generate a function that converts a bytecode back into its
    corresponding symbol */
 
-#define generate_code_to_sym(opcode)			\
-  if(CHAR(FIRST) == _ ## opcode ## _) {			\
-    return make_symbol("" # opcode);			\
+#define generate_code_to_sym(opcode)					\
+  if(ALIEN_PTR(FIRST) == dispatch_table[_ ## opcode ## _]) {		\
+    return make_symbol("" # opcode);					\
   }
 
 DEFUN1(code_to_symbol_proc) {
