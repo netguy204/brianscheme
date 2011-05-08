@@ -24,7 +24,7 @@ void vm_add_roots(void);
 void vm_boot(void);
 void vm_init_environment(definer defn);
 
-object *vm_execute(object *fn, object *stack, long stack_top, long n_args);
+object *vm_execute(object *fn, object *stack, long stack_top, long n_args, object *genv);
 
 void vector_push(object *stack, object *obj, long top);
 

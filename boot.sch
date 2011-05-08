@@ -31,9 +31,6 @@
 ; back and doing things more by the book. Most of these methods were
 ; simply written as they were required.
 
-;; turn off profiling first so those numbers can be more useful later
-(set-profiling! #f)
-
 ;; Some very basic defines to get us started
 
 (set! nil '())
@@ -181,14 +178,14 @@
       . ,body)
     . ,(map second bindings)))
 
-;; now we can use let0 to define let*0 and letrec0
-(define-syntax (let*0 bindings . body)
+;; now we can use let0 to define let* and letrec
+(define-syntax (let* bindings . body)
   (if (null? bindings)
       `(begin . ,body)
       `(let0 (,(first bindings))
-	 (let*0 ,(cdr bindings) . ,body))))
+	 (let* ,(cdr bindings) . ,body))))
 
-(define-syntax (letrec0 bindings . body)
+(define-syntax (letrec bindings . body)
   `(let0 ,(map (lambda (b) (list (first b) 'nil))
 	      bindings)
      ,@(map (lambda (b) (list 'set! (first b) (second b)))
@@ -223,7 +220,7 @@
 
 (define (append-all lists)
   "append the lists inside the argument together end-to-end"
-  (letrec0 ((iter (lambda (result current-list remaining-lists)
+  (letrec ((iter (lambda (result current-list remaining-lists)
 		   (if (null? current-list)
 		       (if (null? remaining-lists)
 			   result
@@ -246,17 +243,17 @@
 (define (destructure-into-bindings var-forms value-forms)
   "produces let style binding pairs with operations on value-forms
 that decompose it according to the structure of var-forms"
-  (letrec0 ((result nil)
-	    (iter
-	     (lambda (vars values)
-	       (cond
-		((symbol? vars)
-		 (push! (list vars values) result))
-		((pair? vars)
-		 (iter (car vars) `(car ,values))
-		 (iter (cdr vars) `(cdr ,values)))
-		((null? vars) #t)
-		(else (throw-error "don't know what to do with" vars))))))
+  (letrec ((result nil)
+	   (iter
+	    (lambda (vars values)
+	      (cond
+	       ((symbol? vars)
+		(push! (list vars values) result))
+	       ((pair? vars)
+		(iter (car vars) `(car ,values))
+		(iter (cdr vars) `(cdr ,values)))
+	       ((null? vars) #t)
+	       (else (throw-error "don't know what to do with" vars))))))
     (iter var-forms value-forms)
     (reverse result)))
 
@@ -274,7 +271,7 @@ that decompose it according to the structure of var-forms"
 	     (bindings (destructure-all-bindings (first bindings-or-body)))
 	     (body (rest bindings-or-body)))
 
-        `(letrec0 ((,name
+        `(letrec ((,name
 		   (lambda ,(map first bindings)
 		     . ,body)))
 	   (,name . ,(map second bindings))))
@@ -287,12 +284,6 @@ falselike. Otherwise evaluate else"
        (if ,(caar binding)
 	   ,then
 	   ,else)))
-
-(define-syntax (let* bindings . body)
-  `(let*0 ,(destructure-all-bindings bindings) . ,body))
-
-(define-syntax (letrec bindings . body)
-  `(letrec0 ,(destructure-all-bindings bindings) . ,body))
 
 (define-syntax (%inc! dst)
   `(set! ,dst (%fixnum-add 1 ,dst)))
@@ -1104,7 +1095,8 @@ returns true"
 	    (push! arg argnames))
 
 	   ((pair? arg)
-	    (let* (((varname default) arg)
+	    (let* ((varname (first arg))
+		   (default (second arg))
 		   (kwname (symbol->keyword varname))
 		   (sym (gensym)))
 

@@ -40,14 +40,7 @@
     (check (equal? '(4 4) (fn)))
 
     (or (fn) (fn) (fn)) ;; should evaluate fn once
-    (check (equal? '(6 6) (fn)))
-
-    ;; destructuring let should evaluate its bindings only once
-    (let (((a b) (fn))
-	  ((c d) (fn)))
-      (check
-       (= a 7) (= b 7)
-       (= c 8) (= d 8)))))
+    (check (equal? '(6 6) (fn)))))
 
 
 

@@ -25,8 +25,6 @@
 #include "gc.h"
 #include "ffi.h"
 
-char profiling_enabled;
-
 #define ARG1 ((long)(codes[pc-2]))
 #define ARG2 ((long)(codes[pc-1]))
 #define BC void*
@@ -232,7 +230,7 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
     goto *codes[tgt];						\
   } while(0)
 
-object *vm_execute(object * fn, object * stack, long stack_top, long n_args) {
+object *vm_execute(object * fn, object * stack, long stack_top, long n_args, object* genv) {
   object *const_array;
 
   object *env;
@@ -490,7 +488,7 @@ vm_fn_begin:
 	val = var;
       }
       else {
-	val = lookup_global_value(VARRAY(const_array)[ARG1], g->vm_env);
+	val = lookup_global_value(VARRAY(const_array)[ARG1], genv);
 	if(is_primitive_exception(val)) {
 	  VM_ERROR_RESTART(CDR(val));
 	}
@@ -504,13 +502,13 @@ vm_fn_begin:
  __gset__:
       var = VARRAY(const_array)[ARG1];
       val = VARRAY(stack)[stack_top - 1];
-      slot = get_hashtab(g->vm_env, var, NULL);
+      slot = get_hashtab(genv, var, NULL);
       if(slot) {
 	CDR(slot) = val;
       }
       else {
 	val = cons(var, val);
-	define_global_variable(var, val, g->vm_env);
+	define_global_variable(var, val, genv);
       }
 
       NEXT_INSTRUCTION;
@@ -633,16 +631,6 @@ DEFUN1(set_cc_bytecode) {
   return FIRST;
 }
 
-DEFUN1(set_profiling_proc) {
-  if(is_falselike(FIRST)) {
-    profiling_enabled = 0;
-  }
-  else {
-    profiling_enabled = 1;
-  }
-  return FIRST;
-}
-
 DEFUN1(set_error_restart_proc) {
   g->vm_error_restart = FIRST;
   return FIRST;
@@ -671,7 +659,7 @@ void vm_boot(void) {
 
   /* ask the vm to generate the jump table */
   build_dispatch_table = 1;
-  vm_execute(NULL, NULL, 0, 0);
+  vm_execute(NULL, NULL, 0, 0, NULL);
 
   /* register for sigint */
   struct sigaction sa;
@@ -699,8 +687,6 @@ void vm_init(void) {
 
   g->vm_error_restart = g->empty_list;
   push_root(&(g->vm_error_restart));
-
-  profiling_enabled = 0;
 }
 
 void vm_init_environment(definer defn) {
@@ -708,8 +694,6 @@ void vm_init_environment(definer defn) {
   defn("symbol->bytecode", make_primitive_proc(symbol_to_code_proc));
 
   defn("bytecode->symbol", make_primitive_proc(code_to_symbol_proc));
-
-  defn("set-profiling!", make_primitive_proc(set_profiling_proc));
 
   defn("make-bytecode-array", make_primitive_proc(make_bytecode_array_proc));
 

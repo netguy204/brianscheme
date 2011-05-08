@@ -51,7 +51,7 @@ void *new_mmap(size_t size) {
 /* Used internally to allocate more pool space. */
 static subpool_t *create_subpool_node(size_t size);
 
-pool_t *create_pool(size_t min_alloc, size_t init_alloc, void **init) {
+pool_t *create_pool(size_t init_alloc, void **init) {
   /* Make sure it aligns as a page. */
   size_t ps = sysconf(_SC_PAGE_SIZE);
   size_t init_size = (default_pool_size / ps) * ps;
@@ -62,7 +62,6 @@ pool_t *create_pool(size_t min_alloc, size_t init_alloc, void **init) {
   first->free_start += sizeof(pool_t);
   new_pool->pools = first;
   new_pool->first = new_pool->pools;
-  new_pool->min_alloc = min_alloc;
 
   if(init_alloc > 0 && init != NULL) {
     *init = first->free_start;
@@ -131,13 +130,7 @@ subpool_t *create_subpool_node(size_t size) {
   new_subpool->free_start = new_subpool->mem_block + hdr + sizeof(subpool_t);
   new_subpool->free_end = new_subpool->mem_block + size;
   new_subpool->size = size;
-  new_subpool->misses = 0;
   new_subpool->next = NULL;
-
-  /* freed stack (create later) */
-  new_subpool->freedb = NULL;
-  new_subpool->freedp = NULL;
-  new_subpool->freed_size = 0;
 
   return new_subpool;
 }

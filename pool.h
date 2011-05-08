@@ -32,16 +32,11 @@ typedef struct subpool_t
   void *free_start;		/* start of free segment */
   void *free_end;		/* end of free segment */
   size_t size;			/* total size of the block */
-  int misses;			/* allocation misses for this subpool */
-  freed_t *freedb;		/* freed memory stack base */
-  freed_t *freedp;		/* freed memory stack top */
-  size_t freed_size;		/* freed memory stack size*/
   struct subpool_t *next;	/* next subpool in this pool */
 } subpool_t;
 
 typedef struct pool_t
 {
-  size_t min_alloc;		/* min allocation size */
   subpool_t *pools;		/* first element in linked list */
   subpool_t *first;		/* first good subpool in list */
 } pool_t;
@@ -50,7 +45,7 @@ typedef struct pool_t
  * positive init_alloc it will initially allocate that many bytes and
  * store it in init. When loading a pool, this same pointer is
  * returned. */
-pool_t *create_pool (size_t min_alloc, size_t init_alloc, void **init);
+pool_t *create_pool (size_t init_alloc, void **init);
 
 /* Returns a pointer to the allocated size bytes from the given
  * pool. Returns NULL if malloc() fails. */

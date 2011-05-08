@@ -631,7 +631,7 @@ object *apply(object * fn, object * evald_args) {
          gc'd */
     }
     else {
-      result = vm_execute(fn, stack, stack_top, num_args);
+      result = vm_execute(fn, stack, stack_top, num_args, g->vm_env);
     }
     pop_root(&stack);
     return result;
@@ -1424,7 +1424,7 @@ interp_restart:
 	  }
 	}
 	else {
-	  result = vm_execute(fn, prim_call_stack, prim_stack_top, arg_count);
+	  result = vm_execute(fn, prim_call_stack, prim_stack_top, arg_count, g->vm_env);
 	}
 
 	pop_root(&fn);
