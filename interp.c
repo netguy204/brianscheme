@@ -882,6 +882,13 @@ DEFUN1(make_vector_proc) {
 }
 
 DEFUN1(get_vector_element_proc) {
+  if(!is_vector(FIRST)) {
+    return throw_message("first argument is not a vector");
+  }
+  if(LONG(SECOND) >= VSIZE(FIRST)) {
+    return throw_message("index %ld is out of bounds for vector of size %ld",
+			 LONG(SECOND), VSIZE(FIRST));
+  }
   return VARRAY(FIRST)[LONG(SECOND)];
 }
 
