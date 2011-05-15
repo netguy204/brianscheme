@@ -1316,7 +1316,7 @@ returns true"
  ;; interpreter to do that
  (begin
    (display "Compiling compiler..." stderr)
-   (write-char #\newline stdout)
+   (write-char #\newline stderr)
 
    ;; we still need the interpreter to run the compiler until we get
    ;; the compiler compiled. we override compile file to make use of
@@ -1378,7 +1378,7 @@ returns true"
  ;; the world
  (begin
    (display "Bootstrapping compiler..." stderr)
-   (write-char #\newline stdout)
+   (write-char #\newline stderr)
 
    (require 'compiler)
    (compile-file "boot.sch")
