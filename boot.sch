@@ -1041,7 +1041,9 @@ returns true"
 	   struct))
 
        (define (,(struct-predicate-name name) struct)
-	 (and (vector? struct) (eq? ',name (vector-ref struct 0))))
+	 (and (vector? struct)
+	      (%fixnum-greater-than (vector-length struct) 0)
+	      (eq? ',name (vector-ref struct 0))))
 
        . ,(let ((idx 0))
 	    (map (lambda (slot)
