@@ -156,3 +156,9 @@
 (define (hash-set! ht key value)
   "Store value into hash table at key."
   (put ht key value))
+
+(define-macro-character (#\{ stream)
+  "provide hash-table reader syntax"
+  (let ((new (make-hash-table))
+	(values (read:list stream #\})))
+    (into new values)))
