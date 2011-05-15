@@ -210,7 +210,7 @@ specified"
 		     (+ (upper-left-col obj view)
 			(width obj))) objs)))
 
-(require "shiney/game-objects.sch")
+(require "examples/shiney/game-objects.sch")
 
 (define (control-object player)
   (dotimes (ii 9)
