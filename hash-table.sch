@@ -9,6 +9,7 @@
 ;;  * print form (readable?)
 
 (require 'clos)
+(require 'clojure-containers)
 
 ;; Hash definitions for each type
 
@@ -87,6 +88,9 @@
 (define-generic put
   "Store a value in the object.")
 
+(define-generic keys
+  "Get all of the keys in the object.")
+
 (define-method (get (ht <hash-table>) key)
   (let* ((v (slot-ref ht 'vector))
          (idx (mod (hash key) (vector-length v)))
@@ -106,6 +110,37 @@
         (begin
           (vector-set! v idx (cons (cons key value) slot))
           value))))
+
+(define-method (keys (ht <hash-table>))
+  (let* ((v (slot-ref ht 'vector))
+	 (sz (vector-length v))
+	 (result nil))
+    (dotimes (idx sz)
+      (dolist (entry (vector-ref v idx))
+        (push! (car entry) result)))
+
+    result))
+
+(define-method (gfirst (ht <hash-table>))
+  (let ((ks (keys ht)))
+    (if ks
+	(list (car ks) (get ht (car ks))))))
+
+(define-method (grest (ht <hash-table>))
+  (let ((ks (keys ht)))
+    (if (and ks (cdr ks))
+	(let ((new (make-hash-table)))
+	  (dolist (k (cdr ks))
+	    (put new k (get ht k)))
+	  new)
+	nil)))
+
+(define-method (conj (ht <hash-table>) other)
+  (let ((new (make-hash-table)))
+    (dolist (k (keys ht))
+      (put new k (get ht k)))
+    (put new (gfirst other) (gfirst (grest other)))
+    new))
 
 ;; Non-CLOS functions
 
