@@ -761,7 +761,8 @@ variable given that our environment looks like ENV"
 
 (define (%show-fn fn indent)
   (newline)
-  (let ((line-num 0))
+  (let ((line-num 0)
+	(fn (if (meta? fn) (meta-object fn) fn)))
     (dolist (instr (%compiled->instructions fn))
       (if (is instr 'fn)
 	  (begin
