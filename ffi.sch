@@ -226,3 +226,57 @@ reloaded."
 	  (newline)))))
 
 
+(define (compile-and-run code)
+  "use gcc to compile code and then execute it using the reader to
+capture whatever it writes to stdout"
+  (let ((tempfile "temp.c")
+	(tempcomp "temp"))
+    (with-output-stream (stream tempfile)
+      (write-stream stream code))
+    
+    (let ((cmd (sprintf "gcc -o %s %s" tempcomp tempfile)))
+      (unless (system cmd)
+        (throw-error "command failed" cmd)))
+
+    (let* ((pipe (open-input-pipe (sprintf "./%s" tempcomp)))
+	   (result (read-port pipe)))
+      (close-input-port pipe)
+      (system (sprintf "rm -f %s %s" tempfile tempcomp))
+      result)))
+
+(define (ffi:include-and-main include main)
+  (sprintf
+"
+#include <stdio.h>
+#include %s
+
+int main(int argc, char ** argv) {
+%s
+}
+" include main))
+
+(define (ffi:gen-get-const include const)
+  "generate c code to print out a constant numeric value"
+  (ffi:include-and-main include
+    (sprintf
+"
+  printf(\"%d\\n\", %s);
+" const)))
+
+(define (ffi:get-const include const)
+  (compile-and-run (ffi:gen-get-const include const)))
+
+(define (ffi:offset-of include type field)
+  "generate c code to print the offset of FIELD in TYPE"
+  (ffi:get-const include (sprintf "(int)&(((%s *)0)->%s)" type field)))
+
+(define (ffi:size-of include type)
+  "generate c code to print the size of TYPE"
+  (ffi:get-const include (sprintf "sizeof(%s)" type)))
+
+(define (ffi:gcc-test)
+  "examples of using the ffi code that depends on gcc"
+  (let ((include "\"types.h\""))
+    (printf "object is %a bytes\n" (ffi:size-of include "object"))
+    (printf "string is at offset %a\n" (ffi:offset-of include "object" "data.string.value"))))
+

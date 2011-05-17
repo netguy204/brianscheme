@@ -102,6 +102,13 @@
    (lambda (f)
      (fn (make <native-output-stream> 'port f)))))
 
+(define-syntax (with-output-stream handle-and-name . body)
+  (let ((handle (first handle-and-name))
+	(name (second handle-and-name)))
+    `(call-with-output-stream ,name
+       (lambda (,handle)
+	 . ,body))))
+
 ;; these overrides on print-object provide all of the functionality of
 ;; the primitive writer but also give the user the opportunity to
 ;; define their own printed form for their classes.
