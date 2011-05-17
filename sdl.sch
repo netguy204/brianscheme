@@ -10,9 +10,10 @@
 	(free-surface (ffi:dlsym handle "SDL_FreeSurface"))
 	(upper-blit (ffi:dlsym handle "SDL_UpperBlit"))
 	(update-rect (ffi:dlsym handle "SDL_UpdateRect"))
-	(quit (ffi:dlsym handle "SDL_Quit")))
+	(quit (ffi:dlsym handle "SDL_Quit"))
+	(header "<SDL/SDL.h>"))
 
-    (define sdl:INIT-VIDEO #X020)
+    (define sdl:INIT-VIDEO (ffi:get-const header "SDL_INIT_VIDEO"))
 
     (define (sdl:init flag)
       (ffi:funcall init 'ffi-uint flag))

@@ -274,6 +274,91 @@ int main(int argc, char ** argv) {
   "generate c code to print the size of TYPE"
   (ffi:get-const include (sprintf "sizeof(%s)" type)))
 
+(define (ffi:size-of-long)
+  "returns machine size of long. caches result"
+  (let-static ((sz ()))
+    (unless sz
+      (set! sz (ffi:size-of "<stdlib.h>" "long")))
+    sz))
+
+(define (ffi:endianess)
+  "returns big-endian or little-endian"
+  (let-static ((result ()))
+    (unless result
+      (let ((big (ffi:get-const "<endian.h>" "__BIG_ENDIAN"))
+	    (little (ffi:get-const "<endian.h>" "__LITTLE_ENDIAN"))
+	    (ours (ffi:get-const "<endian.h>" "__BYTE_ORDER")))
+	(set! result
+	      (cond
+	       ((= ours big) 'big-endian)
+	       ((= ours little) 'little-endian)
+	       (else (throw-error "unrecognized byte order" ours))))))
+    
+    result))
+
+(define (ffi:little-endian?)
+  (eq? (ffi:endianess) 'little-endian))
+
+(define (ffi:bs->machine bytes)
+  "put BYTES into machine order from bs order"
+  (if (ffi:little-endian?)
+      (reverse bytes)
+      bytes))
+
+(define (ffi:machine->bs bytes)
+  "put BYTES into bs order from machine order"
+  (if (ffi:little-endian?)
+      (reverse bytes)
+      bytes))
+
+(define (ffi:integer->long-bytes int)
+  "create a list of N bytes with the most significant first"
+  (let ((num-bytes (ffi:size-of-long)))
+    (let loop ((count 0)
+	       (value int)
+	       (result nil))
+      (if (< count num-bytes)
+	  (loop (+ count 1)
+		(ash value -8)
+		(cons (logand value #Xff) result))
+	  result))))
+
+(define (ffi:long-bytes->integer bytes)
+  "convert a most-significant-first array of bytes into an integer"
+  (assert (<= (length bytes) (ffi:size-of-long)))
+  (let loop ((remaining bytes)
+	     (result 0))
+    (if remaining
+	(loop (rest remaining)
+	      (logor (ash result 8) (first remaining)))
+	result)))
+
+(define (ffi:pack-bytes bytes offset to-pack)
+  "pack TO-PACK bytes into BYTES starting at OFFSET"
+  (dolist-idx ((val idx) to-pack)
+    (ffi:byte-set! bytes (+ offset idx) (if (char? val)
+					    val
+					    (integer->char val)))))
+
+(define (ffi:unpack-bytes bytes offset count)
+  "unpack COUNT bytes from BYTES starting at OFFSET"
+  (let ((result nil))
+    (dotimes (idx count)
+      (push! (char->integer (ffi:byte-ref bytes (+ offset idx))) result))
+    (reverse result)))
+
+(define (ffi:pack-long bytes offset long)
+  "pack machine sized LONG into BYTES starting at OFFSET"
+  (ffi:pack-bytes bytes 0 (ffi:bs->machine (ffi:integer->long-bytes long)))
+  bytes)
+
+(define (ffi:unpack-long bytes offset)
+  "unpack machine sized long from BYTES starting at OFFSET"
+  (ffi:long-bytes->integer (ffi:machine->bs (ffi:unpack-bytes bytes offset (ffi:size-of-long)))))
+
+(define (ffi:create-long-example long)
+  (ffi:pack-long (ffi:make-bytes (ffi:size-of-long)) 0 long))
+
 (define (ffi:gcc-test)
   "examples of using the ffi code that depends on gcc"
   (let ((include "\"types.h\""))
