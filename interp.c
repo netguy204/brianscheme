@@ -781,7 +781,7 @@ DEFUN1(port_dump_proc) {
 }
 
 DEFUN1(char_to_integer_proc) {
-  return make_fixnum(CHAR(FIRST));
+  return make_fixnum((unsigned char)CHAR(FIRST));
 }
 
 DEFUN1(integer_to_char_proc) {

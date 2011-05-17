@@ -233,7 +233,7 @@ capture whatever it writes to stdout"
 	(tempcomp "temp"))
     (with-output-stream (stream tempfile)
       (write-stream stream code))
-    
+
     (let ((cmd (sprintf "gcc -o %s %s" tempcomp tempfile)))
       (unless (system cmd)
         (throw-error "command failed" cmd)))
@@ -255,32 +255,32 @@ int main(int argc, char ** argv) {
 }
 " include main))
 
-(define (ffi:gen-get-const include const)
+(define (ffi:gen-get-const include format const)
   "generate c code to print out a constant numeric value"
   (ffi:include-and-main include
     (sprintf
 "
-  printf(\"%d\\n\", %s);
-" const)))
+  printf(\"%s\\n\", %s);
+" format const)))
 
-(define (ffi:get-const include const)
-  (compile-and-run (ffi:gen-get-const include const)))
+(define (ffi:get-const include format const)
+  (compile-and-run (ffi:gen-get-const include format const)))
 
 (define (ffi:offset-of include type field)
   "generate c code to print the offset of FIELD in TYPE"
-  (ffi:get-const include (sprintf "(int)&(((%s *)0)->%s)" type field)))
+  (ffi:get-const include "%d" (sprintf "(int)&(((%s *)0)->%s)" type field)))
 
 (define (ffi:size-of include type)
   "generate c code to print the size of TYPE"
-  (ffi:get-const include (sprintf "sizeof(%s)" type)))
+  (ffi:get-const include "%ld" (sprintf "sizeof(%s)" type)))
 
 (define-constant-function ffi:size-of-long
   (ffi:size-of "<stdlib.h>" "long"))
 
 (define-constant-function ffi:endianess
-  (let ((big (ffi:get-const "<endian.h>" "__BIG_ENDIAN"))
-	(little (ffi:get-const "<endian.h>" "__LITTLE_ENDIAN"))
-	(ours (ffi:get-const "<endian.h>" "__BYTE_ORDER")))
+  (let ((big (ffi:get-const "<endian.h>" "%d" "__BIG_ENDIAN"))
+	(little (ffi:get-const "<endian.h>" "%d" "__LITTLE_ENDIAN"))
+	(ours (ffi:get-const "<endian.h>" "%d" "__BYTE_ORDER")))
     (cond
      ((= ours big) 'big-endian)
      ((= ours little) 'little-endian)
@@ -330,7 +330,7 @@ int main(int argc, char ** argv) {
 					    value
 					    (integer->char value))))
   bytes)
-		   
+
 (define (ffi:pack-bytes bytes offset to-pack)
   "pack TO-PACK bytes into BYTES starting at OFFSET"
   (dolist-idx ((val idx) to-pack)

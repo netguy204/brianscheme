@@ -18,8 +18,8 @@
 	(header "<SDL/SDL.h>"))
 
     (define-constant-function sdl:INIT-VIDEO
-      (ffi:get-const header "SDL_INIT_VIDEO"))
-    
+      (ffi:get-const header "%d" "SDL_INIT_VIDEO"))
+
     (define-constant-function sdl:event:type-offset
       (ffi:offset-of header "SDL_Event" "type"))
 
@@ -39,7 +39,7 @@
 
     (define (sdl:wm-set-caption title iconified)
       (ffi:funcall set-caption 'ffi-void title iconified))
-    
+
     (define (sdl:set-video-mode width height bpp flags)
       (ffi:funcall set-video-mode 'ffi-pointer width height bpp flags))
 
