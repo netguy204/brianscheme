@@ -1,5 +1,9 @@
 (require 'ffi)
 
+(define-struct sdl:event
+  (type
+   value))
+
 (with-library (handle "libSDL")
   (let ((init (ffi:dlsym handle "SDL_Init"))
 	(set-caption (ffi:dlsym handle "SDL_WM_SetCaption"))
@@ -13,7 +17,22 @@
 	(quit (ffi:dlsym handle "SDL_Quit"))
 	(header "<SDL/SDL.h>"))
 
-    (define sdl:INIT-VIDEO (ffi:get-const header "SDL_INIT_VIDEO"))
+    (define-constant-function sdl:INIT-VIDEO
+      (ffi:get-const header "SDL_INIT_VIDEO"))
+    
+    (define-constant-function sdl:event:type-offset
+      (ffi:offset-of header "SDL_Event" "type"))
+
+    (define-constant-function sdl:size-of-event
+      (ffi:size-of header "SDL_Event"))
+
+    (define (sdl:event:empty)
+      (let ((sz (sdl:size-of-event)))
+	(ffi:set-bytes (ffi:make-bytes sz) 0 sz 0)))
+
+    (define (sdl:event:unpack bytes offset)
+      (let ((type (ffi:unpack-byte bytes (sdl:event:type-offset))))
+	type))
 
     (define (sdl:init flag)
       (ffi:funcall init 'ffi-uint flag))
@@ -55,7 +74,7 @@
 
 
 (define (sdl:test image)
-  (sdl:init sdl:INIT-VIDEO)
+  (sdl:init (sdl:INIT-VIDEO))
   (sdl:wm-set-caption "SDL Test" "SDL Test")
   (let* ((screen (sdl:set-video-mode 640 480 0 0))
 	 (tmp (sdl:load-bmp image))

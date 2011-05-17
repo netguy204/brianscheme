@@ -274,27 +274,17 @@ int main(int argc, char ** argv) {
   "generate c code to print the size of TYPE"
   (ffi:get-const include (sprintf "sizeof(%s)" type)))
 
-(define (ffi:size-of-long)
-  "returns machine size of long. caches result"
-  (let-static ((sz ()))
-    (unless sz
-      (set! sz (ffi:size-of "<stdlib.h>" "long")))
-    sz))
+(define-constant-function ffi:size-of-long
+  (ffi:size-of "<stdlib.h>" "long"))
 
-(define (ffi:endianess)
-  "returns big-endian or little-endian"
-  (let-static ((result ()))
-    (unless result
-      (let ((big (ffi:get-const "<endian.h>" "__BIG_ENDIAN"))
-	    (little (ffi:get-const "<endian.h>" "__LITTLE_ENDIAN"))
-	    (ours (ffi:get-const "<endian.h>" "__BYTE_ORDER")))
-	(set! result
-	      (cond
-	       ((= ours big) 'big-endian)
-	       ((= ours little) 'little-endian)
-	       (else (throw-error "unrecognized byte order" ours))))))
-    
-    result))
+(define-constant-function ffi:endianess
+  (let ((big (ffi:get-const "<endian.h>" "__BIG_ENDIAN"))
+	(little (ffi:get-const "<endian.h>" "__LITTLE_ENDIAN"))
+	(ours (ffi:get-const "<endian.h>" "__BYTE_ORDER")))
+    (cond
+     ((= ours big) 'big-endian)
+     ((= ours little) 'little-endian)
+     (else (throw-error "unrecognized byte order" ours)))))
 
 (define (ffi:little-endian?)
   (eq? (ffi:endianess) 'little-endian))
@@ -333,12 +323,21 @@ int main(int argc, char ** argv) {
 	      (logor (ash result 8) (first remaining)))
 	result)))
 
+(define (ffi:set-bytes bytes offset count value)
+  "set COUNT bytes to VALUE in BYTES starting at OFFSET"
+  (dotimes (idx count)
+    (ffi:byte-set! bytes (+ offset idx) (if (char? value)
+					    value
+					    (integer->char value))))
+  bytes)
+		   
 (define (ffi:pack-bytes bytes offset to-pack)
   "pack TO-PACK bytes into BYTES starting at OFFSET"
   (dolist-idx ((val idx) to-pack)
     (ffi:byte-set! bytes (+ offset idx) (if (char? val)
 					    val
-					    (integer->char val)))))
+					    (integer->char val))))
+  bytes)
 
 (define (ffi:unpack-bytes bytes offset count)
   "unpack COUNT bytes from BYTES starting at OFFSET"
@@ -349,12 +348,20 @@ int main(int argc, char ** argv) {
 
 (define (ffi:pack-long bytes offset long)
   "pack machine sized LONG into BYTES starting at OFFSET"
-  (ffi:pack-bytes bytes 0 (ffi:bs->machine (ffi:integer->long-bytes long)))
+  (ffi:pack-bytes bytes offset (ffi:bs->machine (ffi:integer->long-bytes long)))
   bytes)
 
 (define (ffi:unpack-long bytes offset)
   "unpack machine sized long from BYTES starting at OFFSET"
   (ffi:long-bytes->integer (ffi:machine->bs (ffi:unpack-bytes bytes offset (ffi:size-of-long)))))
+
+(define (ffi:pack-byte bytes offset byte)
+  (ffi:pack-bytes bytes offset (list (if (char? byte)
+					 (char->integer byte)
+					 byte))))
+
+(define (ffi:unpack-byte bytes offset)
+  (first (ffi:unpack-bytes bytes offset 1)))
 
 (define (ffi:create-long-example long)
   (ffi:pack-long (ffi:make-bytes (ffi:size-of-long)) 0 long))
