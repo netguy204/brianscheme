@@ -1301,6 +1301,18 @@ returns true"
 		(static-rewrite-sets exp bound))
 	      body))))
 
+(define-syntax (define-constant-function name . body)
+  "define a constant function whose body will be evaluated once and
+the result cached. All future evaluations will return the cached
+value."
+  (let ((cache-name (gensym)))
+    `(set! ,name
+	   (lambda ()
+	     (let-static ((,cache-name ()))
+	       (unless ,cache-name
+	         (set! ,cache-name (begin . ,body)))
+	       ,cache-name)))))
+
 ;; if-compiling is a special form in the compiler only. we define
 ;; syntax here so that if we're interpreting the else clause will
 ;; execute and if we're compiling the if clauses will execute (due to
