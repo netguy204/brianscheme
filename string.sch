@@ -25,6 +25,53 @@
         (string-set! substr i (string-ref str (+ i start))))
       substr)))
 
+(define (string-map fn str)
+  "map a function over all characters in a string to produce a new
+string"
+  (let* ((len (string-length str))
+	 (new (make-string len #\space)))
+    (dotimes (idx len)
+      (string-set! new idx
+		   (fn (string-ref str idx))))
+    new))
+
+(define (char-case-switch char uppercase?)
+  "change the case of char if alpha."
+  (let* ((ord (char->integer char))
+	 (a (if uppercase?
+		(char->integer #\a)
+		(char->integer #\A)))
+	 (z (if uppercase?
+		(char->integer #\z)
+		(char->integer #\Z)))
+	 (step (- (char->integer #\A)
+		  (char->integer #\a)))
+	 (step (if uppercase?
+		   step
+		   (- step))))
+    (if (and (>= ord a)
+	     (<= ord z))
+	(integer->char (+ ord step))
+	char)))
+
+(define (char-uppercase char)
+  "convert an alpha character to uppercase if it isn't
+already. ignores non-alpha"
+  (char-case-switch char #t))
+
+(define (char-lowercase char)
+  "convert an alpha character to lowercase if it isn't
+already. ignores non-alpha"
+  (char-case-switch char #f))
+
+(define (uppercase str)
+  "convert a string to uppercase"
+  (string-map char-uppercase str))
+
+(define (lowercase str)
+  "convert a string to lowercase"
+  (string-map char-lowercase str))
+
 (define (string->list str)
   "Turn a string into a character list."
   (let ((len (string-length str)))
