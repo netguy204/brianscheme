@@ -268,7 +268,7 @@ int main(int argc, char ** argv) {
 
 (define (ffi:offset-of include type field)
   "generate c code to print the offset of FIELD in TYPE"
-  (ffi:get-const include "%d" (sprintf "(int)&(((%s *)0)->%s)" type field)))
+  (ffi:get-const include "%ld" (sprintf "(long)&(((%s *)0)->%s)" type field)))
 
 (define (ffi:size-of include type)
   "generate c code to print the size of TYPE"
@@ -362,6 +362,15 @@ int main(int argc, char ** argv) {
 
 (define (ffi:unpack-byte bytes offset)
   (first (ffi:unpack-bytes bytes offset 1)))
+
+(define (ffi:compute-enums include names-and-symbols)
+  (map (lambda (ns)
+	 (cons (ffi:get-const include "%d" (first ns)) ns))
+       names-and-symbols))
+
+(define-syntax (ffi:define-enum include name . names-and-symbols)
+  (let ((ens (ffi:compute-enums include names-and-symbols)))
+    `',ens))
 
 (define (ffi:create-long-example long)
   (ffi:pack-long (ffi:make-bytes (ffi:size-of-long)) 0 long))
