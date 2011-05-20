@@ -181,7 +181,7 @@
 
     (let loop ((ev (sdl:test:safe-wait)))
       (case (and ev (sdl:event-type-ref ev))
-	((sdl:mouse-button-down sdl:mouse-button-up)
+	((sdl:mouse-button-down)
 	 (let ((v (sdl:event-value-ref ev)))
 	   (set! bmp-x (second (assoc 'x v)))
 	   (set! bmp-y (second (assoc 'y v))))
@@ -190,4 +190,7 @@
 
       (sdl:blit-surface bmp src-rect screen (sdl:make-rect bmp-x bmp-y 128 128))
       (sdl:update-rect screen 0 0 640 480)
-      (loop (sdl:test:safe-wait)))))
+
+      (if (eq? (sdl:event-type-ref ev) 'sdl:quit)
+	  (sdl:quit)
+	  (loop (sdl:test:safe-wait))))))
