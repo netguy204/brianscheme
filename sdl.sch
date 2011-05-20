@@ -79,27 +79,18 @@
       (let ((sz (sdl:size-of-event)))
 	(ffi:set-bytes (ffi:make-bytes sz) 0 sz 0)))
 
-    (define-constant-function sdl:event:offset-of-mbe-button
-      (ffi:offset-of header "SDL_Event" "button.button"))
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-motion-event
+      ("motion.state" state (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
+      ("motion.x"     x     (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
+      ("motion.y"     y     (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
+      ("motion.xrel"  xrel  (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
+      ("motion.yrel"  yrel  (lambda (bytes offset) (ffi:unpack-integer bytes offset 2))))
 
-    (define-constant-function sdl:event:offset-of-mbe-state
-      (ffi:offset-of header "SDL_Event" "button.state"))
-
-    (define-constant-function sdl:event:offset-of-mbe-x
-      (ffi:offset-of header "SDL_Event" "button.x"))
-
-    (define-constant-function sdl:event:offset-of-mbe-y
-      (ffi:offset-of header "SDL_Event" "button.y"))
-
-    (define (sdl:event:unpack-mouse-button-event bytes offset)
-      (let ((button (ffi:unpack-integer bytes (+ offset (sdl:event:offset-of-mbe-button)) 1))
-	    (state (ffi:unpack-integer bytes (+ offset (sdl:event:offset-of-mbe-state)) 1))
-	    (x (ffi:unpack-integer bytes (+ offset (sdl:event:offset-of-mbe-x)) 2))
-	    (y (ffi:unpack-integer bytes (+ offset (sdl:event:offset-of-mbe-y)) 2)))
-	(list (list 'button button)
-	      (list 'state state)
-	      (list 'x x)
-	      (list 'y y))))
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-button-event
+      ("button.button" button (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
+      ("button.state"  state  (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
+      ("button.x"      x      (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
+      ("button.y"      y      (lambda (bytes offset) (ffi:unpack-integer bytes offset 2))))
 
     (define (sdl:event:unpack bytes offset)
       (let ((type (unpack-sdl:event-type bytes (+ offset (sdl:event:type-offset)))))
@@ -107,6 +98,8 @@
 			'value (case type
 				 ((sdl:mouse-button-down sdl:mouse-button-up)
 				  (sdl:event:unpack-mouse-button-event bytes offset))
+				 (sdl:mouse-motion
+				  (sdl:event:unpack-mouse-motion-event bytes offset))
 				 (else nil)))))
 
     (define (sdl:poll/wait-event which)
@@ -157,40 +150,89 @@
       (ffi:funcall update-rect 'ffi-void screen x y width height))
 
     (define (sdl:quit)
-      (ffi:funcall quit 'ffi-void))
-))
+      (ffi:funcall quit 'ffi-void))))
 
+(with-library (handle "libSDL_gfx")
+  (let ((pixel-rgba (ffi:dlsym handle "pixelRGBA"))
+	(line-rgba (ffi:dlsym handle "lineRGBA"))
+	(aaline-rgba (ffi:dlsym handle "aalineRGBA"))
+	(rectangle-rgba (ffi:dlsym handle "rectangleRGBA"))
+	(box-rgba (ffi:dlsym handle "boxRGBA")))
 
-(define (sdl:test:safe-wait)
-  (guard
-   (ex (#t (printf "got exception: %a\n" ex)
-	   nil))
+    (define (sdl:pixel-rgba surface x y r g b a)
+      (ffi:funcall pixel-rgba 'ffi-uint
+		   surface
+		   (ffi:alien-ushort x) (ffi:alien-ushort y)
+		   (ffi:alien-uchar r) (ffi:alien-uchar g) (ffi:alien-uchar b)
+		   (ffi:alien-uchar a)))
 
-   (sdl:wait-event)))
+    (define (sdl:line-rgba surface x1 y1 x2 y2 r g b a)
+      (ffi:funcall line-rgba 'ffi-uint
+		   surface
+		   (ffi:alien-ushort x1) (ffi:alien-ushort y1)
+		   (ffi:alien-ushort x2) (ffi:alien-ushort y2)
+		   (ffi:alien-uchar r) (ffi:alien-uchar g) (ffi:alien-uchar b)
+		   (ffi:alien-uchar a)))
 
-(define (sdl:test image)
+    (define (sdl:aaline-rgba surface x1 y1 x2 y2 r g b a)
+      (ffi:funcall aaline-rgba 'ffi-uint
+		   surface
+		   (ffi:alien-ushort x1) (ffi:alien-ushort y1)
+		   (ffi:alien-ushort x2) (ffi:alien-ushort y2)
+		   (ffi:alien-uchar r) (ffi:alien-uchar g) (ffi:alien-uchar b)
+		   (ffi:alien-uchar a)))
+
+    (define (sdl:rectangle-rgba surface x1 y1 x2 y2 r g b a)
+      (ffi:funcall rectangle-rgba 'ffi-uint
+		   surface
+		   (ffi:alien-ushort x1) (ffi:alien-ushort y1)
+		   (ffi:alien-ushort x2) (ffi:alien-ushort y2)
+		   (ffi:alien-uchar r) (ffi:alien-uchar g) (ffi:alien-uchar b)
+		   (ffi:alien-uchar a)))
+
+    (define (sdl:box-rgba surface x1 y1 x2 y2 r g b a)
+      (ffi:funcall box-rgba 'ffi-uint
+		   surface
+		   (ffi:alien-ushort x1) (ffi:alien-ushort y1)
+		   (ffi:alien-ushort x2) (ffi:alien-ushort y2)
+		   (ffi:alien-uchar r) (ffi:alien-uchar g) (ffi:alien-uchar b)
+		   (ffi:alien-uchar a)))))
+
+(define (sdl:load-image-file file)
+  "load image from FILE and convert to display format"
+  (let* ((tmp (sdl:load-bmp file))
+	 (img (sdl:display-format tmp)))
+    (sdl:free-surface tmp)
+    img))
+
+(define (sdl:test)
   (sdl:init (sdl:INIT-VIDEO))
   (sdl:wm-set-caption "SDL Test" "SDL Test")
   (let* ((screen (sdl:set-video-mode 640 480 0 0))
-	 (tmp (sdl:load-bmp image))
-	 (bmp (sdl:display-format tmp))
 	 (src-rect (sdl:make-rect 0 0 128 128))
-	 (bmp-x 0)
-	 (bmp-y 0))
-    (sdl:free-surface tmp)
+	 (last-x nil)
+	 (last-y nil)
+	 (mouse-active #f))
 
-    (let loop ((ev (sdl:test:safe-wait)))
+    (let loop ((ev (sdl:wait-event)))
       (case (and ev (sdl:event-type-ref ev))
-	((sdl:mouse-button-down)
-	 (let ((v (sdl:event-value-ref ev)))
-	   (set! bmp-x (second (assoc 'x v)))
-	   (set! bmp-y (second (assoc 'y v))))
+	(sdl:mouse-button-down (set! mouse-active #t)
+			       (let ((v (sdl:event-value-ref ev)))
+				 (set! last-x (second (assoc 'x v)))
+				 (set! last-y (second (assoc 'y v)))))
+	(sdl:mouse-button-up (set! mouse-active #f))
+	(sdl:mouse-motion (when mouse-active
+				(let* ((v (sdl:event-value-ref ev))
+				       (x (second (assoc 'x v)))
+				       (y (second (assoc 'y v))))
+				  (sdl:aaline-rgba screen last-x last-y x y 255 255 255 255)
+				  (set! last-x x)
+				  (set! last-y y)))))
 
-	 (printf "got event %a\n" ev)))
-
-      (sdl:blit-surface bmp src-rect screen (sdl:make-rect bmp-x bmp-y 128 128))
+      ;(sdl:blit-surface bmp src-rect screen (sdl:make-rect bmp-x bmp-y 128 128))
+      ;(sdl:pixel-rgba screen last-x last-y 255 255 255 255)
       (sdl:update-rect screen 0 0 640 480)
 
       (if (eq? (sdl:event-type-ref ev) 'sdl:quit)
 	  (sdl:quit)
-	  (loop (sdl:test:safe-wait))))))
+	  (loop (sdl:wait-event))))))

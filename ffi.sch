@@ -430,6 +430,21 @@ under names that are suffixed with LISP-NAME"
        (define (,(ffi:symbol-append "size-of-" lisp-name))
 	 ,sz))))
 
+(define-syntax (ffi:define-header-struct header type lisp-name . fields)
+  ;; format of fields is ("field-name" lisp-field-name field-parser)
+  (let ((field-handlers (map (lambda (field)
+			       (let ((off (ffi:offset-of header type (first field)))
+				     (fn (eval (third field))))
+				 (lambda (bytes offset)
+				   ;; emit an alist entry
+				   (list (second field)
+					 (fn bytes (+ offset off))))))
+			     fields)))
+    `(define (,lisp-name bytes offset)
+       (map (lambda (handler)
+	      (handler bytes offset))
+	    ',field-handlers))))
+
 (define (ffi:create-long-example long)
   (ffi:pack-long (ffi:make-bytes (ffi:size-of-long)) 0 long))
 
