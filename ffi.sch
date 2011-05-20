@@ -301,17 +301,21 @@ int main(int argc, char ** argv) {
       (reverse bytes)
       bytes))
 
+(define (ffi:integer->bytes int num-bytes)
+  "convert INT into NUM-BYTES bytes with most significant first"
+  (let loop ((count 0)
+	     (value int)
+	     (result nil))
+    (if (< count num-bytes)
+	(loop (+ count 1)
+	      (ash value -8)
+	      (cons (logand value #Xff) result))
+	result)))
+
 (define (ffi:integer->long-bytes int)
   "create a list of N bytes with the most significant first"
   (let ((num-bytes (ffi:size-of-long)))
-    (let loop ((count 0)
-	       (value int)
-	       (result nil))
-      (if (< count num-bytes)
-	  (loop (+ count 1)
-		(ash value -8)
-		(cons (logand value #Xff) result))
-	  result))))
+    (ffi:integer->bytes int num-bytes)))
 
 (define (ffi:long-bytes->integer bytes)
   "convert a most-significant-first array of bytes into an integer"
@@ -351,9 +355,13 @@ int main(int argc, char ** argv) {
   (ffi:pack-bytes bytes offset (ffi:bs->machine (ffi:integer->long-bytes long)))
   bytes)
 
+(define (ffi:unpack-integer bytes offset num-bytes)
+  "unpack an integer of NUM-BYTES from BYTES at OFFSET"
+  (ffi:long-bytes->integer (ffi:machine->bs (ffi:unpack-bytes bytes offset num-bytes))))
+
 (define (ffi:unpack-long bytes offset)
   "unpack machine sized long from BYTES starting at OFFSET"
-  (ffi:long-bytes->integer (ffi:machine->bs (ffi:unpack-bytes bytes offset (ffi:size-of-long)))))
+  (ffi:unpack-integer bytes offset (ffi:size-of-long)))
 
 (define (ffi:pack-byte bytes offset byte)
   (ffi:pack-bytes bytes offset (list (if (char? byte)
@@ -363,14 +371,60 @@ int main(int argc, char ** argv) {
 (define (ffi:unpack-byte bytes offset)
   (first (ffi:unpack-bytes bytes offset 1)))
 
+(define (ffi:symbol-stringify sym-or-string)
+  "convert SYM-OR-STRING into a string if it's a symbol"
+  (if (symbol? sym-or-string)
+      (symbol->string sym-or-string)
+      sym-or-string))
+
+(define (ffi:symbol-append sym-or-string value)
+  "create a new value that is SYM-OR-STRING concatenated with VALUE"
+  (string->symbol (prim-concat (ffi:symbol-stringify sym-or-string)
+			       (ffi:symbol-stringify value))))
+
 (define (ffi:compute-enums include names-and-symbols)
+  "compute the numeric value of each of NAMES-AND-SYMBOLS by parsing
+INCLUDE"
   (map (lambda (ns)
-	 (cons (ffi:get-const include "%d" (first ns)) ns))
+	 (cons (ffi:get-const include "%d" (ffi:symbol-stringify (first ns))) ns))
        names-and-symbols))
 
-(define-syntax (ffi:define-enum include name . names-and-symbols)
-  (let ((ens (ffi:compute-enums include names-and-symbols)))
-    `',ens))
+(define-syntax (ffi:define-enum include cname lisp-name . names-and-symbols)
+  "create a pack and unpack method for enumerated values of CNAME
+under names that are suffixed with LISP-NAME"
+  ;; fixme: INCLUDE has to literally be a string... how can i get it
+  ;; to evaluate to whatever what the user passes is bound to?
+  (let* ((ens (ffi:compute-enums include names-and-symbols))
+	 (sz (ffi:size-of include (ffi:symbol-stringify cname)))
+	 (sym-to-num (map (lambda (e)
+			    (list (third e) (first e)))
+			  ens))
+	 (num-to-sym (map (lambda (e)
+			    (list (first e) (third e)))
+			  ens)))
+    `(begin
+       (define (,(ffi:symbol-append "pack-" lisp-name)
+		bytes offset symbol)
+	 "pack SYMBOL into BYTES at OFFSET"
+	 (let ((e (assoc symbol ',sym-to-num)))
+	   (unless e
+	     (throw-error "symbol" symbol "is not a valid enum value"))
+	   (ffi:pack-bytes bytes offset
+			   (ffi:bs->machine
+			    (ffi:integer->bytes (second e) ,sz)))
+	   bytes))
+
+       (define (,(ffi:symbol-append "unpack-" lisp-name)
+		bytes offset)
+	 "unpack a symbol from BYTES at OFFSET"
+	 (let* ((val (ffi:unpack-integer bytes offset 1))
+		(e (assoc val ',num-to-sym)))
+	   (unless e
+	     (throw-error val "is not a valid enumerated value"))
+	   (second e)))
+
+       (define (,(ffi:symbol-append "size-of-" lisp-name))
+	 ,sz))))
 
 (define (ffi:create-long-example long)
   (ffi:pack-long (ffi:make-bytes (ffi:size-of-long)) 0 long))
