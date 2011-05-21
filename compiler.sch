@@ -355,10 +355,12 @@ chainframe if ARGS is non-nil"
   (write-dbg '%gen-args-iter args n-so-far)
   (cond
    ((null? args)
-    (%gen-chainframe full-args free-inline))
+    (seq (gen 'argcheck n-so-far 0) ; should have exactly n-so-far args
+	 (%gen-chainframe full-args free-inline)))
 
    ((variable? args)
-    (seq (%gen-chainframe full-args free-inline)
+    (seq (gen 'argcheck n-so-far 1) ; should have at least n-so-far args
+	 (%gen-chainframe full-args free-inline)
 	 (gen 'pushvarargs n-so-far)
 	 (when (variable-is-free-ref args)
 	   (gen 'lset 0 (variable-idx-ref args)))))

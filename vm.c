@@ -35,6 +35,7 @@
   define(pushvarargs)				\
   define(chainframe)				\
   define(endframe)				\
+  define(argcheck)				\
   define(spush)					\
   define(sset)					\
   define(swap)					\
@@ -334,6 +335,19 @@ vm_fn_begin:
 	}
       }
       stack_top = fn_first_arg + ARG1;
+
+      NEXT_INSTRUCTION;
+
+ __argcheck__:
+      /* verify that a function was given the correct number of
+	 arguments */
+      if(ARG2 == 0) {
+	/* looking for an exact match */
+	VM_ASSERT(n_args == ARG1, "function expects exactly %ld arguments", ARG1);
+      } else {
+	/* looking for at least some value */
+	VM_ASSERT(n_args >= ARG1, "function expects at least %ld arguments", ARG1);
+      }
 
       NEXT_INSTRUCTION;
 
