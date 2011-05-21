@@ -80,17 +80,17 @@
 	(ffi:set-bytes (ffi:make-bytes sz) 0 sz 0)))
 
     (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-motion-event
-      ("motion.state" state (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
-      ("motion.x"     x     (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
-      ("motion.y"     y     (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
-      ("motion.xrel"  xrel  (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
-      ("motion.yrel"  yrel  (lambda (bytes offset) (ffi:unpack-integer bytes offset 2))))
+      ("motion.state" state (ffi:make-int-unpacker 1))
+      ("motion.x"     x     (ffi:make-int-unpacker 2))
+      ("motion.y"     y     (ffi:make-int-unpacker 2))
+      ("motion.xrel"  xrel  (ffi:make-int-unpacker 2))
+      ("motion.yrel"  yrel  (ffi:make-int-unpacker 2)))
 
     (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-button-event
-      ("button.button" button (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
-      ("button.state"  state  (lambda (bytes offset) (ffi:unpack-integer bytes offset 1)))
-      ("button.x"      x      (lambda (bytes offset) (ffi:unpack-integer bytes offset 2)))
-      ("button.y"      y      (lambda (bytes offset) (ffi:unpack-integer bytes offset 2))))
+      ("button.button" button (ffi:make-int-unpacker 1))
+      ("button.state"  state  (ffi:make-int-unpacker 1))
+      ("button.x"      x      (ffi:make-int-unpacker 2))
+      ("button.y"      y      (ffi:make-int-unpacker 2)))
 
     (define (sdl:event:unpack bytes offset)
       (let ((type (unpack-sdl:event-type bytes (+ offset (sdl:event:type-offset)))))

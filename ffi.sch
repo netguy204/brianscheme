@@ -259,32 +259,65 @@ int main(int argc, char ** argv) {
 }
 " include main))
 
-(define (ffi:gen-get-const include format const)
-  "generate c code to print out a constant numeric value"
-  (ffi:include-and-main include
-    (sprintf
+(define (ffi:gen-printf format const)
+  (sprintf
 "
   printf(\"%s\\n\", %s);
-" format const)))
+" format const))
+
+(define (ffi:gen-get-const include format const)
+  "generate c code to print out a constant numeric value"
+  (ffi:include-and-main
+   include
+   (ffi:gen-printf format const)))
+
+(define (ffi:gen-get-consts include format-consts)
+  (ffi:include-and-main
+   include
+   (apply string-append
+	  `(,(ffi:gen-printf "(" "0")
+	    ,@(map [ffi:gen-printf (first _) (second _)]
+		   format-consts)
+	    ,(ffi:gen-printf ")" "0")))))
 
 (define (ffi:get-const include format const)
   (compile-and-run (ffi:gen-get-const include format const)))
 
+(define (ffi:get-consts include format-and-consts)
+  (compile-and-run (ffi:gen-get-consts include format-and-consts)))
+
+(define (ffi:offsets-of include type fields)
+  "generate c code to print the offsets of FIELDS in TYPE"
+  (ffi:get-consts include
+    (map (lambda (field)
+	   (list "%ld" (sprintf "(long)&(((%s *)0)->%s)" type field)))
+	 fields)))
+
 (define (ffi:offset-of include type field)
   "generate c code to print the offset of FIELD in TYPE"
-  (ffi:get-const include "%ld" (sprintf "(long)&(((%s *)0)->%s)" type field)))
+  (first (ffi:offsets-of include type (list field))))
+
+(define (ffi:sizes-of include types)
+  "generate c code to print the size of TYPE"
+  (ffi:get-consts include
+    (map (lambda (type)
+	   (list  "%ld" (sprintf "sizeof(%s)" type)))
+	 types)))
 
 (define (ffi:size-of include type)
   "generate c code to print the size of TYPE"
-  (ffi:get-const include "%ld" (sprintf "sizeof(%s)" type)))
+  (first (ffi:sizes-of include (list type))))
 
 (define-constant-function ffi:size-of-long
   (ffi:size-of "<stdlib.h>" "long"))
 
 (define-constant-function ffi:endianess
-  (let ((big (ffi:get-const "<endian.h>" "%d" "__BIG_ENDIAN"))
-	(little (ffi:get-const "<endian.h>" "%d" "__LITTLE_ENDIAN"))
-	(ours (ffi:get-const "<endian.h>" "%d" "__BYTE_ORDER")))
+  (let* ((fields (ffi:get-consts "<endian.h>" '(("%d" "__BIG_ENDIAN")
+						("%d" "__LITTLE_ENDIAN")
+						("%d" "__BYTE_ORDER"))))
+	 (big (first fields))
+	 (little (second fields))
+	 (ours (third fields)))
     (cond
      ((= ours big) 'big-endian)
      ((= ours little) 'little-endian)
@@ -363,6 +396,11 @@ int main(int argc, char ** argv) {
   "unpack an integer of NUM-BYTES from BYTES at OFFSET"
   (ffi:long-bytes->integer (ffi:machine->bs (ffi:unpack-bytes bytes offset num-bytes))))
 
+(define (ffi:make-int-unpacker sz)
+  "make an int unpacker that unpacks ints of size SZ"
+  (lambda (bytes offset)
+    (ffi:unpack-integer bytes offset sz)))
+
 (define (ffi:unpack-long bytes offset)
   "unpack machine sized long from BYTES starting at OFFSET"
   (ffi:unpack-integer bytes offset (ffi:size-of-long)))
@@ -389,9 +427,12 @@ int main(int argc, char ** argv) {
 (define (ffi:compute-enums include names-and-symbols)
   "compute the numeric value of each of NAMES-AND-SYMBOLS by parsing
 INCLUDE"
-  (map (lambda (ns)
-	 (cons (ffi:get-const include "%d" (ffi:symbol-stringify (first ns))) ns))
-       names-and-symbols))
+  (let ((enums (ffi:get-consts include
+			       (map (lambda (nas)
+				      (list "%d" (ffi:symbol-stringify (first nas))))
+				    names-and-symbols))))
+
+    (map cons enums names-and-symbols)))
 
 (define-syntax (ffi:define-enum include cname lisp-name . names-and-symbols)
   "create a pack and unpack method for enumerated values of CNAME
@@ -432,14 +473,15 @@ under names that are suffixed with LISP-NAME"
 
 (define-syntax (ffi:define-header-struct header type lisp-name . fields)
   ;; format of fields is ("field-name" lisp-field-name field-parser)
-  (let ((field-handlers (map (lambda (field)
-			       (let ((off (ffi:offset-of header type (first field)))
-				     (fn (eval (third field))))
-				 (lambda (bytes offset)
-				   ;; emit an alist entry
-				   (list (second field)
-					 (fn bytes (+ offset off))))))
-			     fields)))
+  (let* ((offsets (ffi:offsets-of header type (map first fields)))
+	 (field-handlers (map (lambda (off field)
+				(let ((fn (eval (third field))))
+				  (lambda (bytes offset)
+				    ;; emit an alist entry
+				    (list (second field)
+					  (fn bytes (+ offset off))))))
+			      offsets fields)))
+
     `(define (,lisp-name bytes offset)
        (map (lambda (handler)
 	      (handler bytes offset))

@@ -82,8 +82,15 @@
 
 ;; Define a better map using the old one
 (let ((oldmap map))
-  (define (map fn . lists)
+  (define (multi-list-map fn lists)
+    "map FN across the elements of LISTS where fn should have an arity
+equal to the number of lists"
     (if (any? null? lists)
 	()
 	(cons (apply fn (oldmap car lists))
-	      (apply map (cons fn (oldmap cdr lists)))))))
+	      (multi-list-map fn (oldmap cdr lists)))))
+
+  (define (map fn lst . lists)
+    (if lists
+	(multi-list-map fn (cons lst lists))
+	(oldmap fn lst))))
