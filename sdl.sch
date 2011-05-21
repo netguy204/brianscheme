@@ -17,10 +17,14 @@
 	(quit (ffi:dlsym handle "SDL_Quit"))
 	(poll-event (ffi:dlsym handle "SDL_PollEvent"))
 	(wait-event (ffi:dlsym handle "SDL_WaitEvent"))
+	(create-rgb-surface (ffi:dlsym handle "SDL_CreateRGBSurface"))
 	(header "<SDL/SDL.h>"))
 
     (define-constant-function sdl:INIT-VIDEO
       (ffi:get-const header "%d" "SDL_INIT_VIDEO"))
+
+    (define-constant-function sdl:SW-SURFACE
+      (ffi:get-const header "%d" "SDL_SWSURFACE"))
 
     (define-constant-function sdl:event:type-offset
       (ffi:offset-of header "SDL_Event" "type"))
@@ -92,6 +96,22 @@
       ("button.x"      x      (ffi:make-int-unpacker 2))
       ("button.y"      y      (ffi:make-int-unpacker 2)))
 
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_PixelFormat" sdl:unpack-pixel-format
+      ("BitsPerPixel"  bits-per-pixel  (ffi:make-int-unpacker 1))
+      ("BytesPerPixel" bytes-per-pixel (ffi:make-int-unpacker 1))
+      ("Rmask"         rmask           (ffi:make-int-unpacker 4))
+      ("Gmask"         gmask           (ffi:make-int-unpacker 4))
+      ("Bmask"         bmask           (ffi:make-int-unpacker 4))
+      ("Amask"         amask           (ffi:make-int-unpacker 4))
+      ("alpha"         alpha           (ffi:make-int-unpacker 1)))
+
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Surface" sdl:unpack-surface
+      ("w"      w      (ffi:make-int-unpacker 4))
+      ("h"      h      (ffi:make-int-unpacker 4))
+      ("pitch"  pitch  (ffi:make-int-unpacker 2))
+      ("format" format (lambda (bytes offset)
+			 (sdl:unpack-pixel-format (ffi:unpack-pointer bytes offset) 0))))
+
     (define (sdl:event:unpack bytes offset)
       (let ((type (unpack-sdl:event-type bytes (+ offset (sdl:event:type-offset)))))
 	(make-sdl:event 'type type
@@ -135,6 +155,10 @@
 
     (define (sdl:display-format surface)
       (ffi:funcall display-format 'ffi-pointer surface))
+
+    (define (sdl:create-rgb-surface flags width height depth rmask gmask bmask amask)
+      (ffi:funcall create-rgb-surface 'ffi-pointer
+		   flags width height depth rmask gmask bmask amask))
 
     (define (sdl:free-surface surface)
       (ffi:funcall free-surface 'ffi-void surface))
@@ -205,6 +229,18 @@
     (sdl:free-surface tmp)
     img))
 
+(define (sdl:create-compatible-surface reference-surface width height)
+  (let* ((surface (sdl:unpack-surface reference-surface 0))
+	 (format (second (assoc 'format surface)))
+	 (rmask (second (assoc 'rmask format)))
+	 (gmask (second (assoc 'gmask format)))
+	 (bmask (second (assoc 'bmask format)))
+	 (amask (second (assoc 'amask format)))
+	 (depth (second (assoc 'bits-per-pixel format))))
+
+    (sdl:create-rgb-surface (sdl:SW-SURFACE) width height depth
+			    rmask gmask bmask amask)))
+
 (define (sdl:test)
   (sdl:init (sdl:INIT-VIDEO))
   (sdl:wm-set-caption "SDL Test" "SDL Test")
@@ -213,6 +249,8 @@
 	 (last-x nil)
 	 (last-y nil)
 	 (mouse-active #f))
+
+    (set! *screen* screen)
 
     (let loop ((ev (sdl:wait-event)))
       (case (and ev (sdl:event-type-ref ev))

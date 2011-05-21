@@ -413,6 +413,9 @@ int main(int argc, char ** argv) {
 (define (ffi:unpack-byte bytes offset)
   (first (ffi:unpack-bytes bytes offset 1)))
 
+(define (ffi:unpack-pointer bytes offset)
+  (ffi:deref (ffi:offset-pointer bytes offset)))
+
 (define (ffi:symbol-stringify sym-or-string)
   "convert SYM-OR-STRING into a string if it's a symbol"
   (if (symbol? sym-or-string)

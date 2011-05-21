@@ -193,6 +193,12 @@ DEFUN1(ffi_set_long) {
   return THIRD;
 }
 
+DEFUN1(ffi_offset_pointer) {
+  char *ptr = (char*)ALIEN_PTR(FIRST);
+  ptr += LONG(SECOND);
+  return make_alien((void*)ptr, g->empty_list);
+}
+
 DEFUN1(ffi_deref) {
   void **value = ALIEN_PTR(FIRST);
   return make_alien(*value, g->empty_list);
@@ -348,6 +354,7 @@ void init_ffi(definer defn) {
   add_procedure("ffi:create-closure", create_closure_proc);
   add_procedure("ffi:address-of", ffi_address_of);
   add_procedure("ffi:deref", ffi_deref);
+  add_procedure("ffi:offset-pointer", ffi_offset_pointer);
 
   g->ffi_type_pointer_sym = make_symbol("ffi-pointer");
   g->ffi_type_void_sym = make_symbol("ffi-void");

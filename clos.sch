@@ -409,6 +409,11 @@ characters"
   (write-stream stdout-stream
 		(apply* sprintf string args)))
 
+(define (ssprintf stream string . args)
+  "print the interpolated STRING onto the supplied STREAM"
+  (write-stream stream
+		(apply* sprintf string args)))
+
 (define (string-buffer-example)
   "example of using string-buffer"
   (set! tt (make-string-buffer "hello crazy world"))
