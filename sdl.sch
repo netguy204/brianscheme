@@ -83,20 +83,23 @@
       (let ((sz (sdl:size-of-event)))
 	(ffi:set-bytes (ffi:make-bytes sz) 0 sz 0)))
 
-    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-motion-event
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event"
+      sdl:event:unpack-mouse-motion-event
       ("motion.state" state (ffi:make-int-unpacker 1))
       ("motion.x"     x     (ffi:make-int-unpacker 2))
       ("motion.y"     y     (ffi:make-int-unpacker 2))
       ("motion.xrel"  xrel  (ffi:make-int-unpacker 2))
       ("motion.yrel"  yrel  (ffi:make-int-unpacker 2)))
 
-    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event" sdl:event:unpack-mouse-button-event
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Event"
+      sdl:event:unpack-mouse-button-event
       ("button.button" button (ffi:make-int-unpacker 1))
       ("button.state"  state  (ffi:make-int-unpacker 1))
       ("button.x"      x      (ffi:make-int-unpacker 2))
       ("button.y"      y      (ffi:make-int-unpacker 2)))
 
-    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_PixelFormat" sdl:unpack-pixel-format
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_PixelFormat"
+      sdl:unpack-pixel-format
       ("BitsPerPixel"  bits-per-pixel  (ffi:make-int-unpacker 1))
       ("BytesPerPixel" bytes-per-pixel (ffi:make-int-unpacker 1))
       ("Rmask"         rmask           (ffi:make-int-unpacker 4))
@@ -105,12 +108,20 @@
       ("Amask"         amask           (ffi:make-int-unpacker 4))
       ("alpha"         alpha           (ffi:make-int-unpacker 1)))
 
-    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Surface" sdl:unpack-surface
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Surface"
+      sdl:unpack-surface
       ("w"      w      (ffi:make-int-unpacker 4))
       ("h"      h      (ffi:make-int-unpacker 4))
       ("pitch"  pitch  (ffi:make-int-unpacker 2))
       ("format" format (lambda (bytes offset)
 			 (sdl:unpack-pixel-format (ffi:unpack-pointer bytes offset) 0))))
+
+    (ffi:define-header-struct "<SDL/SDL.h>" "SDL_Rect"
+      sdl:unpack-rect
+      ("x"      x      (ffi:make-int-unpacker 2))
+      ("y"      y      (ffi:make-int-unpacker 2))
+      ("w"      w      (ffi:make-int-unpacker 2))
+      ("h"      h      (ffi:make-int-unpacker 2)))
 
     (define (sdl:event:unpack bytes offset)
       (let ((type (unpack-sdl:event-type bytes (+ offset (sdl:event:type-offset)))))

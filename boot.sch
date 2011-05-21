@@ -660,6 +660,10 @@ list"
 		(push! name required)
 		(load name))))
 
+    (define (provided? name)
+      "true if NAME has been provided"
+      (and (memq name required) #t))
+
     (define (provide sym)
       "declare a given symbol as being satisfied"
       (push! (sym-to-name sym) required)

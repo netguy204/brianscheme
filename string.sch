@@ -198,7 +198,15 @@ already. ignores non-alpha"
         (string-list->real lst))))
 
 
-(define (integer->string int (base 10))
+(define (string-left-pad val char tgt-len)
+  "pad the left side of string VAL with CHAR until it's TGT-LEN"
+  (let ((len (string-length val)))
+    (if (< len tgt-len)
+	(string-append (make-string (- tgt-len len) char)
+		       val)
+	val)))
+
+(define (integer->string int (base 10) (pad 0))
   "Convert integer into a string, with optional base."
   (assert-types (int integer?))
   (letrec ((iter (lambda (n lst)
@@ -207,8 +215,8 @@ already. ignores non-alpha"
                        (iter (/ n base)
                              (cons (list-ref *digits-16* (mod n base)) lst))))))
     (if (zero? int)
-        "0"
-        (list->string (iter int '())))))
+        (string-left-pad "0" #\0 pad)
+        (string-left-pad (list->string (iter int '())) #\0 pad))))
 
 (define (chomp line)
   (let ((len (string-length line)))

@@ -245,7 +245,11 @@
 
 (define-method (print-object (strm <output-stream>)
 			     (prim <alien>))
-  (write-stream strm "#<alien>"))
+  (ssprintf strm "#<alien: 0x%s>" (integer->string (ffi:alien-to-int prim)
+						 :base 16
+						 :pad (if (provided? 'ffi)
+							  (ffi:size-of-long)
+							  16))))
 
 (define-class <input-stream> ()
   "most basic input stream abstraction")
