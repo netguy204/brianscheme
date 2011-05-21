@@ -121,11 +121,16 @@
   (let ((proc->sym (make-hashtab-eq 100))
 	(returns (return-procedures)))
     (dolist (proc-sym (filter sym-is-proc? (all-symbols)))
-      (hashtab-set! proc->sym (global-ref proc-sym) proc-sym))
+      (hashtab-set! proc->sym (global-ref proc-sym) proc-sym)
+      (when (instance-of? <generic> (global-ref proc-sym))
+	    ;; insert all of its methods under the same name
+	    (dolist (method (generic-methods (global-ref proc-sym)))
+	      (hashtab-set! proc->sym (slot-ref method 'procedure) proc-sym))))
 
-    (reverse (map (lambda (proc)
-		    (hashtab-ref proc->sym proc proc))
-		  returns))))
+    (cdddr (remove-sequential
+	    (reverse (map (lambda (proc)
+			    (hashtab-ref proc->sym proc proc))
+			  returns))))))
 
 (define (print-return-trace)
   (dolist-idx ((frame idx) (return-trace))
