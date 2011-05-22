@@ -715,6 +715,9 @@
 	 args))))
 
 
+;; OPT: applicable? uses class-of. The set of classes could be
+;; computed once instead. Should help generics that dispatch on more
+;; than 1 argument
 (define-method (compute-methods (generic <generic>))
   (lambda (args)
     (let ((applicable
@@ -1056,29 +1059,57 @@ applicable methods"
       (set! args real-args)
       (bound))))
 
+(define (megamorphic-ref cache args)
+  "look up a function for ARGS in megamorphic CACHE"
+  (when cache
+	(if-let ((result (hashtab-ref cache (class-of (first args)) nil)))
+	  (if (rest args)
+	      (megamorphic-ref result (rest args))
+	      result)
+	  nil)))
+
+(define (megamorphic-set! cache args value)
+  "set function VALUE for ARGS in megamorphic CACHE"
+  (if (rest args)
+      (if-let ((subcache (hashtab-ref cache (class-of (first args)) nil)))
+	;; follow the cache
+        (megamorphic-set! subcache (rest args) value)
+	;; add a level to the cache
+	(let ((new-cache (make-hashtab-eq 4)))
+	  (hashtab-set! cache (class-of (first args)) new-cache)
+	  (megamorphic-set! new-cache (rest args) value)))
+      ;; this is the last arg, set the value here
+      (hashtab-set! cache (class-of (first args)) value)))
+	
 (define (rewrite-generic-closure-callsite exp)
   "given the generic invocation EXP, memoize the results of
 compute-methods for reuse between calls"
-  (let ((cached-function (gensym))
-	(cached-args-cls (gensym))
+  (let ((cache (gensym))
+	(cached-function (gensym))
 	(evald-args (gensym)))
-    `(let-static ((,cached-function nil)
-		  (,cached-args-cls nil)
-		  (,evald-args nil))
+    `(let-static ((,cache ())
+		  (,cached-function ())
+		  (,evald-args ()))
        (set! ,evald-args (list ,@(rest exp)))
+       (set! ,cached-function (megamorphic-ref ,cache ,evald-args))
 
-       (if (equal? ,cached-args-cls (mapr class-of ,evald-args))
-	   (,cached-function ,evald-args) ;; hit cache
-
+       (if ,cached-function
+	   ;; hit cache
+	   (,cached-function ,evald-args)
+	   ;; add a cache entry
 	   (begin
 	     (set! ,cached-function
 		   (compute-equiv-function ,(first exp)
 					   ((compute-methods ,(first exp))
 					    ,evald-args)))
-	     (set! ,cached-args-cls (mapr class-of ,evald-args))
-	     (apply add-invalidator (list ,(first exp)
-	       (lambda () (set! ,cached-args-cls nil))))
+	     (unless ,cache
+		     (set! ,cache (make-hashtab-eq 4))
+		     (apply add-invalidator (list ,(first exp)
+						  (lambda () (set! ,cache nil)))))
 	     
+
+	     (megamorphic-set! ,cache ,evald-args ,cached-function)
+
 	     ;; do the call
 	     (,cached-function ,evald-args))))))
 
