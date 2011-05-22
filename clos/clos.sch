@@ -1021,7 +1021,8 @@
 (define-method (invalidate-caches (generic <generic>))
   (let ((invalidators (slot-ref generic 'invalidators)))
     (dolist (fn invalidators)
-      (fn))))
+      (fn))
+    (slot-set! generic 'invalidators nil)))
 
 (define-generic add-invalidator
   "attach an invalidation hook to a generic")
@@ -1056,6 +1057,8 @@ applicable methods"
       (bound))))
 
 (define (rewrite-generic-closure-callsite exp)
+  "given the generic invocation EXP, memoize the results of
+compute-methods for reuse between calls"
   (let ((cached-function (gensym))
 	(cached-args-cls (gensym))
 	(evald-args (gensym)))
@@ -1073,7 +1076,9 @@ applicable methods"
 					   ((compute-methods ,(first exp))
 					    ,evald-args)))
 	     (set! ,cached-args-cls (mapr class-of ,evald-args))
-
+	     (apply add-invalidator (list ,(first exp)
+	       (lambda () (set! ,cached-args-cls nil))))
+	     
 	     ;; do the call
 	     (,cached-function ,evald-args))))))
 
