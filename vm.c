@@ -79,14 +79,14 @@ opcode_table(generate_decls)
      };
 
 /* the dispatch table will be built by vm_execute */
-void* dispatch_table[INVALID_BYTECODE];
+object* dispatch_table;
 char build_dispatch_table = 0;
 
 /* generate a function that converts a symbol into the corresponding
    bytecode */
 #define generate_sym_to_code(opcode)					\
   if(sym == opcode ## _op) {						\
-    return make_alien( dispatch_table[_ ## opcode ## _], g->empty_list); \
+    return VARRAY(dispatch_table)[_ ## opcode ## _];			\
   }
 
 object *symbol_to_code(object * sym) {
@@ -122,7 +122,7 @@ DEFUN1(set_bytecode_proc) {
    corresponding symbol */
 
 #define generate_code_to_sym(opcode)					\
-  if(ALIEN_PTR(FIRST) == dispatch_table[_ ## opcode ## _]) {		\
+  if(FIRST == VARRAY(dispatch_table)[_ ## opcode ## _]) {		\
     return make_symbol("" # opcode);					\
   }
 
@@ -262,10 +262,12 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args, obj
 
   if(build_dispatch_table) {
     /* build the dispatch table and exit immediately */
+    dispatch_table = make_vector(g->error_sym, INVALID_BYTECODE);
+    push_root(&dispatch_table);
 
-#define generate_dispatch(opcode)		\
-    dispatch_table[ _ ## opcode ## _] =		\
-      && __ ## opcode ## __;
+#define generate_dispatch(opcode)			\
+    VARRAY(dispatch_table)[ _ ## opcode ## _] =		\
+      make_alien(&& __ ## opcode ## __, g->empty_list);
 
     opcode_table(generate_dispatch);
     build_dispatch_table = 0;

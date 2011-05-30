@@ -104,7 +104,7 @@ given canvas")
 (define-method (draw (world <world>))
   (dolist (morph (slot-ref world 'morphs))
     (when (visible? morph)
-	  (draw-on world morph))
+	  (draw-on world morph 0 0))
 
   (sdl:update-rect (slot-ref world 'surface) 0 0
 		   (width world) (height world))))
@@ -173,6 +173,13 @@ given canvas")
 	 (<= (+ tx tw) (+ bx bw))
 	 (<= (+ ty th) (+ by bh)))))
 
+(define (offset bounds x y)
+  (make <bounds>
+    'x (+ x (slot-ref bounds 'x))
+    'y (+ y (slot-ref bounds 'y))
+    'w (slot-ref bounds 'w)
+    'h (slot-ref bounds 'h)))
+
 (define-class <morph> (<bounds>)
   "a dynamic nestable entity in the world"
   ('parent
@@ -203,8 +210,12 @@ given canvas")
 	     (cons other (slot-ref morph 'children)))
   (slot-set! other 'parent morph))
 
-(define-method (draw-on (canvas <canvas>) (morph <morph>))
-  nil)
+(define-method (draw-on (canvas <canvas>) (morph <morph>) xoff yoff)
+  ;; drawing is completely deferred to submorphs
+  (let ((xoff (+ xoff (slot-ref morph 'x)))
+	(yoff (+ yoff (slot-ref morph 'y))))
+    (dolist (sub (slot-ref morph 'children))
+      (draw-on canvas sub xoff yoff))))
 
 (define-method (dirty? (morph <morph>))
   #f)
@@ -242,14 +253,15 @@ given canvas")
 (define-method (set-dirty! (cm <canvas-morph>) val)
   (slot-set! cm 'dirty val))
 
-(define-method (draw-on (canvas <canvas>) (morph <canvas-morph>))
+(define-method (draw-on (canvas <canvas>) (morph <canvas-morph>) xoff yoff)
   (when (dirty? morph)
 	(draw morph))
-  (draw-canvas canvas (slot-ref morph 'canvas) morph))
+  (draw-canvas canvas (slot-ref morph 'canvas)
+	       (offset morph xoff yoff)))
 
 (define-method (draw (cm <canvas-morph>))
   (dolist (sub (slot-ref cm 'children))
-	  (draw-on (slot-ref cm 'canvas) sub))
+	  (draw-on (slot-ref cm 'canvas) sub 0 0))
   (set-dirty! cm #f))
 
 (define-struct color
