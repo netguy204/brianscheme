@@ -452,7 +452,7 @@ that variable given that our environment looks like ENV"
 	   (variable-reference-frame-ref new-ref)
 	   (variable-idx-ref real-var) ";" new-ref))
      (else
-      (gen 'spush (variable-idx-ref real-var) -1 ";" real-var)))))
+      (gen 'spush (variable-idx-ref real-var) 0 ";" real-var)))))
 
 (define (gen-set var env)
   "given VAR, a variable reference, generate the bytecode to set that
@@ -506,31 +506,21 @@ variable given that our environment looks like ENV"
 
 (define (instrs-to-bytes instr-vector)
   (let* ((len (vector-length instr-vector))
-	 (result (make-bytecode-array (%fixnum-mul 3 len))))
+	 (result (make-bytecode-array (%fixnum-mul 2 len))))
 
     (dotimes (idx len)
       (let ((instr (vector-ref instr-vector idx))
-	    (off (%fixnum-mul idx 3)))
+	    (off (%fixnum-mul idx 2)))
 
 	(bytecode-set! result off (opcode instr))
 
-	(if (cdr instr)
-	    (begin
-	      (bytecode-set! result (%fixnum-add off 1)
-			     (cadr instr))
-	      (if (cddr instr)
-		  (begin
-		    (bytecode-set! result (%fixnum-add off 2)
-				   (caddr instr)))
-		  ;; no second arg
-		  (bytecode-set! result (%fixnum-add off 2) -1)))
-
-	    (begin
-	      ;; no first or second arg
-	      (bytecode-set! result (%fixnum-add off 1) -1)
-
-	      (bytecode-set! result (%fixnum-add off 2) -1)))))
-
+	(let ((arg1 (if (cdr instr)
+			(cadr instr)
+			0))
+	      (arg2 (if (and (cdr instr) (cddr instr))
+			(caddr instr)
+			0)))
+	  (bytecode-operands-set! result (%fixnum-add off 1) arg1 arg2))))
 
     result))
 
@@ -563,7 +553,7 @@ variable given that our environment looks like ENV"
 
 	 ;; remember the number of instructions in the stream since
 	 ;; the alien byte array doesn't store its length
-	 (num-bytes (%fixnum-mul (vector-length instrs) 3))
+	 (num-bytes (%fixnum-mul (vector-length instrs) 2))
 
 	 ;; pack the instructions into the final alien byte array
 	 (bytes (instrs-to-bytes instrs)))
@@ -744,15 +734,16 @@ variable given that our environment looks like ENV"
 
 (define (%compiled->instructions fn)
   "produce a stream of readable instructions from compiled bytecode"
-  (let ((len (/ (car (compiled-bytecode fn)) 3))
+  (let ((len (/ (car (compiled-bytecode fn)) 2))
 	(bytes (cadr (compiled-bytecode fn)))
 	(consts (caddr (compiled-bytecode fn)))
 	(result nil))
     (dotimes (idx len)
-      (let* ((off (* idx 3))
+      (let* ((off (* idx 2))
 	     (instr (bytecode-ref bytes off))
-	     (arg1 (ffi:alien-to-int (bytecode-ref bytes (+ off 1))))
-	     (arg2 (ffi:alien-to-int (bytecode-ref bytes (+ off 2))))
+	     (args (bytecode-operands-ref bytes (+ off 1)))
+	     (arg1 (car args))
+	     (arg2 (cdr args))
 	     (instr* (bytecode->symbol instr))
 	     (arg1* (if (member instr* '(fn cconst gvar gset))
 			(vector-ref consts arg1)

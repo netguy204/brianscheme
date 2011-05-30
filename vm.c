@@ -25,8 +25,11 @@
 #include "gc.h"
 #include "ffi.h"
 
-#define ARG1 ((long)(codes[pc-2]))
-#define ARG2 ((long)(codes[pc-1]))
+#define UNPACK1(pkg) (long)((pkg >> 16))
+#define UNPACK2(pkg) (long)(pkg & 0xFFFF)
+
+#define ARG1 UNPACK1(((long)codes[pc-1]))
+#define ARG2 UNPACK2(((long)codes[pc-1]))
 #define BC void*
 
 #define length1(x) (CDR(x) == the_empty_list)
@@ -113,16 +116,42 @@ DEFUN1(set_bytecode_proc) {
   if(is_alien(THIRD)) {
     bca[LONG(SECOND)] = (BC) ALIEN_PTR(THIRD);
   } else {
-    bca[LONG(SECOND)] = (BC) LONG(THIRD);
+    return g->error_sym;
   }
   return THIRD;
+}
+
+DEFUN1(set_bytecode_operands_proc) {
+  BC *bca = ALIEN_PTR(FIRST);
+  long idx = LONG(SECOND);
+  long arg1 = LONG(THIRD);
+  long arg2 = LONG(FOURTH);
+
+  long combined = ((arg1 << 16) | (arg2 & 0xFFFF));
+  bca[idx] = (BC)combined;
+  return FIRST;
+}
+
+DEFUN1(get_bytecode_operands_proc) {
+  BC *bca = ALIEN_PTR(FIRST);
+  long idx = LONG(SECOND);
+  long combined = (long)bca[idx];
+
+  object *arg1 = make_fixnum(UNPACK1(combined));
+  push_root(&arg1);
+  object *arg2 = make_fixnum(UNPACK2(combined));
+  push_root(&arg2);
+  object *result = cons(arg1, arg2);
+  pop_root(&arg2);
+  pop_root(&arg1);
+  return result;
 }
 
 /* generate a function that converts a bytecode back into its
    corresponding symbol */
 
 #define generate_code_to_sym(opcode)					\
-  if(FIRST == VARRAY(dispatch_table)[_ ## opcode ## _]) {		\
+  if(ALIEN_PTR(FIRST) == ALIEN_PTR(VARRAY(dispatch_table)[_ ## opcode ## _])) { \
     return make_symbol("" # opcode);					\
   }
 
@@ -227,7 +256,7 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
 #define NEXT_INSTRUCTION					\
   do {								\
     const int tgt = pc;						\
-    pc += 3;							\
+    pc += 2;							\
     goto *codes[tgt];						\
   } while(0)
 
@@ -377,7 +406,7 @@ vm_fn_begin:
  __fjump__:
       VPOP(top, stack, stack_top);
       if(is_falselike(top)) {
-	pc = ARG1 * 3;		/* offsets are in instructions */
+	pc = ARG1 * 2;		/* offsets are in instructions */
       }
 
       NEXT_INSTRUCTION;
@@ -385,13 +414,13 @@ vm_fn_begin:
  __tjump__:
       VPOP(top, stack, stack_top);
       if(!is_falselike(top)) {
-	pc = ARG1 * 3;
+	pc = ARG1 * 2;
       }
 
       NEXT_INSTRUCTION;
 
  __jump__:
-      pc = ARG1 * 3;
+      pc = ARG1 * 2;
 
       NEXT_INSTRUCTION;
 
@@ -617,7 +646,7 @@ vm_fn_begin:
  __save__:
       VPUSH(env, stack, stack_top);
       VPUSH(fn, stack, stack_top);
-      VPUSH(make_small_fixnum(ARG1 * 3), stack, stack_top);
+      VPUSH(make_small_fixnum(ARG1 * 2), stack, stack_top);
       VPUSH(make_small_fixnum(fn_first_arg), stack, stack_top);
 
       NEXT_INSTRUCTION;
@@ -716,6 +745,10 @@ void vm_init_environment(definer defn) {
   defn("bytecode-ref", make_primitive_proc(get_bytecode_proc));
 
   defn("bytecode-set!", make_primitive_proc(set_bytecode_proc));
+
+  defn("bytecode-operands-ref", make_primitive_proc(get_bytecode_operands_proc));
+
+  defn("bytecode-operands-set!", make_primitive_proc(set_bytecode_operands_proc));
 }
 
 void wb(object * fn) {
