@@ -374,10 +374,14 @@ vm_fn_begin:
 	 arguments */
       if(ARG2 == 0) {
 	/* looking for an exact match */
-	VM_ASSERT(n_args == ARG1, "function expects exactly %ld arguments", ARG1);
+	VM_ASSERT(n_args == ARG1, "function expects exactly %ld arguments, got %ld",
+		  ARG1,
+		  n_args);
       } else {
 	/* looking for at least some value */
-	VM_ASSERT(n_args >= ARG1, "function expects at least %ld arguments", ARG1);
+	VM_ASSERT(n_args >= ARG1, "function expects at least %ld arguments, got %ld",
+		  ARG1,
+		  n_args);
       }
 
       NEXT_INSTRUCTION;

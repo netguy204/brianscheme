@@ -55,7 +55,7 @@
     (let ((threads nil))
       (define-method (initialize (thread <pth:thread>) args)
 	(let* ((func (first args))
-	       (cif (ffi:make-function-spec 'ffi-void (list 'ffi-void) nil))
+	       (cif (ffi:make-function-spec 'ffi-void (list 'ffi-void)))
 	       (closure (ffi:create-closure (ffi:cif-cif-ref cif)
 					    func))
 	       (thr (ffi:funcall spawn 'ffi-pointer

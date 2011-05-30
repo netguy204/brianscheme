@@ -146,3 +146,24 @@
 	(newline)
 	(exit 1))))
 
+;; wrap a few common functions in this
+(define (call-with-input-file file proc)
+  "open file and pass the port to proc, close when proc returns"
+  (let ((in (open-input-port file)))
+    (guard
+     (ex (#t (close-input-port in)
+	     (raise ex)))
+
+     (let ((result (proc in)))
+       (close-input-port in)
+       result))))
+
+(define (call-with-output-file file proc)
+  "open file and pass the port to proc, close when proc returns"
+  (let ((out (open-output-port file)))
+    (guard
+     (ex (#t (close-output-port out)
+	     (raise ex)))
+     (let ((result (proc out)))
+       (close-output-port out)
+       result))))
