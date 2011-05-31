@@ -162,22 +162,19 @@
 
 (define (erase-map)
   "Remove all objects from the map -- cheaper than nc:clear hopefully."
-  (dolist (obj objects)
-    (erase obj))
+  (for-each [erase _] objects)
   (erase player))
 
 (define (draw-map)
   "Draw all objects to the display."
   (nc:mvprintw 0 0 (number->string (length objects)))
-  (dolist (obj objects)
-    (draw obj))
+  (for-each [draw _] objects)
   (draw player)
   (nc:refresh))
 
 (define (sim-step)
   "Run the simulation forward one step."
-  (dolist (obj objects)
-    (step obj)))
+  (for-each [step _] objects))
 
 (define (spacer)
   "Play the Spacer game."
