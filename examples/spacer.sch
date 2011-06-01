@@ -162,27 +162,27 @@
 
 (define (erase-map)
   "Remove all objects from the map -- cheaper than nc:clear hopefully."
-  (for-each erase objects)
+  (for-each [erase _] objects)
   (erase player))
 
 (define (draw-map)
   "Draw all objects to the display."
   (nc:mvprintw 0 0 (number->string (length objects)))
-  (for-each draw objects)
+  (for-each [draw _] objects)
   (draw player)
   (nc:refresh))
 
 (define (sim-step)
   "Run the simulation forward one step."
-  (for-each step objects))
+  (for-each [step _] objects))
 
 (define (spacer)
   "Play the Spacer game."
   (with-curses win
-    (nc:noecho)
-    (nc:cbreak)
-    (nc:keypad win #t)
-    (nc:curs-set 0)
-    (init-game)
-    (pth:spawn simulate-loop)
-    (control-player)))
+	       (nc:noecho)
+	       (nc:cbreak)
+	       (nc:keypad win #t)
+	       (nc:curs-set 0)
+	       (init-game)
+	       (pth:spawn simulate-loop)
+	       (control-player)))
