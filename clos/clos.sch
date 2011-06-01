@@ -422,6 +422,56 @@
 	    entry
 	    (throw-error "No slot" slot-name "in instances of" class))))))
 
+(define (rewrite-slot-ref exp)
+  (let ((cache (gensym))
+	(cache-class (gensym))
+	(evald-obj (gensym)))
+    `(let-static ((,cache ())
+		  (,cache-class ())
+		  (,evald-obj ()))
+
+       (set! ,evald-obj ,(second exp))
+       (if (eq? (class-of ,evald-obj)
+		,cache-class)
+	   (,cache ,evald-obj)
+
+	   (begin
+	     ;; missed cache
+	     (set! ,cache-class (class-of ,evald-obj))
+	     (set! ,cache (list-ref (lookup-slot-info ,cache-class ,(third exp)) 0))
+	     (,cache ,evald-obj))))))
+
+(define (rewrite-slot-set exp)
+  (let ((cache (gensym))
+	(cache-class (gensym))
+	(evald-obj (gensym)))
+    `(let-static ((,cache ())
+		  (,cache-class ())
+		  (,evald-obj ()))
+
+       (set! ,evald-obj ,(second exp))
+       (if (eq? (class-of ,evald-obj)
+		,cache-class)
+	   (,cache ,evald-obj ,(fourth exp))
+
+	   (begin
+	     ;; missed cache
+	     (set! ,cache-class (class-of ,evald-obj))
+	     (set! ,cache (list-ref (lookup-slot-info ,cache-class ,(third exp)) 1))
+	     (,cache ,evald-obj ,(fourth exp)))))))
+
+(define (const-slot? slot)
+  (and (pair? slot)
+       (eq? (first slot) 'quote)))
+
+(define (expression-expander exp)
+  (cond
+   ((and (eq? (first exp) 'slot-ref)
+	 (const-slot? (third exp)))
+    rewrite-slot-ref)
+   ((and (eq? (first exp) 'slot-set!)
+	 (const-slot? (third exp)))
+    rewrite-slot-set)))
 ;
 ; Given that the early version of MAKE is allowed to call accessors on
 ; class metaobjects, the definitions for them come here, before the
@@ -1112,6 +1162,14 @@ compute-methods for reuse between calls"
 
 	     ;; do the call
 	     (,cached-function ,evald-args))))))
+
+(let ((old-expander expression-expander))
+  (define (expression-expander exp)
+    (cond
+     ((and (comp-bound? (first exp))
+	   (cacheable-generic-function? (comp-global-ref (first exp))))
+      rewrite-generic-closure-callsite)
+     (else (old-expander exp)))))
 
 ;; temp turn it off again
 ;(define (cacheable-generic-function? closure) #f)

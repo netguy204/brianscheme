@@ -70,14 +70,9 @@
   (and (comp-bound? sym)
        (compiled-syntax-procedure? (comp-global-ref sym))))
 
-(define (cacheable-generic-function? closure)
-  "this will be overriden in clos/clos.sch"
-  #f)
-
-(define (comp-cacheable-generic? sym)
-  "true if SYM currently refers to a callsite cacheable generic"
-  (and (comp-bound? sym)
-       (cacheable-generic-function? (comp-global-ref sym))))
+(define (expression-expander exp)
+  "hook that's used by clos to define inliners"
+  nil)
 
 (define (comp-macroexpand0 form)
   "expand form using a macro found in the compiled environment"
@@ -723,8 +718,8 @@ variable given that our environment looks like ENV"
        (cond
 	((comp-macro? (first exp))
 	 (variable-usages (comp-macroexpand0 exp) env))
-	((comp-cacheable-generic? (first exp))
-	 (variable-usages (rewrite-generic-closure-callsite exp) env))
+	((expression-expander exp)
+	 (variable-usages ((expression-expander exp) exp) env))
 	(else
 	 (map (lambda (exp)
 		(variable-usages exp env)) exp))))))))

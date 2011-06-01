@@ -21,9 +21,6 @@
 #include <dirent.h>
 #include "hashtab.h"
 
-/* first implementing the classic tagged type. This specific
-   inplementation is stolen from Peter Michaux's bootstrap-scheme. */
-
 typedef enum {NIL, BOOLEAN, SYMBOL, LAZY_SYMBOL, FIXNUM, FLOATNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
