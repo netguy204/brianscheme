@@ -718,8 +718,6 @@ variable given that our environment looks like ENV"
        (cond
 	((comp-macro? (first exp))
 	 (variable-usages (comp-macroexpand0 exp) env))
-	((expression-expander exp)
-	 (variable-usages ((expression-expander exp) exp) env))
 	(else
 	 (map (lambda (exp)
 		(variable-usages exp env)) exp))))))))
@@ -916,15 +914,15 @@ variable given that our environment looks like ENV"
 		     body))))
 
       (else
-       (if (comp-macro? (first exp))
-	   ;; expand and retry
-	   (alpha-convert (comp-macroexpand0 exp) vars inline-notes)
-
-	   ;; check for head lambdas
-	   (if (and (pair? (first exp))
-		    (eq? 'lambda (first (first exp))))
-	       ;; head is lambda and thus inline-able
-	       (record (rest (first exp))
+       (cond
+	((expression-expander exp)
+	 (alpha-convert ((expression-expander exp) exp) vars inline-notes))
+	((comp-macro? (first exp))
+	 (alpha-convert (comp-macroexpand0 exp) vars inline-notes))
+	;; check for head lambdas
+	((and (pair? (first exp))
+	      (eq? 'lambda (first (first exp))))
+	 (record (rest (first exp))
 	         (args . body)
 		 (let ((remapped (make-new-names (make-true-list args)))
 		       (parms (rest exp)))
@@ -939,11 +937,11 @@ variable given that our environment looks like ENV"
 			 (push-note! notepad remapped)
 			 (let ((inlined (generate-inlined args vars (append remapped vars) parms body notepad)))
 			   `(inlined-lambda ,(append-all (get-notes notepad))
-					    ,inlined))))))
-	       ;; build up non-inlined call
-	       (map (lambda (e)
-		      (alpha-convert e vars inline-notes))
-		    exp))))))))
+					    ,inlined)))))))
+	(else
+	 (map (lambda (e)
+		(alpha-convert e vars inline-notes))
+	      exp))))))))
 
 (define (generate-sets args parms premapped remapped inline-notes)
   ;(printf "generate-sets args: %a parms: %a remapped: %a\n"
