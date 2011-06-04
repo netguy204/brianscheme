@@ -113,10 +113,8 @@ about its value and optionally with more forms following"
 
       ;; generate an invocation
       (else
-       (if (comp-macro? (first x))
-	   (comp (comp-macroexpand0 x) env val? more?)
-	   (comp-funcall (first x) (rest x)
-			 env val? more?)))))))
+       (comp-funcall (first x) (rest x)
+		     env val? more?))))))
 
 (define (%<=2 a b)
   (or (%fixnum-less-than a b) (%fixnum-equal a b)))
@@ -709,12 +707,8 @@ variable given that our environment looks like ENV"
 	  `(inlined-lambda ,new-args ,(variable-usages body new-env))))
 
       (else
-       (cond
-	((comp-macro? (first exp))
-	 (variable-usages (comp-macroexpand0 exp) env))
-	(else
-	 (map (lambda (exp)
-		(variable-usages exp env)) exp))))))))
+       (map (lambda (exp)
+	      (variable-usages exp env)) exp))))))
 
 (define (make-space spaces)
   (make-string spaces #\space))
