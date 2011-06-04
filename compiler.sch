@@ -466,13 +466,7 @@ variable given that our environment looks like ENV"
 	   (variable-idx-ref real-var) ";" var))
 
      (else
-      (gen 'sset (variable-idx-ref real-var) ";" var)))))
-
-(define (in-env? symbol env)
-  (let ((frame (find (lambda (f) (member? symbol f)) env)))
-    (if (not frame)
-	nil
-	(list (index-eq frame env) (index-eq symbol frame)))))
+      (gen 'sset (variable-idx-ref real-var) 0 ";" var)))))
 
 (define (label? obj)
   (symbol? obj))
@@ -765,12 +759,6 @@ variable given that our environment looks like ENV"
 (define (comp-show fn)
   (%show-fn (compiler fn) 0))
 
-(define (dump-compiled-fn fn . indent)
-  (let ((indent (if (null? indent)
-		    0
-		    (car indent))))
-    (%show-fn fn indent)))
-
 (define (comp-repl)
   (display "comp-repl> ")
   (let ((result ((compiler (read-port stdin)))))
@@ -778,15 +766,6 @@ variable given that our environment looks like ENV"
     (newline)
     (unless (eq? result 'quit)
 	    (comp-repl))))
-
-; now we can compile functions to bytecode and print the results like
-; this:
-; (comp-show '(if (= x y) (f (g x)) (h x y (h 1 2))))
-
-
-(define (compiling-load-eval form env)
-  (let ((result ((compiler form))))
-    result))
 
 (define (compile-file name)
   "read and compile all forms in file"
@@ -802,19 +781,6 @@ variable given that our environment looks like ENV"
               (iter (read-port in)))
           #t)
         (throw-error "failed to find" name))))
-
-(define (zip2 l1 l2)
-  (let ((result nil))
-    (let loop ((r1 l1)
-	       (r2 l2))
-      (if (and r1 r2)
-	  (begin
-	    (push! (cons (car r1)
-			 (car r2))
-		   result)
-	    (loop (cdr r1)
-		  (cdr r2)))
-	  (reverse result)))))
 
 (define (make-new-names vars)
   (map (lambda (var) (cons var (gensym))) vars))
@@ -842,7 +808,7 @@ variable given that our environment looks like ENV"
    (else
     (record-case exp
       (if-compiling (then else)
-	 (find-inlined-vars then (find-inlined-vars else)))
+	 (find-inlined-vars then (find-inlined-vars else found)))
       (quote (obj) found)
       (begin exps
         (reduce (lambda (found exp)

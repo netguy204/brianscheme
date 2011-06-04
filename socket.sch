@@ -71,18 +71,24 @@
 	    (loop (socket-read sock 1)))))))
 
 (define (http-server port handler)
-  (let* ((server (make-server-socket port))
-	 (conn (socket-accept server))
-	 (req (socket-read-line conn))
-	 (hdrs nil))
-    (let loop ((data (socket-read-line conn)))
-      (cond
-       ((= (string-length data) 0)
-	(handler conn (list req hdrs))
-	(socket-close server))
-       (else
-	(push! (socket-parse-line data) hdrs)
-	(loop (socket-read-line conn)))))))
+  (let server-loop ((server (make-server-socket port)))
+    (set! *http-server* server)
+    (let* ((conn (socket-accept server))
+	   (req (socket-read-line conn))
+	   (hdrs nil))
+      (let loop ((data (socket-read-line conn)))
+	(cond
+	 ((= (string-length data) 0)
+	  (handler conn (list req hdrs))
+	  (server-loop server))
+	 (else
+	  (push! (socket-parse-line data) hdrs)
+	  (loop (socket-read-line conn))))))))
+
+(define (stop-global-server)
+  (when *http-server*
+	(socket-close *http-server*)
+	(set! *http-server* nil)))
 
 (define (append-eol buff)
   (write-stream buff (integer->char 13))
@@ -121,9 +127,8 @@
     (string-buffer->string buff)))
 
 (define (test-handler conn hdrs)
-  (printf "handler\n")
-  (let ((data (with-basic-header
-	       "<html><body><h1>Hello World!</h1></body></html>")))
-    (printf "wrote: %a\n"
-	    (socket-write conn data (string-length data)))
-    (socket-close conn)))
+  (time
+   (let ((data (with-basic-header
+		"<html><body><h1>Hello World!</h1></body></html>")))
+     (socket-write conn data (string-length data))
+     (socket-close conn))))

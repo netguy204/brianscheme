@@ -1,3 +1,0 @@
-(require 'compiler)
-
-(comp-repl)
