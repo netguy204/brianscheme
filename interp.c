@@ -817,7 +817,7 @@ DEFUN1(string_set_proc) {
   return FIRST;
 }
 
-int snprintf(char *, size_t, const char *, ...);
+//int snprintf(char *, size_t, const char *, ...);
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];
@@ -1736,12 +1736,12 @@ void init() {
 
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
-  init_ffi(interp_definer);
+  //init_ffi(interp_definer);
   init_socket(interp_definer);
 
   init_prim_environment(vm_definer);
   vm_init_environment(vm_definer);
-  init_ffi(vm_definer);
+  //init_ffi(vm_definer);
   init_socket(vm_definer);
 
   vm_init();

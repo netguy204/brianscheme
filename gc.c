@@ -474,7 +474,7 @@ void finalize_object(object * head) {
     htb_destroy(HTAB(head));
     break;
   case ALIEN:
-    free_ffi_alien_object(head);
+    //free_ffi_alien_object(head);
     break;
   default:
     break;

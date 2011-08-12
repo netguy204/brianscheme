@@ -2,7 +2,7 @@ TARGETS = bsch bsch.preboot bschsfx
 
 default: $(TARGETS)
 
-SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c ffi.c pool.c socket.c tlsf.c
+SOURCES = interp.c types.c read.c gc.c vm.c hashtab.c pool.c socket.c tlsf.c
 
 HEADERS = $(subst .c,.h,$(SOURCES))
 
@@ -10,7 +10,7 @@ OBJECTS = $(subst .c,.o,$(SOURCES))
 
 IMAGE = boot.img
 
-LDFLAGS = -lz -lffi -lltdl -lm -rdynamic
+LDFLAGS = -lz -lltdl -lm -rdynamic -L/usr/lib
 
 CC = gcc
 
