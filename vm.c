@@ -30,7 +30,7 @@
 
 #define ARG1 UNPACK1(((long)codes[pc-1]))
 #define ARG2 UNPACK2(((long)codes[pc-1]))
-#define BC void*
+#define BC long
 
 #define length1(x) (CDR(x) == the_empty_list)
 
@@ -81,15 +81,11 @@ opcode_table(generate_decls)
        opcode_table(generate_string)
      };
 
-/* the dispatch table will be built by vm_execute */
-object* dispatch_table;
-char build_dispatch_table = 0;
-
 /* generate a function that converts a symbol into the corresponding
    bytecode */
-#define generate_sym_to_code(opcode)					\
-  if(sym == opcode ## _op) {						\
-    return VARRAY(dispatch_table)[_ ## opcode ## _];			\
+#define generate_sym_to_code(opcode)			\
+  if(sym == opcode ## _op) {				\
+    return make_fixnum( _ ## opcode ## _);		\
   }
 
 object *symbol_to_code(object * sym) {
@@ -108,16 +104,12 @@ DEFUN1(make_bytecode_array_proc) {
 
 DEFUN1(get_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  return make_alien(bca[LONG(SECOND)], g->empty_list);
+  return make_fixnum(bca[LONG(SECOND)]);
 }
 
 DEFUN1(set_bytecode_proc) {
   BC *bca = ALIEN_PTR(FIRST);
-  if(is_alien(THIRD)) {
-    bca[LONG(SECOND)] = (BC) ALIEN_PTR(THIRD);
-  } else {
-    return g->error_sym;
-  }
+  bca[LONG(SECOND)] = (BC) LONG(THIRD);
   return THIRD;
 }
 
@@ -151,7 +143,7 @@ DEFUN1(get_bytecode_operands_proc) {
    corresponding symbol */
 
 #define generate_code_to_sym(opcode)					\
-  if(ALIEN_PTR(FIRST) == ALIEN_PTR(VARRAY(dispatch_table)[_ ## opcode ## _])) { \
+  if(LONG(FIRST) == _ ## opcode ## _) {					\
     return make_symbol("" # opcode);					\
   }
 
@@ -257,7 +249,7 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
   do {								\
     const int tgt = pc;						\
     pc += 2;							\
-    goto *codes[tgt];						\
+    goto *(&&__pushvarargs__ + disp_tbl[(long)codes[tgt]]);	\
   } while(0)
 
 object *vm_execute(object * fn, object * stack, long stack_top, long n_args, object* genv) {
@@ -289,19 +281,14 @@ object *vm_execute(object * fn, object * stack, long stack_top, long n_args, obj
   object *new_stack;
   object *cc_fn;
 
-  if(build_dispatch_table) {
-    /* build the dispatch table and exit immediately */
-    dispatch_table = make_vector(g->error_sym, INVALID_BYTECODE);
-    push_root(&dispatch_table);
+  /* build the dispatch table */
+  int disp_tbl[INVALID_BYTECODE];
 
-#define generate_dispatch(opcode)			\
-    VARRAY(dispatch_table)[ _ ## opcode ## _] =		\
-      make_alien(&& __ ## opcode ## __, g->empty_list);
+#define generate_dispatch(opcode)		\
+  disp_tbl[ _ ## opcode ## _] =			\
+    && __ ## opcode ## __ - &&__pushvarargs__;
 
-    opcode_table(generate_dispatch);
-    build_dispatch_table = 0;
-    return g->error_sym;
-  }
+  opcode_table(generate_dispatch);
 
   /* bootstrap an empty frame for this function since the callj opcode
      won't have built one for us */
@@ -692,7 +679,12 @@ void vm_definer(char *sym, object * value) {
   object *slot = get_hashtab(g->vm_env, symbol, NULL);
 
   if(slot) {
-    set_cdr(slot, value);
+    // if it's a pointer to a primitive we slot it in manually
+    if(is_primitive_proc(CDR(slot)) && is_primitive_proc(value)) {
+      CDR(slot)->data.primitive_proc.fn = value->data.primitive_proc.fn;
+    } else {
+      set_cdr(slot, value);
+    }
   }
   else {
     push_root(&value);
@@ -706,11 +698,8 @@ void vm_boot(void) {
   /* generate the symbol initializations */
   opcode_table(generate_syminit)
 
-  /* ask the vm to generate the jump table */
-  build_dispatch_table = 1;
-  vm_execute(NULL, NULL, 0, 0, NULL);
+    /* register for sigint */
 
-  /* register for sigint */
   struct sigaction sa;
   sa.sa_handler = vm_sigint_handler;
   sigaction(SIGINT, &sa, NULL);
