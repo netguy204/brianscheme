@@ -39,18 +39,7 @@ char is_true(object * obj) {
 }
 
 char is_symbol(object * obj) {
-  return !TAGGED(obj) && (obj->type == SYMBOL || obj->type == LAZY_SYMBOL);
-}
-
-object *make_fixnum(long value) {
-  object *obj = alloc_object(0);
-  obj->type = FIXNUM;
-  LONG(obj) = value;
-  return obj;
-}
-
-char is_fixnum(object * obj) {
-  return !TAGGED(obj) && obj->type == FIXNUM;
+  return is_lazy_symbol(obj) || (!TAGGED(obj) && obj->type == SYMBOL);
 }
 
 object *make_real(double value) {
@@ -386,14 +375,12 @@ object *find_symbol(char *value) {
 
 static long next_uninterned_symbol = 0;
 object *make_uninterned_symbol() {
-  object *obj = alloc_object(0);
-  obj->type = LAZY_SYMBOL;
-  LONG(obj) = next_uninterned_symbol++;
-  return obj;
+  long next_val = next_uninterned_symbol++;
+  return make_prim_uninterned_symbol(next_val);
 }
 
 char is_lazy_symbol(object * obj) {
-  return !TAGGED(obj) && obj->type == LAZY_SYMBOL;
+  return is_prim_uninterned_symbol(obj);
 }
 
 object *make_symbol(char *value) {
