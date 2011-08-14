@@ -22,7 +22,7 @@ void fancystack_init() {
   sa.sa_flags = SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
   sa.sa_sigaction = fancystack_handler;
-  if(sigaction(SIGBUS, &sa, NULL) == -1) {
+  if(sigaction(SIGSEGV, &sa, NULL) == -1) {
     fprintf(stderr, "failed to install signal handler\n");
     exit(1);
   }
@@ -35,7 +35,7 @@ void *fancystack_guard(fancystack* stack) {
 fancystack *fancystack_alloc(int pages) {
   // allocate one extra page so that we can detect overflow
   long size = pagesize * pages;
-  void *stack_data = malloc(size + pagesize);
+  void *stack_data = memalign(pagesize, size + pagesize);
   
   // allocate the stack record
   fancystack *stack = malloc(sizeof(fancystack));
@@ -48,6 +48,7 @@ fancystack *fancystack_alloc(int pages) {
   // write protect that extra page
   if(mprotect(fancystack_guard(stack), pagesize, PROT_READ) == -1) {
     fprintf(stderr, "failed to create stack protect page\n");
+	perror("mprotect");
     exit(1);
   }
   
@@ -77,7 +78,7 @@ void fancystack_free(fancystack *stack) {
 void fancystack_grow(fancystack *stack) {
   // always double the size
   long new_size = stack->size * 2;
-  void *new_data = malloc(new_size + pagesize);
+  void *new_data = memalign(pagesize, new_size + pagesize);
 
   memcpy(new_data, stack->data, stack->size + pagesize);
   free(stack->data);
@@ -87,6 +88,7 @@ void fancystack_grow(fancystack *stack) {
 
   if(mprotect(fancystack_guard(stack), pagesize, PROT_READ) == -1) {
     fprintf(stderr, "failed to create stack protect page\n");
+	perror("mprotect");
     exit(1);
   }
 }
