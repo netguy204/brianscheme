@@ -27,16 +27,15 @@ object *car(object *pair);
 
 object *cdr(object *pair);
 
-#define DEFUN1(name)						\
-  object* name(object *args __attribute__ ((unused)),		\
-	       long n_args __attribute__ ((unused)),		\
-	       long stack_top __attribute__ ((unused)))
+#define DEFUN1(name)							\
+  object* name(fancystack *args __attribute__ ((unused)),		\
+	       long n_args __attribute__ ((unused)))
 
-#define FIRST (VARRAY(args)[stack_top-n_args])
-#define SECOND (VARRAY(args)[stack_top-(n_args-1)])
-#define THIRD (VARRAY(args)[stack_top-(n_args-2)])
-#define FOURTH (VARRAY(args)[stack_top-(n_args-3)])
-#define FIFTH (VARRAY(args)[stack_top-(n_args-4)])
+#define FIRST ((object*)args->data[args->top - n_args])
+#define SECOND ((object*)args->data[args->top - (n_args - 1)])
+#define THIRD ((object*)args->data[args->top - (n_args - 2)])
+#define FOURTH ((object*)args->data[args->top - (n_args - 3)])
+#define FIFTH ((object*)args->data[args->top - (n_args - 4)])
 
 #define AS_BOOL(x) (x ? g->true : g->false)
 
@@ -76,10 +75,10 @@ void destroy_interp();
 object *owrite(FILE *out, object *obj);
 char is_falselike(object *obj);
 object *expand_macro(object *macro, object *args,
-		     object *env, int level, object * stack, long stack_top);
+		     object *env, int level, fancystack * stack);
 object *interp(object *exp, object *env);
-object *interp1(object *exp, object *env, int level, object * stack, long stack_top);
-object *apply(object *fn, object *args);
+object *interp1(object *exp, object *env, int level, fancystack * stack);
+object *apply(object *fn, object *args, fancystack *stack);
 object *debug_write(char * msg, object *obj, int level);
 
 void print_obj(object *obj);

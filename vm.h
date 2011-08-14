@@ -24,23 +24,18 @@ void vm_add_roots(void);
 void vm_boot(void);
 void vm_init_environment(definer defn);
 
-object *vm_execute(object *fn, object *stack, long stack_top, long n_args, object *genv);
+object *vm_execute(object *fn, fancystack *stack, long n_args, object *genv);
 
-void vector_push(object *stack, object *obj, long top);
-
-object *vector_pop(object *stack, long top);
 void vm_definer(char *sym, object *value);
 
-#define VPUSH(obj, stack, top)				\
+#define VPUSH(obj, stack)				\
   do {							\
-    vector_push(stack, obj, top);			\
-    ++top;						\
+    stack->data[stack->top++] = obj;			\
   } while(0)
 
-#define VPOP(tgt, stack, top)			\
+#define VPOP(tgt, stack)			\
   do {						\
-    tgt = vector_pop(stack, top);		\
-    --top;					\
+    tgt = stack->data[--stack->top];		\
   } while(0)
 
 

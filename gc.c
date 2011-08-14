@@ -23,6 +23,7 @@
 #include "pool.h"
 #include "gc.h"
 #include "ffi.h"
+#include "fancystack.h"
 
 /* enable gc debuging by defining
  * DEBUG_GC
@@ -491,6 +492,17 @@ long baker_collect() {
   for(ii = 0; ii < g->Root_Objects->top; ++ii) {
     object **next = g->Root_Objects->objs[ii];
     move_reachable(*next, &(g->Old_Heap_Objects));
+  }
+
+  /* treat all system stacks as roots as well */
+  fancystack *current_stack = fancystack_first();
+  while(current_stack != NULL) {
+    for(ii = 0; ii < current_stack->top; ++ii) {
+      object *next = current_stack->data[ii];
+      move_reachable(next, &(g->Old_Heap_Objects));
+    }
+
+    current_stack = current_stack->next;
   }
 
   /* now finalize anything that needs it */

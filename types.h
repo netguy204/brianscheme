@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include "hashtab.h"
+#include "fancystack.h"
 
 
 /* first implementing the classic tagged type. This specific
@@ -67,8 +68,7 @@ typedef struct object {
       struct hashtab_t* hash_table;
     } hash_table;
     struct {
-      struct object *(*fn)(struct object *argstack,
-			   long n, long top);
+      struct object *(*fn)(fancystack *argstack, long n);
     } primitive_proc;
     struct {
       struct object *parms_and_env;
@@ -105,8 +105,7 @@ typedef struct object {
   } data;
 } object;
 
-typedef struct object* (prim_proc)(struct object*,
-				   long, long);
+typedef struct object* (prim_proc)(fancystack*, long);
 
 #define is_small_fixnum(obj) ((((unsigned long)obj) & 3) == 1)
 #define make_small_fixnum(val) (object*)(((unsigned long)val << 2) | 1)
