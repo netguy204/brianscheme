@@ -112,7 +112,6 @@
        (set-macro! ,(car name-and-vars)))))
 (set-macro! define-syntax)
 
-(%logor 1 1)
 (define-syntax (define name . value-or-body)
   (if (symbol? name)
       (if (null? value-or-body)
