@@ -465,6 +465,11 @@ void release_file_stream(stream_reader * reader) {
   free(file_reader);
 }
 
+void release_popen_reader(stream_reader * reader) {
+  file_stream_reader *file_reader = (file_stream_reader *) reader;
+  pclose(file_reader->source);
+}
+
 stream_reader *make_file_reader(FILE * file) {
   file_stream_reader *reader = malloc(sizeof(file_stream_reader));
   reader->reader.reader = &read_file_stream;
@@ -473,6 +478,13 @@ stream_reader *make_file_reader(FILE * file) {
   reader->reader.releaser = &release_file_stream;
   reader->source = file;
   return (stream_reader *) reader;
+}
+
+stream_reader *make_popen_reader(const char * cmd) {
+  stream_reader *reader = make_file_reader(popen(cmd, "r"));
+  file_stream_reader *file_reader = (file_stream_reader *) reader;
+  file_reader->reader.releaser = &release_popen_reader;
+  return reader;
 }
 
 int read_string_stream(stream_reader * reader) {
@@ -526,7 +538,7 @@ int peek_stream(stream_reader * stream) {
   return stream->peeker(stream);
 }
 
-void release_stream(stream_reader * stream) {
+void release_stream_reader(stream_reader * stream) {
   stream->releaser(stream);
 }
 
@@ -535,11 +547,29 @@ void write_file_stream(stream_writer * writer, char datum) {
   putc(datum, file_writer->destination);
 }
 
+void close_file_stream(stream_writer * writer) {
+  file_stream_writer *file_writer = (file_stream_writer *) writer;
+  fclose(file_writer->destination);
+}
+
+void close_popen_writer(stream_writer * writer) {
+  file_stream_writer *file_writer = (file_stream_writer *) writer;
+  pclose(file_writer->destination);
+}
+
 stream_writer *make_file_writer(FILE * file) {
   file_stream_writer *writer = malloc(sizeof(file_stream_writer));
   writer->destination = file;
   writer->writer.writer = &write_file_stream;
+  writer->writer.releaser = &close_file_stream;
   return (stream_writer *) writer;
+}
+
+stream_writer *make_popen_writer(const char * cmd) {
+  stream_writer *writer = make_file_writer(popen(cmd, "w"));
+  file_stream_writer *file_writer = (file_stream_writer *) writer;
+  file_writer->writer.releaser = &close_popen_writer;
+  return writer;
 }
 
 void write_string_stream(stream_writer * writer, char datum) {
@@ -551,9 +581,14 @@ void write_string_stream(stream_writer * writer, char datum) {
   }
 }
 
+void close_string_stream(stream_writer * writer) {
+  // all memory is external, do nothing
+}
+
 stream_writer *make_string_writer(char *buffer, int length) {
   string_stream_writer *writer = malloc(sizeof(string_stream_writer));
   writer->writer.writer = &write_string_stream;
+  writer->writer.releaser = &close_string_stream;
   writer->destination = buffer;
   writer->destination_capacity = length;
   writer->position = 0;
@@ -562,6 +597,10 @@ stream_writer *make_string_writer(char *buffer, int length) {
 
 void write_stream(stream_writer * writer, char datum) {
   writer->writer(writer, datum);
+}
+
+void release_stream_writer(stream_writer * writer) {
+  writer->releaser(writer);
 }
 
 void stream_fprintf(stream_writer * writer, char *msg, ...) {

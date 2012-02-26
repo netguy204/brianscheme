@@ -479,7 +479,7 @@ DEFUN1(close_output_port_proc) {
   object *obj = FIRST;
   if(!is_output_port_opened(obj))
     return g->false;
-  release_stream(OUTPUT(obj));
+  release_stream_writer(OUTPUT(obj));
   set_output_port_opened(obj, 0);
   return g->true;
 }
@@ -498,14 +498,14 @@ DEFUN1(close_input_port_proc) {
   if(!is_input_port_opened(obj))
     return g->false;
   stream_reader *in = INPUT(obj);
-  release_stream(in);
+  release_stream_reader(in);
   set_input_port_opened(obj, 0);
   return g->true;
 }
 
 DEFUN1(open_input_pipe_proc) {
   object *name = FIRST;
-  FILE *in = popen(STRING(name), "r");
+  stream_reader *in = make_popen_reader(STRING(name));
   if(in == NULL) {
     return g->eof_object;
   }
@@ -514,11 +514,11 @@ DEFUN1(open_input_pipe_proc) {
 
 DEFUN1(open_output_pipe_proc) {
   object *name = FIRST;
-  FILE *in = popen(STRING(name), "w");
-  if(in == NULL) {
+  stream_writer *out = make_popen_writer(STRING(name));
+  if(out == NULL) {
     return g->eof_object;
   }
-  return make_output_port(in, 1);
+  return make_output_port(out, 1);
 }
 
 DEFUN1(chmod_proc) {

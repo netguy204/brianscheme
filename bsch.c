@@ -142,7 +142,7 @@ object *load_library(char *libname) {
     result = interp(form, g->empty_env);
     pop_root(&form);
   }
-  release_stream(file_reader);
+  release_stream_reader(file_reader);
 
   return result;
 }

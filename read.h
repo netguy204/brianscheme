@@ -20,17 +20,17 @@
 struct stream_reader_;
 
 typedef struct stream_reader_ {
+  void (*releaser) (struct stream_reader_ *);
   int (*reader) (struct stream_reader_ *);
   void (*unreader) (struct stream_reader_ *, int);
   int (*peeker) (struct stream_reader_ *);
-  void (*releaser) (struct stream_reader_ *);
 } stream_reader;
 
 
 int read_stream(stream_reader * stream);
 void unread_stream(stream_reader * stream, int last_char);
 int peek_stream(stream_reader * stream);
-void release_stream(stream_reader * stream);
+void release_stream_reader(stream_reader * stream);
 
 
 typedef struct file_stream_reader_ {
@@ -39,6 +39,7 @@ typedef struct file_stream_reader_ {
 } file_stream_reader;
 
 stream_reader *make_file_reader(FILE * file);
+stream_reader *make_popen_reader(const char * cmd);
 
 typedef struct string_stream_reader_ {
   stream_reader reader;
@@ -51,11 +52,13 @@ stream_reader *make_string_reader(const char *string);
 struct stream_writer_;
 
 typedef struct stream_writer_ {
+  void (*releaser) (struct stream_writer_ *);
   void (*writer) (struct stream_writer_ *, char);
 } stream_writer;
 
 void write_stream(stream_writer * writer, char datum);
 void stream_fprintf(stream_writer * writer, char *msg, ...);
+void release_stream_writer(stream_writer * writer);
 
 typedef struct file_stream_writer_ {
   stream_writer writer;
@@ -63,6 +66,7 @@ typedef struct file_stream_writer_ {
 } file_stream_writer;
 
 stream_writer *make_file_writer(FILE * file);
+stream_writer *make_popen_writer(const char * cmd);
 
 typedef struct string_stream_writer_ {
   stream_writer writer;
