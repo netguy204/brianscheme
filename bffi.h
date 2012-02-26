@@ -17,6 +17,8 @@
 #ifndef FFI_H
 #define FFI_H
 
+#include "types.h"
+
 void ffi_add_roots(void);
 void init_ffi(definer defn);
 void free_ffi_alien_object(object *alien);

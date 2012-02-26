@@ -817,7 +817,10 @@ DEFUN1(string_set_proc) {
   return FIRST;
 }
 
+// OSX defines this just fine
+#ifndef __MACH__
 int snprintf(char *, size_t, const char *, ...);
+#endif
 
 DEFUN1(number_to_string_proc) {
   char buffer[100];

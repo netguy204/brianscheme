@@ -19,7 +19,9 @@
 #include <ltdl.h>
 
 #include <ffi.h>
+
 #include "types.h"
+#include "bffi.h"
 #include "interp.h"
 #include "gc.h"
 
