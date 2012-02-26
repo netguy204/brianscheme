@@ -90,7 +90,7 @@ CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
 CPPFLAGS = 
 CYGPATH_W = echo
-DEFS = -DPACKAGE_NAME=\"brianscheme\" -DPACKAGE_TARNAME=\"brianscheme\" -DPACKAGE_VERSION=\"0.9\" -DPACKAGE_STRING=\"brianscheme\ 0.9\" -DPACKAGE_BUGREPORT=\"http://github.com/netguy204/brianscheme/issues\" -DPACKAGE_URL=\"\" -DPACKAGE=\"brianscheme\" -DVERSION=\"0.9\" -DHAVE_LIBZ=1 -DHAVE_LIBLTDL=1
+DEFS = -DPACKAGE_NAME=\"brianscheme\" -DPACKAGE_TARNAME=\"brianscheme\" -DPACKAGE_VERSION=\"0.9\" -DPACKAGE_STRING=\"brianscheme\ 0.9\" -DPACKAGE_BUGREPORT=\"http://github.com/netguy204/brianscheme/issues\" -DPACKAGE_URL=\"\" -DPACKAGE=\"brianscheme\" -DVERSION=\"0.9\" -DHAVE_LIBZ=1 -DHAVE_LIBLTDL=1 -DHAVE_LIBM=1
 DEPDIR = .deps
 ECHO_C = \c
 ECHO_N = 
@@ -103,7 +103,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = -lltdl -lz 
+LIBS = -lm -lltdl -lz 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /Users/btaylor/src/brianscheme/missing --run makeinfo
 MKDIR_P = ./install-sh -c -d
@@ -169,7 +169,7 @@ top_builddir = .
 top_srcdir = .
 bschpb_SOURCES = bsch.c interp.c types.c read.c gc.c vm.c hashtab.c bffi.c pool.c socket.c tlsf.c
 AM_CPPFLAGS = $(libffi_CFLAGS)
-bschpb_LDADD = $(libffi_LIBS) -lltdl -lz # fixme: move to configure.ac
+bschpb_LDADD = $(libffi_LIBS) -lltdl -lz -lm # fixme: move to configure.ac
 all: all-am
 
 .SUFFIXES:
