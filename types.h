@@ -21,7 +21,7 @@
 #include <dirent.h>
 #include "hashtab.h"
 #include "fancystack.h"
-
+#include "read.h"
 
 /* first implementing the classic tagged type. This specific
    inplementation is stolen from Peter Michaux's bootstrap-scheme. */
@@ -79,12 +79,12 @@ typedef struct object {
       struct object *env;
     } compiled_proc;
     struct {
-      FILE *stream;
+      stream_reader *stream;
       char is_pipe;
       char opened;
     } input_port;
     struct {
-      FILE *stream;
+      stream_writer *stream;
       char is_pipe;
       char opened;
     } output_port;
@@ -264,8 +264,8 @@ object *make_compiled_proc(object *bytecode, object *env);
 
 char is_compiled_proc(object *obj);
 
-object *make_input_port(FILE *stream, char is_pipe);
-object *make_output_port(FILE *stream, char is_pipe);
+object *make_input_port(stream_reader *stream, char is_pipe);
+object *make_output_port(stream_writer *stream, char is_pipe);
 object *make_dir_stream(DIR *stream);
 char is_input_port(object *obj);
 char is_output_port(object *obj);

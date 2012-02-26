@@ -13,14 +13,19 @@ AC_CHECK_LIB([z], [gzread], ,[AC_MSG_ERROR([zlib not found, see http://www.zlib.
 AC_CHECK_LIB([ltdl], [lt_dlopen], ,[AC_MSG_ERROR([ltdl not found, install libtool])])
 AC_CHECK_LIB([m], [ceil], ,[AC_MSG_ERROR([libm is missing, you should install it])])
 
+TARGET="unknown"
 case "$host" in
-     *86*-*-darwin*)
+     x86_64-*-darwin*)
           TARGET=X86_DARWIN
           ;;
-     *86*-*)
+     x86_64-*)
           TARGET=X86
           ;;
 esac
+
+if test $TARGETDIR = unknown; then
+   AC_MSG_ERROR(["brianscheme has not been ported to $host"])
+fi
 
 AC_SUBST(AM_LTLDFLAGS)
 

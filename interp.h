@@ -18,6 +18,7 @@
 #define INTERP_H
 
 #include "types.h"
+#include "read.h"
 
 /* pre-declarations */
 
@@ -29,6 +30,8 @@ object *cdr(object *pair);
 
 #define DEFUN1(name)							\
   object* name(fancystack *args __attribute__ ((unused)),		\
+    long n_args __attribute__ ((unused)));                      \
+  object* name(fancystack *args __attribute__ ((unused)),		\
 	       long n_args __attribute__ ((unused)))
 
 #define FIRST ((object*)args->data[args->top - n_args])
@@ -38,6 +41,10 @@ object *cdr(object *pair);
 #define FIFTH ((object*)args->data[args->top - (n_args - 4)])
 
 #define AS_BOOL(x) (x ? g->true : g->false)
+
+stream_reader * stdin_stream;
+stream_writer * stdout_stream;
+stream_writer * stderr_stream;
 
 /* used to convert cons arg lists into vector arg lists */
 
@@ -67,12 +74,12 @@ void set_variable_value(object *var, object *new_val,
 void define_variable(object *var, object *new_val,
 		     object *env);
 void init_prim_environment(definer defn);
-void init();
+void init(stream_reader* reader, stream_writer* writer, stream_writer* error);
 void interp_add_roots(void);
 void interp_definer(char *sym, object *val);
 void destroy_interp();
 
-object *owrite(FILE *out, object *obj);
+object *owrite(stream_writer *out, object *obj);
 char is_falselike(object *obj);
 object *expand_macro(object *macro, object *args,
 		     object *env, int level, fancystack * stack);

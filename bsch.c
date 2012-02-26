@@ -34,6 +34,8 @@ int bootstrap = 1;
 int print_help = 0;
 char *image = NULL;
 
+stream_reader * reader;
+
 void print_usage(int ret) {
   printf ("Usage: %s [options] [script [arguments]]\n", progname);
   printf ("\t-b           Do not bootstrap\n");
@@ -49,7 +51,7 @@ void print_version ()
   exit(EXIT_SUCCESS);
 }
 
-char **split_path(char *path) {
+char **split_path(const char *path) {
   /* Count delimiters while making a copy. */
   char del = ':';
   int count = 1;
@@ -134,13 +136,14 @@ object * load_library(char *libname) {
 
   object *form;
   object *result = NULL;
-  while((form = obj_read(stdlib)) != NULL) {
+    stream_reader * file_reader = make_file_reader(stdlib);
+  while((form = obj_read(file_reader)) != NULL) {
     push_root(&form);
     result = interp(form, g->empty_env);
     pop_root(&form);
   }
+    release_stream(file_reader);
 
-  fclose(stdlib);
   return result;
 }
 

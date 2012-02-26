@@ -494,18 +494,18 @@ DEFUN1(open_input_port_proc) {
   if(in == NULL) {
     return g->eof_object;
   }
-  return make_input_port(in, 0);
+  return make_input_port(make_file_reader(in), 0);
 }
 
 DEFUN1(close_input_port_proc) {
   object *obj = FIRST;
   if(!is_input_port_opened(obj))
     return g->false;
-  FILE *in = INPUT(obj);
+  stream_reader *in = INPUT(obj);
   if(is_input_port_pipe(obj))
     pclose(in);
   else
-    fclose(in);
+      release_stream(in);
   set_input_port_opened(obj, 0);
   return g->true;
 }
@@ -673,7 +673,7 @@ object *apply(object * fn, object * evald_args, fancystack *stack) {
     return result;
   }
 
-  owrite(stderr, fn);
+  owrite(stderr_stream, fn);
   return throw_message("cannot apply non-function");
 }
 
@@ -683,12 +683,13 @@ DEFUN1(apply_proc) {
   return apply(fn, evald_args, args);
 }
 
-object *obj_read(FILE * in);
+object *obj_read(stream_reader * in);
 DEFUN1(read_proc) {
   object *in_port = FIRST;
   if(!is_input_port(in_port)) {
     return throw_message("read-port expects input-port");
   }
+
   object *result = obj_read(INPUT(in_port));
   return (result == NULL) ? g->eof_object : result;
 }
@@ -709,7 +710,7 @@ DEFUN1(write_char_proc) {
   if(!is_character(ch) || !is_output_port(port)) {
     return throw_message("write-char expects output port and character");
   }
-  putc(CHAR(ch), OUTPUT(port));
+  write_stream(OUTPUT(port), CHAR(ch));
   return g->true;
 }
 
@@ -718,7 +719,7 @@ DEFUN1(read_char_proc) {
   if(!is_input_port(port)) {
     return throw_message("read-char expects input port");
   }
-  int result = getc(INPUT(port));
+  int result = read_stream(INPUT(port));
   return (result == EOF) ? g->eof_object : make_character(result);
 }
 
@@ -726,12 +727,13 @@ DEFUN1(unread_char_proc) {
   object *ch = FIRST;
   object *port = SECOND;
 
-  ungetc(CHAR(ch), INPUT(port));
+  unread_stream(INPUT(port), CHAR(ch));
   return g->true;
 }
 
 DEFUN1(fileno_proc) {
-  return make_fixnum(fileno(INPUT(FIRST)));
+    file_stream_reader *reader = (file_stream_reader*)INPUT(FIRST);
+  return make_fixnum(fileno(reader->source));
 }
 
 void list_to_fd_set(object *lst, fd_set *set) {
@@ -1044,7 +1046,7 @@ DEFUN1(get_meta_obj_proc) {
   return METAPROC(FIRST);
 }
 
-object *write_pair(FILE * out, object * pair) {
+object *write_pair(stream_writer * out, object * pair) {
   object *car_obj = car(pair);
   object *cdr_obj = cdr(pair);
 
@@ -1054,19 +1056,19 @@ object *write_pair(FILE * out, object * pair) {
   }
 
   if(is_pair(cdr_obj)) {
-    fprintf(out, " ");
+    stream_fprintf(out, " ");
     return write_pair(out, cdr_obj);
   }
   else if(is_the_empty_list(cdr_obj)) {
     return g->true;
   }
   else {
-    fprintf(out, " . ");
+    stream_fprintf(out, " . ");
     return owrite(out, cdr_obj);
   }
 }
 
-object *owrite(FILE * out, object * obj) {
+object *owrite(stream_writer * out, object * obj) {
   long ii;
   char c;
   char *str;
@@ -1077,89 +1079,89 @@ object *owrite(FILE * out, object * obj) {
   }
 
   if(is_fixnum(obj)) {
-    fprintf(out, "%ld", LONG(obj));
+    stream_fprintf(out, "%ld", LONG(obj));
     return g->true;
   }
 
   if(is_small_fixnum(obj)) {
-    fprintf(out, "#<small %ld >", SMALL_FIXNUM(obj));
+    stream_fprintf(out, "#<small %ld >", SMALL_FIXNUM(obj));
     return g->true;
   }
 
   if(is_hashtab(obj) && obj == g->env) {
-    fprintf(out, "#<global-environment-hashtab>");
+    stream_fprintf(out, "#<global-environment-hashtab>");
     return g->true;
   }
 
   if(is_lazy_symbol(obj)) {
-    fprintf(out, "#G%ld", PRIM_UNINTERNED_SYMBOL(obj));
+    stream_fprintf(out, "#G%ld", PRIM_UNINTERNED_SYMBOL(obj));
     return g->true;
   }
 
   switch (obj->type) {
   case THE_EMPTY_LIST:
-    fprintf(out, "()");
+    stream_fprintf(out, "()");
     break;
   case BOOLEAN:
-    fprintf(out, "#%c", is_false(obj) ? 'f' : 't');
+    stream_fprintf(out, "#%c", is_false(obj) ? 'f' : 't');
     break;
   case SYMBOL:
-    fprintf(out, "%s", obj->data.symbol.value);
+    stream_fprintf(out, "%s", obj->data.symbol.value);
     break;
   case FLOATNUM:
-    fprintf(out, "%lf", DOUBLE(obj));
+    stream_fprintf(out, "%lf", DOUBLE(obj));
     break;
   case CHARACTER:
-    fprintf(out, "#\\");
+    stream_fprintf(out, "#\\");
     c = obj->data.character.value;
     switch (c) {
     case '\n':
-      fprintf(out, "newline");
+      stream_fprintf(out, "newline");
       break;
     case ' ':
-      fprintf(out, "space");
+      stream_fprintf(out, "space");
       break;
     case '\t':
-      fprintf(out, "tab");
+      stream_fprintf(out, "tab");
       break;
     default:
-      putc(c, out);
+      write_stream(out, c);
     }
     break;
   case STRING:
     str = obj->data.string.value;
-    putc('"', out);
+    write_stream(out, '"');
     while(*str != '\0') {
       switch (*str) {
       case '\n':
-	fprintf(out, "\\n");
+	stream_fprintf(out, "\\n");
 	break;
       case '\\':
-	fprintf(out, "\\\\");
+	stream_fprintf(out, "\\\\");
 	break;
       case '"':
-	fprintf(out, "\\\"");
+	stream_fprintf(out, "\\\"");
 	break;
       default:
-	putc(*str, out);
+	write_stream(out, *str);
       }
       str++;
     }
-    putc('"', out);
+    write_stream(out, '"');
     break;
   case VECTOR:
-    putc('#', out);
-    putc('(', out);
+    write_stream(out, '#');
+    write_stream(out, '(');
     for(ii = 0; ii < VSIZE(obj); ++ii) {
       if(ii > 0) {
-	putc(' ', out);
+	write_stream(out, ' ');
       }
       object *result = owrite(out, VARRAY(obj)[ii]);
       if(is_primitive_exception(result)) {
 	return result;
       }
     }
-    putc(')', out);
+    write_stream(out, ')');
     break;
   case PAIR:
     head = car(obj);
@@ -1170,11 +1172,11 @@ object *owrite(FILE * out, object * obj) {
      */
     if(head == g->quote_symbol) {
       if(is_the_empty_list(cdr(obj))) {
-	fprintf(out, "(quote)");
+	stream_fprintf(out, "(quote)");
 	return g->true;
       }
 
-      fprintf(out, "'");
+      stream_fprintf(out, "'");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
 	return result;
@@ -1182,11 +1184,11 @@ object *owrite(FILE * out, object * obj) {
     }
     else if(head == g->unquote_symbol) {
       if(is_the_empty_list(cdr(obj))) {
-	fprintf(out, "(unquote)");
+	stream_fprintf(out, "(unquote)");
 	return g->true;
       }
 
-      fprintf(out, ",");
+      stream_fprintf(out, ",");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
 	return result;
@@ -1194,11 +1196,11 @@ object *owrite(FILE * out, object * obj) {
     }
     else if(head == g->unquotesplicing_symbol) {
       if(is_the_empty_list(cdr(obj))) {
-	fprintf(out, "(unquote-splicing)");
+	stream_fprintf(out, "(unquote-splicing)");
 	return g->true;
       }
 
-      fprintf(out, ",@");
+      stream_fprintf(out, ",@");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
 	return result;
@@ -1206,64 +1208,64 @@ object *owrite(FILE * out, object * obj) {
     }
     else if(head == g->quasiquote_symbol) {
       if(is_the_empty_list(cdr(obj))) {
-	fprintf(out, "(quasiquote)");
+	stream_fprintf(out, "(quasiquote)");
 	return g->true;
       }
 
-      fprintf(out, "`");
+      stream_fprintf(out, "`");
       object *result = owrite(out, cadr(obj));
       if(is_primitive_exception(result)) {
 	return result;
       }
     }
     else {
-      fprintf(out, "(");
+      stream_fprintf(out, "(");
       object *result = write_pair(out, obj);
       if(is_primitive_exception(result)) {
 	return result;
       }
-      fprintf(out, ")");
+      stream_fprintf(out, ")");
     }
     break;
   case PRIMITIVE_PROC:
-    fprintf(out, "#<primitive-procedure>");
+    stream_fprintf(out, "#<primitive-procedure>");
     break;
   case COMPOUND_PROC:
-    fprintf(out, "#<compound-procedure>");
+    stream_fprintf(out, "#<compound-procedure>");
     break;
   case COMPILED_PROC:
-    fprintf(out, "#<compiled-procedure>");
+    stream_fprintf(out, "#<compiled-procedure>");
     break;
   case COMPILED_SYNTAX_PROC:
-    fprintf(out, "#<compiled-syntax-procedure>");
+    stream_fprintf(out, "#<compiled-syntax-procedure>");
     break;
   case SYNTAX_PROC:
-    fprintf(out, "#<syntax-procedure>");
+    stream_fprintf(out, "#<syntax-procedure>");
     break;
   case META_PROC:
     {
-      fprintf(out, "#<meta: ");
+      stream_fprintf(out, "#<meta: ");
       object *result = owrite(out, METAPROC(obj));
       if(is_primitive_exception(result)) {
 	return result;
       }
-      fprintf(out, ">");
+      stream_fprintf(out, ">");
       break;
     }
   case HASH_TABLE:
-    fprintf(out, "#<hash-table>");
+    stream_fprintf(out, "#<hash-table>");
     break;
   case INPUT_PORT:
-    fprintf(out, "#<input-port>");
+    stream_fprintf(out, "#<input-port>");
     break;
   case OUTPUT_PORT:
-    fprintf(out, "#<output-port>");
+    stream_fprintf(out, "#<output-port>");
     break;
   case EOF_OBJECT:
-    fprintf(out, "#<eof>");
+    stream_fprintf(out, "#<eof>");
     break;
   case ALIEN:
-    fprintf(out, "#<alien-object %p>", ALIEN_PTR(obj));
+    stream_fprintf(out, "#<alien-object %p>", ALIEN_PTR(obj));
     break;
   default:
     return throw_message("cannot write unknown type: %d\n", obj->type);
@@ -1322,7 +1324,7 @@ object *expand_macro(object * macro, object * args, object * env, int level,
 object *interp1(object * exp, object * env, int level,
 		fancystack * prim_call_stack) {
   if(g->empty_list->type != THE_EMPTY_LIST) {
-    fprintf(stderr, "all sanity lost\n");
+    stream_fprintf(stderr_stream, "all sanity lost\n");
     exit(1);
   }
 
@@ -1506,13 +1508,13 @@ interp_restart:
       else {
 	pop_root(&fn);
 
-	owrite(stderr, fn);
+	owrite(stderr_stream, fn);
 	INTERP_RETURN(throw_message("\ncannot apply non-function\n"));
       }
     }
   }
 
-  owrite(stderr, exp);
+  owrite(stderr_stream, exp);
   INTERP_RETURN(throw_message(": can't evaluate\n"));
 }
 
@@ -1672,9 +1674,9 @@ void init_prim_environment(definer defn) {
   add_procedure("compiled-bytecode", compiled_bytecode_proc);
   add_procedure("compiled-environment", compiled_environment_proc);
 
-  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin, 0));
-  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout, 0));
-  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr, 0));
+  defn(SYMBOL(g->stdin_symbol), make_input_port(stdin_stream, 0));
+  defn(SYMBOL(g->stdout_symbol), make_output_port(stdout_stream, 0));
+  defn(SYMBOL(g->stderr_symbol), make_output_port(stderr_stream, 0));
   defn(SYMBOL(g->exit_hook_symbol), g->empty_list);
 }
 
@@ -1690,10 +1692,14 @@ void interp_add_roots(void) {
   push_root(&(g->all_characters));
 }
 
-void init() {
+void init(stream_reader * reader, stream_writer * writer, stream_writer * error) {
   gc_init();
   fancystack_init();
 
+  stdin_stream = reader;
+  stdout_stream = writer;
+  stderr_stream = error;
+    
   g->debug_enabled = 0;
 
   g->empty_list = alloc_object(0);
@@ -1786,13 +1792,13 @@ void destroy_interp() {
 /**
  * handy for user side debugging */
 void print_obj(object * obj) {
-  owrite(stdout, obj);
+  owrite(stdout_stream, obj);
   printf("\n");
 }
 
 void primitive_repl() {
   object *input;
-  while((input = obj_read(stdin)) != NULL) {
+  while((input = obj_read(stdin_stream)) != NULL) {
     push_root(&input);
     print_obj(interp(input, g->empty_env));
     pop_root(&input);

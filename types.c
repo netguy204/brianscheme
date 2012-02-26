@@ -291,7 +291,7 @@ char is_compiled_proc(object * obj) {
   return !TAGGED(obj) && obj->type == COMPILED_PROC;
 }
 
-object *make_input_port(FILE * stream, char is_pipe) {
+object *make_input_port(stream_reader * stream, char is_pipe) {
   object *obj = alloc_object(0);
 
   obj->type = INPUT_PORT;
@@ -341,7 +341,7 @@ char is_eof_object(object * obj) {
   return obj == g->eof_object;
 }
 
-object *make_output_port(FILE * stream, char is_pipe) {
+object *make_output_port(stream_writer * stream, char is_pipe) {
   object *obj = alloc_object(0);
 
   obj->type = OUTPUT_PORT;

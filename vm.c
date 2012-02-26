@@ -281,7 +281,7 @@ object *vm_execute(object * fn, fancystack * stack, long n_args, object* genv) {
 
 vm_fn_begin:
   if(!is_compiled_proc(fn) && !is_compiled_syntax_proc(fn)) {
-    owrite(stderr, fn);
+    owrite(stderr_stream, fn);
     return g->false;
   }
 
@@ -459,8 +459,8 @@ vm_fn_begin:
 	RETURN_OPCODE_INSTRUCTIONS;
       }
       else {
-	owrite(stderr, top);
-	fprintf(stderr, "\n");
+	owrite(stderr_stream, top);
+	stream_fprintf(stderr_stream, "\n");
 	VM_ASSERT(0, "don't know how to invoke");
       }
 
@@ -729,12 +729,12 @@ void wb(object * fn) {
   char *codes = ALIEN_PTR(code_array);
   object **args = VARRAY(arg_vector);
 
-  fprintf(stderr, "#<bytecode: ");
+  stream_fprintf(stderr_stream, "#<bytecode: ");
   for(idx = 0; idx < size; ++idx) {
     int code = (int)codes[idx];
-    fprintf(stderr, "(%s . ", bytecode_str[code]);
-    owrite(stderr, args[idx]);
-    fprintf(stderr, ") ");
+    stream_fprintf(stderr_stream, "(%s . ", bytecode_str[code]);
+    owrite(stderr_stream, args[idx]);
+    stream_fprintf(stderr_stream, ") ");
   }
-  fprintf(stderr, ">\n");
+  stream_fprintf(stderr_stream, ">\n");
 }
