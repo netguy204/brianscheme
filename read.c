@@ -443,9 +443,9 @@ object *lisp_read(stream_reader * in) {
   }
 }
 
-int read_file_stream(stream_reader * reader) {
+int read_file_stream(stream_reader * reader, char * buffer, size_t nbytes) {
   file_stream_reader *file_reader = (file_stream_reader *) reader;
-  return getc(file_reader->source);
+  return fread(buffer, 1, nbytes, file_reader->source);
 }
 
 void unread_file_stream(stream_reader * reader, int last_read) {
@@ -462,7 +462,6 @@ int peek_file_stream(stream_reader * in) {
 void release_file_stream(stream_reader * reader) {
   file_stream_reader *file_reader = (file_stream_reader *) reader;
   fclose(file_reader->source);
-  free(file_reader);
 }
 
 void release_popen_reader(stream_reader * reader) {
@@ -487,12 +486,21 @@ stream_reader *make_popen_reader(const char * cmd) {
   return reader;
 }
 
-int read_string_stream(stream_reader * reader) {
+int read_string_stream(stream_reader * reader, char * buffer, size_t nbytes) {
   string_stream_reader *string_reader = (string_stream_reader *) reader;
-  char value = string_reader->source[string_reader->position++];
-  if(value == 0)
-    return EOF;
-  return value;
+  if(string_reader->source[string_reader->position] == 0) {
+    return 0;
+  }
+
+  int bytes_read = 0;
+  for(; nbytes != 0; nbytes--) {
+    char value = string_reader->source[string_reader->position++];
+    if(value == 0)
+      return bytes_read;
+    buffer[bytes_read++] = value;
+  }
+
+  return bytes_read;
 }
 
 void unread_string_stream(stream_reader * reader, int last_read) {
@@ -510,8 +518,6 @@ int peek_string_stream(stream_reader * reader) {
 
 void release_string_stream(stream_reader * reader) {
   string_stream_reader *string_reader = (string_stream_reader *) reader;
-  free(string_reader->source);
-  free(string_reader);
 }
 
 stream_reader *make_string_reader(const char *string) {
@@ -527,7 +533,16 @@ stream_reader *make_string_reader(const char *string) {
 }
 
 int read_stream(stream_reader * stream) {
-  return stream->reader(stream);
+  char buffer[1];
+  if(stream->reader(stream, buffer, 1) == 1) {
+    return buffer[0];
+  } else {
+    return EOF;
+  }
+}
+
+int read_stream_bulk(stream_reader * stream, char * buffer, size_t nbytes) {
+  return stream->reader(stream, buffer, nbytes);
 }
 
 void unread_stream(stream_reader * stream, int last_read) {
@@ -540,11 +555,12 @@ int peek_stream(stream_reader * stream) {
 
 void release_stream_reader(stream_reader * stream) {
   stream->releaser(stream);
+  free(stream);
 }
 
-void write_file_stream(stream_writer * writer, char datum) {
+int write_file_stream(stream_writer * writer, const char * buffer, size_t nbytes) {
   file_stream_writer *file_writer = (file_stream_writer *) writer;
-  putc(datum, file_writer->destination);
+  return fwrite(buffer, 1, nbytes, file_writer->destination);
 }
 
 void close_file_stream(stream_writer * writer) {
@@ -557,11 +573,17 @@ void close_popen_writer(stream_writer * writer) {
   pclose(file_writer->destination);
 }
 
+void flush_file_stream(stream_writer * writer) {
+  file_stream_writer *file_writer = (file_stream_writer *) writer;
+  fflush(file_writer->destination);
+}
+
 stream_writer *make_file_writer(FILE * file) {
   file_stream_writer *writer = malloc(sizeof(file_stream_writer));
   writer->destination = file;
   writer->writer.writer = &write_file_stream;
   writer->writer.releaser = &close_file_stream;
+  writer->writer.flusher = &flush_file_stream;
   return (stream_writer *) writer;
 }
 
@@ -572,23 +594,35 @@ stream_writer *make_popen_writer(const char * cmd) {
   return writer;
 }
 
-void write_string_stream(stream_writer * writer, char datum) {
+int write_string_stream(stream_writer * writer, const char * buffer, size_t nbytes) {
   string_stream_writer *string_writer = (string_stream_writer *) writer;
-  if(string_writer->position + 1 < string_writer->destination_capacity) {
-    // prepadding the null means we can read this buffer in a separate thread without locking
-    string_writer->destination[string_writer->position + 1] = '\0';
-    string_writer->destination[string_writer->position++] = datum;
+  
+  int bytes_written = 0;
+  for(; nbytes != 0 ; nbytes--) {
+    if(string_writer->position + 1 < string_writer->destination_capacity) {
+      // prepadding the null means we can read this buffer in a separate thread without locking
+      string_writer->destination[string_writer->position + 1] = '\0';
+      string_writer->destination[string_writer->position++] = buffer[bytes_written++];
+    } else {
+      break;
+    }
   }
+  return bytes_written;
 }
 
 void close_string_stream(stream_writer * writer) {
   // all memory is external, do nothing
 }
 
+void flush_string_stream(stream_writer * writer) {
+  // no buffering. no need to flush
+}
+
 stream_writer *make_string_writer(char *buffer, int length) {
   string_stream_writer *writer = malloc(sizeof(string_stream_writer));
   writer->writer.writer = &write_string_stream;
   writer->writer.releaser = &close_string_stream;
+  writer->writer.flusher = &flush_string_stream;
   writer->destination = buffer;
   writer->destination_capacity = length;
   writer->position = 0;
@@ -596,11 +630,18 @@ stream_writer *make_string_writer(char *buffer, int length) {
 }
 
 void write_stream(stream_writer * writer, char datum) {
-  writer->writer(writer, datum);
+  char buffer[1];
+  buffer[0] = datum;
+  writer->writer(writer, buffer, 1);
+}
+
+int write_stream_bulk(stream_writer * writer, const char * buffer, size_t nbytes) {
+  return writer->writer(writer, buffer, nbytes);
 }
 
 void release_stream_writer(stream_writer * writer) {
   writer->releaser(writer);
+  free(writer);
 }
 
 void stream_fprintf(stream_writer * writer, char *msg, ...) {
@@ -618,4 +659,8 @@ void stream_fprintf(stream_writer * writer, char *msg, ...) {
   for(ptr = buffer; *ptr != 0; ++ptr) {
     write_stream(writer, *ptr);
   }
+}
+
+void flush_stream(stream_writer * writer) {
+  writer->flusher(writer);
 }

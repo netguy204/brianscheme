@@ -21,13 +21,14 @@ struct stream_reader_;
 
 typedef struct stream_reader_ {
   void (*releaser) (struct stream_reader_ *);
-  int (*reader) (struct stream_reader_ *);
+  int (*reader) (struct stream_reader_ *, char *, size_t);
   void (*unreader) (struct stream_reader_ *, int);
   int (*peeker) (struct stream_reader_ *);
 } stream_reader;
 
 
 int read_stream(stream_reader * stream);
+int read_stream_bulk(stream_reader * stream, char * buffer, size_t nbytes);
 void unread_stream(stream_reader * stream, int last_char);
 int peek_stream(stream_reader * stream);
 void release_stream_reader(stream_reader * stream);
@@ -53,12 +54,15 @@ struct stream_writer_;
 
 typedef struct stream_writer_ {
   void (*releaser) (struct stream_writer_ *);
-  void (*writer) (struct stream_writer_ *, char);
+  int (*writer) (struct stream_writer_ *, const char *, size_t);
+  void (*flusher) (struct stream_writer_ *);
 } stream_writer;
 
 void write_stream(stream_writer * writer, char datum);
+int write_stream_bulk(stream_writer * writer, const char * buffer, size_t nbytes);
 void stream_fprintf(stream_writer * writer, char *msg, ...);
 void release_stream_writer(stream_writer * writer);
+void flush_stream(stream_writer * writer);
 
 typedef struct file_stream_writer_ {
   stream_writer writer;

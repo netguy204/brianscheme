@@ -787,17 +787,18 @@ DEFUN1(select_proc) {
 }
 
 DEFUN1(flush_output_proc) {
-  return AS_BOOL(fflush(OUTPUT(FIRST)) == 0);
+  flush_stream(OUTPUT(FIRST));
+  return g->true;
 }
 
 DEFUN1(port_dump_proc) {
-  FILE *in = INPUT(FIRST);
-  FILE *out = OUTPUT(SECOND);
+  stream_reader *in = INPUT(FIRST);
+  stream_writer *out = OUTPUT(SECOND);
   char buffer[4096];
   size_t r;
   do {
-    r = fread(buffer, 1, 4096, in);
-    fwrite(buffer, 1, r, out);
+    r = read_stream_bulk(in, buffer, 4096);
+    write_stream_bulk(out, buffer, r);
   } while(r > 0);
   return g->true;
 }
@@ -1759,12 +1760,12 @@ void init(stream_reader * reader, stream_writer * writer,
 
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
-  //init_ffi(interp_definer);
+  init_ffi(interp_definer);
   init_socket(interp_definer);
 
   init_prim_environment(vm_definer);
   vm_init_environment(vm_definer);
-  //init_ffi(vm_definer);
+  init_ffi(vm_definer);
   init_socket(vm_definer);
 
   vm_init();

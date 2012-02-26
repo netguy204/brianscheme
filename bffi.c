@@ -299,8 +299,9 @@ DEFUN1(alien_to_string) {
 }
 
 DEFUN1(stream_to_alien) {
-  FILE *stream = INPUT(FIRST);
-  return make_alien(stream, g->empty_list);
+  stream_reader *stream = INPUT(FIRST);
+  file_stream_reader *file_stream = (file_stream_reader *)stream;
+  return make_alien(file_stream->source, g->empty_list);
 }
 
 DEFUN1(int_to_alien) {

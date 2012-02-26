@@ -151,6 +151,8 @@ reloaded."
 	  (lambda ()
 	    (let ((,(first handle-and-name)
 		   (ffi:dlopen ,(second handle-and-name))))
+              (unless ,(first handle-and-name)
+                      (throw-error "failed to load" ,(second handle-and-name)))
 	      (let ((result (begin . ,body)))
 		result)))))
 
