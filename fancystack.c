@@ -11,7 +11,7 @@ static long pagesize;
 static fancystack *stack_list = NULL;
 static fancystack *faulting_stack = NULL;
 
-static void fancystack_handler(int sig, siginfo_t *si, void* data);
+static void fancystack_handler(int sig, siginfo_t * si, void *data);
 
 void fancystack_init() {
   pagesize = getpagesize();
@@ -32,8 +32,8 @@ void fancystack_init() {
   }
 }
 
-void *fancystack_guard(fancystack* stack) {
-  return (void*)((char*)stack->data + stack->size);
+void *fancystack_guard(fancystack * stack) {
+  return (void *)((char *)stack->data + stack->size);
 }
 
 fancystack *fancystack_alloc(int pages) {
@@ -44,7 +44,7 @@ fancystack *fancystack_alloc(int pages) {
 #else
   void *stack_data = memalign(pagesize, size + pagesize);
 #endif
-  
+
   // allocate the stack record
   fancystack *stack = malloc(sizeof(fancystack));
   stack->data = stack_data;
@@ -58,11 +58,11 @@ fancystack *fancystack_alloc(int pages) {
     fprintf(stderr, "failed to create stack protect page\n");
     exit(1);
   }
-  
+
   return stack;
 }
 
-void fancystack_free(fancystack *stack) {
+void fancystack_free(fancystack * stack) {
   if(stack_list == stack) {
     stack_list = stack_list->next;
     free(stack);
@@ -82,7 +82,7 @@ void fancystack_free(fancystack *stack) {
   exit(1);
 }
 
-void fancystack_grow(fancystack *stack) {
+void fancystack_grow(fancystack * stack) {
   // always double the size
   long new_size = stack->size * 2;
 #ifdef __MACH__
@@ -116,7 +116,7 @@ fancystack *fancystack_faulting(void *fault_ptr) {
   return NULL;
 }
 
-static void fancystack_handler(int sig, siginfo_t *si, void* data) {
+static void fancystack_handler(int sig, siginfo_t * si, void *data) {
   // find the faulting stack and unprotect it. Note: this can only
   // handle one stack fault per cleanup cycle
   faulting_stack = fancystack_faulting(si->si_addr);
@@ -141,15 +141,15 @@ void fancystack_cleanup() {
   }
 }
 
-void fancystack_push(fancystack* stack, void *object) {
+void fancystack_push(fancystack * stack, void *object) {
   stack->data[stack->top++] = object;
 }
 
-void *fancystack_peek(fancystack* stack) {
+void *fancystack_peek(fancystack * stack) {
   return stack->data[stack->top - 1];
 }
 
-void *fancystack_pop(fancystack* stack) {
+void *fancystack_pop(fancystack * stack) {
   stack->top -= 1;
   return stack->data[stack->top];
 }
@@ -161,7 +161,7 @@ fancystack *fancystack_first() {
 static int test() {
   fancystack_init();
 
-  fancystack* stack = fancystack_alloc(1);
+  fancystack *stack = fancystack_alloc(1);
   int outer;
 
   // this should fault and grow the stack several times

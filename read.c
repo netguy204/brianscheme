@@ -294,7 +294,7 @@ object *read_number(char c, stream_reader * in) {
   }
 
   if(is_delimiter(c)) {
-      unread_stream(in, c);
+    unread_stream(in, c);
   }
   else {
     return throw_message("number was not followed by delimiter");
@@ -337,7 +337,8 @@ object *lisp_read(stream_reader * in) {
   else if(isdigit(c) || (c == '-' && (isdigit(peek_stream(in))))) {
     return read_number(c, in);
   }
-  else if(is_initial(c) || ((c == '+' || c == '-') && is_delimiter(peek_stream(in)))) {
+  else if(is_initial(c)
+	  || ((c == '+' || c == '-') && is_delimiter(peek_stream(in)))) {
     i = 0;
     while(is_initial(c) || isdigit(c) || c == '+' || c == '-') {
       if(i < BUFFER_MAX - 1) {
@@ -353,7 +354,7 @@ object *lisp_read(stream_reader * in) {
     }
     if(is_delimiter(c)) {
       buffer[i] = '\0';
-        unread_stream(in, c);
+      unread_stream(in, c);
       return make_symbol(buffer);
     }
     else {
@@ -442,136 +443,140 @@ object *lisp_read(stream_reader * in) {
   }
 }
 
-int read_file_stream(stream_reader* reader) {
-    file_stream_reader* file_reader = (file_stream_reader*)reader;
-    return getc(file_reader->source);
+int read_file_stream(stream_reader * reader) {
+  file_stream_reader *file_reader = (file_stream_reader *) reader;
+  return getc(file_reader->source);
 }
 
-void unread_file_stream(stream_reader* reader, int last_read) {
-    file_stream_reader* file_reader = (file_stream_reader*)reader;
-    ungetc(last_read, file_reader->source);
+void unread_file_stream(stream_reader * reader, int last_read) {
+  file_stream_reader *file_reader = (file_stream_reader *) reader;
+  ungetc(last_read, file_reader->source);
 }
 
 int peek_file_stream(stream_reader * in) {
-    int c = read_stream(in);
-    unread_stream(in, c);
-    return c;
+  int c = read_stream(in);
+  unread_stream(in, c);
+  return c;
 }
 
-void release_file_stream(stream_reader* reader) {
-    file_stream_reader* file_reader = (file_stream_reader*)reader;
-    fclose(file_reader->source);
-    free(file_reader);
+void release_file_stream(stream_reader * reader) {
+  file_stream_reader *file_reader = (file_stream_reader *) reader;
+  fclose(file_reader->source);
+  free(file_reader);
 }
 
-stream_reader* make_file_reader(FILE *file) {
-    file_stream_reader* reader = malloc(sizeof(file_stream_reader));
-    reader->reader.reader = &read_file_stream;
-    reader->reader.unreader = &unread_file_stream;
-    reader->reader.peeker = &peek_file_stream;
-    reader->reader.releaser = &release_file_stream;
-    reader->source = file;
-    return (stream_reader*)reader;
+stream_reader *make_file_reader(FILE * file) {
+  file_stream_reader *reader = malloc(sizeof(file_stream_reader));
+  reader->reader.reader = &read_file_stream;
+  reader->reader.unreader = &unread_file_stream;
+  reader->reader.peeker = &peek_file_stream;
+  reader->reader.releaser = &release_file_stream;
+  reader->source = file;
+  return (stream_reader *) reader;
 }
 
-int read_string_stream(stream_reader* reader) {
-    string_stream_reader* string_reader = (string_stream_reader*)reader;
-    char value = string_reader->source[string_reader->position++];
-    if(value == 0) return EOF;
-    return value;
+int read_string_stream(stream_reader * reader) {
+  string_stream_reader *string_reader = (string_stream_reader *) reader;
+  char value = string_reader->source[string_reader->position++];
+  if(value == 0)
+    return EOF;
+  return value;
 }
 
-void unread_string_stream(stream_reader* reader, int last_read) {
-    string_stream_reader* string_reader = (string_stream_reader*)reader;
-    string_reader->position--;
+void unread_string_stream(stream_reader * reader, int last_read) {
+  string_stream_reader *string_reader = (string_stream_reader *) reader;
+  string_reader->position--;
 }
 
-int peek_string_stream(stream_reader* reader) {
-    string_stream_reader* string_reader = (string_stream_reader*)reader;
-    char value = string_reader->source[string_reader->position];
-    if(value == 0) return EOF;
-    return value;
+int peek_string_stream(stream_reader * reader) {
+  string_stream_reader *string_reader = (string_stream_reader *) reader;
+  char value = string_reader->source[string_reader->position];
+  if(value == 0)
+    return EOF;
+  return value;
 }
 
-void release_string_stream(stream_reader* reader) {
-    string_stream_reader* string_reader = (string_stream_reader*)reader;
-    free(string_reader->source);
-    free(string_reader);
+void release_string_stream(stream_reader * reader) {
+  string_stream_reader *string_reader = (string_stream_reader *) reader;
+  free(string_reader->source);
+  free(string_reader);
 }
 
-stream_reader* make_string_reader(const char * string) {
-    string_stream_reader* reader = malloc(sizeof(string_stream_reader));
-    reader->reader.reader = &read_string_stream;
-    reader->reader.unreader = &unread_string_stream;
-    reader->reader.peeker = &peek_string_stream;
-    reader->reader.releaser = &release_string_stream;
-    reader->source = malloc(sizeof(char) * (strlen(string) + 1));
-    strcpy(reader->source, string);
-    reader->position = 0;
-    return (stream_reader*)reader;
+stream_reader *make_string_reader(const char *string) {
+  string_stream_reader *reader = malloc(sizeof(string_stream_reader));
+  reader->reader.reader = &read_string_stream;
+  reader->reader.unreader = &unread_string_stream;
+  reader->reader.peeker = &peek_string_stream;
+  reader->reader.releaser = &release_string_stream;
+  reader->source = malloc(sizeof(char) * (strlen(string) + 1));
+  strcpy(reader->source, string);
+  reader->position = 0;
+  return (stream_reader *) reader;
 }
 
-int read_stream(stream_reader* stream) {
-    return stream->reader(stream);
+int read_stream(stream_reader * stream) {
+  return stream->reader(stream);
 }
 
-void unread_stream(stream_reader* stream, int last_read) {
-    stream->unreader(stream, last_read);
+void unread_stream(stream_reader * stream, int last_read) {
+  stream->unreader(stream, last_read);
 }
 
-int peek_stream(stream_reader* stream) {
-    return stream->peeker(stream);
+int peek_stream(stream_reader * stream) {
+  return stream->peeker(stream);
 }
 
-void release_stream(stream_reader* stream) {
-    stream->releaser(stream);
+void release_stream(stream_reader * stream) {
+  stream->releaser(stream);
 }
 
-void write_file_stream(stream_writer* writer, char datum) {
-    file_stream_writer* file_writer = (file_stream_writer*)writer;
-    putc(datum, file_writer->destination);
+void write_file_stream(stream_writer * writer, char datum) {
+  file_stream_writer *file_writer = (file_stream_writer *) writer;
+  putc(datum, file_writer->destination);
 }
 
-stream_writer* make_file_writer(FILE* file) {
-    file_stream_writer *writer = malloc(sizeof(file_stream_writer));
-    writer->destination = file;
-    writer->writer.writer = &write_file_stream;
-    return (stream_writer*)writer;
+stream_writer *make_file_writer(FILE * file) {
+  file_stream_writer *writer = malloc(sizeof(file_stream_writer));
+  writer->destination = file;
+  writer->writer.writer = &write_file_stream;
+  return (stream_writer *) writer;
 }
 
-void write_string_stream(stream_writer* writer, char datum) {
-    string_stream_writer* string_writer = (string_stream_writer*)writer;
-    if(string_writer->position + 1 < string_writer->destination_capacity) {
-        // prepadding the null means we can read this buffer in a separate thread without locking
-        string_writer->destination[string_writer->position + 1] = '\0';
-        string_writer->destination[string_writer->position++] = datum;
-    }
+void write_string_stream(stream_writer * writer, char datum) {
+  string_stream_writer *string_writer = (string_stream_writer *) writer;
+  if(string_writer->position + 1 < string_writer->destination_capacity) {
+    // prepadding the null means we can read this buffer in a separate thread without locking
+    string_writer->destination[string_writer->position + 1] = '\0';
+    string_writer->destination[string_writer->position++] = datum;
+  }
 }
 
-stream_writer* make_string_writer(char *buffer, int length) {
-    string_stream_writer* writer = malloc(sizeof(string_stream_writer));
-    writer->writer.writer = &write_string_stream;
-    writer->destination = buffer;
-    writer->destination_capacity = length;
-    writer->position = 0;
-    return (stream_writer*)writer;
+stream_writer *make_string_writer(char *buffer, int length) {
+  string_stream_writer *writer = malloc(sizeof(string_stream_writer));
+  writer->writer.writer = &write_string_stream;
+  writer->destination = buffer;
+  writer->destination_capacity = length;
+  writer->position = 0;
+  return (stream_writer *) writer;
 }
 
-void write_stream(stream_writer* writer, char datum) {
-    writer->writer(writer, datum);
+void write_stream(stream_writer * writer, char datum) {
+  writer->writer(writer, datum);
 }
 
-void stream_fprintf(stream_writer* writer, char *msg, ...) {
-    char buffer[1024];
-    va_list args;
-    va_start(args, msg);
-    int error = vsnprintf(buffer, 1024, msg, args);
-    va_end(args);
-    
-    if(error < 0) return;
-    
-    for(char *ptr = buffer; *ptr != 0; ++ptr) {
-        write_stream(writer, *ptr);
-    }
-}
+void stream_fprintf(stream_writer * writer, char *msg, ...) {
+  char buffer[1024];
+  char *ptr;
 
+  va_list args;
+  va_start(args, msg);
+  int error = vsnprintf(buffer, 1024, msg, args);
+  va_end(args);
+
+  if(error < 0)
+    return;
+
+  for(ptr = buffer; *ptr != 0; ++ptr) {
+    write_stream(writer, *ptr);
+  }
+}

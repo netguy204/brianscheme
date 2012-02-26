@@ -24,19 +24,19 @@ void gc_boot(void);
 void gc_init(void);
 
 long baker_collect();
-object *push_root(object **stack);
-void pop_root(object **stack);
+object *push_root(object ** stack);
+void pop_root(object ** stack);
 
 object *alloc_object(char needs_finalization);
 
-void *xmalloc(size_t size); /* exit() on failure */
-void *MALLOC(size_t size);  /* mmap()ed */
-void *REALLOC(void *p, size_t new);  /* mmap()ed */
-void FREE(void *p);       /* mmap()ed */
+void *xmalloc(size_t size);	/* exit() on failure */
+void *MALLOC(size_t size);	/* mmap()ed */
+void *REALLOC(void *p, size_t new);	/* mmap()ed */
+void FREE(void *p);		/* mmap()ed */
 
 int save_image(char *filename, int compress);
 int load_image(char *filename, off_t offset);
-void patch_object(object *sym, object *new_value);
+void patch_object(object * sym, object * new_value);
 
 typedef struct doubly_linked_list {
   object *head;

@@ -120,7 +120,7 @@ DEFUN1(set_bytecode_operands_proc) {
   long arg2 = LONG(FOURTH);
 
   long combined = ((arg1 << 16) | (arg2 & 0xFFFF));
-  bca[idx] = (BC)combined;
+  bca[idx] = (BC) combined;
   return FIRST;
 }
 
@@ -231,7 +231,8 @@ void vm_sigint_handler(int arg __attribute__ ((unused))) {
     goto *(&&__pushvarargs__ + disp_tbl[(long)codes[tgt]]);	\
   } while(0)
 
-object *vm_execute(object * fn, fancystack * stack, long n_args, object* genv) {
+object *vm_execute(object * fn, fancystack * stack, long n_args,
+		   object * genv) {
   object *const_array;
 
   object *env;
@@ -297,337 +298,338 @@ vm_fn_begin:
 
   NEXT_INSTRUCTION;
 
- __pushvarargs__:
-      nvarargs = (int)n_args - ARG1;
-      result = g->empty_list;
-      push_root(&result);
-
-      for(ii = 0; ii < nvarargs; ++ii) {
-	VPOP(top, stack);
-	result = cons(top, result);
-      }
-
-      VPUSH(result, stack);
-      pop_root(&result);
-
-      VM_DEBUG("after_args environment", env);
-
-      NEXT_INSTRUCTION;
-
- __chainframe__:
-      /* generate a fresh frame for the callee */
-      top = make_vector(g->empty_list, ARG1);
-      env = cons(top, env);
-
-      NEXT_INSTRUCTION;
-
- __endframe__:
-      /* throw away the stack portion of this function's frame, except
-	 the top N. */
-      dist = (stack->top - ARG1) - fn_first_arg;
-      if(dist > 0) {
-	for(ii = 0; ii < ARG1; ++ii) {
-	  stack->data[fn_first_arg + ii] = stack->data[(stack->top - ARG1) + ii];
-	}
-      }
-      stack->top = fn_first_arg + ARG1;
-
-      NEXT_INSTRUCTION;
-
- __argcheck__:
-      /* verify that a function was given the correct number of
-	 arguments */
-      if(ARG2 == 0) {
-	/* looking for an exact match */
-	VM_ASSERT(n_args == ARG1, "function expects exactly %ld arguments, got %ld",
-		  ARG1,
-		  n_args);
-      } else {
-	/* looking for at least some value */
-	VM_ASSERT(n_args >= ARG1, "function expects at least %ld arguments, got %ld",
-		  ARG1,
-		  n_args);
-      }
-
-      NEXT_INSTRUCTION;
-
- __spush__:
-      /* push the Nth argument onto the stack */
-      top = stack->data[fn_first_arg + ARG1];
-      VPUSH(top, stack);
-
-      NEXT_INSTRUCTION;
-
- __sset__:
-      /* set stack position N to the value at the top of the
-	 stack. leaves the stack unchanged */
-      stack->data[fn_first_arg + ARG1] = stack->data[stack->top - 1];
-
-      NEXT_INSTRUCTION;
-
- __swap__:
-      top = stack->data[stack->top - 1];
-      stack->data[stack->top - 1] = stack->data[stack->top - 2];
-      stack->data[stack->top - 2] = top;
-
-      NEXT_INSTRUCTION;
-
- __fjump__:
-      VPOP(top, stack);
-      if(is_falselike(top)) {
-	pc = ARG1 * 2;		/* offsets are in instructions */
-      }
-
-      NEXT_INSTRUCTION;
-
- __tjump__:
-      VPOP(top, stack);
-      if(!is_falselike(top)) {
-	pc = ARG1 * 2;
-      }
-
-      NEXT_INSTRUCTION;
-
- __jump__:
-      pc = ARG1 * 2;
-
-      NEXT_INSTRUCTION;
-
- __fn__:
-      fn_arg = VARRAY(const_array)[ARG1];
-      new_fn = make_compiled_proc(BYTECODE(fn_arg), env);
-      VPUSH(new_fn, stack);
-
-      NEXT_INSTRUCTION;
-
- __callj__:
-      VPOP(top, stack);
-
-      /* unwrap meta */
-      if(is_meta(top)) {
-	top = METAPROC(top);
-      }
-
-      args_for_call = ARG1;
-
-      /* special case for apply */
-      if(args_for_call == -1) {
-	/* the args are in a list next, expand those */
-	object *args;
-	VPOP(args, stack);
-	VM_ASSERT(is_pair(args) || is_the_empty_list(args), "cannot apply fn to non list");
-
-	args_for_call = 0;
-	while(!is_the_empty_list(args)) {
-	  VM_ASSERT(is_pair(args), "cannot apply fn to improper list");
-
-	  VPUSH(CAR(args), stack);
-	  args = CDR(args);
-	  ++args_for_call;
-	}
-      }
-
-      fn_first_arg = stack->top - args_for_call;
-
-      if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
-	fn = top;
-	pc = 0;
-	n_args = args_for_call;
-	env = CENV(fn);
-	goto vm_fn_begin;
-      }
-      else if(is_primitive_proc(top)) {
-	/* build the list the target expects for the call */
-	long ii;
-	object *pfn = top;
-
-	top = pfn->data.primitive_proc.fn(stack, args_for_call);
-	/* unwind the stack since primitives don't clean up after
-	   themselves */
-	object *temp;
-	for(ii = 0; ii < args_for_call; ++ii) {
-	  VPOP(temp, stack);
-	}
-
-	if(is_primitive_exception(top)) {
-	  object *temp = top;
-	  VM_ERROR_RESTART(CDR(temp));
-	}
-
-	VPUSH(top, stack);
-
-	RETURN_OPCODE_INSTRUCTIONS;
-      }
-      else {
-	owrite(stderr_stream, top);
-	stream_fprintf(stderr_stream, "\n");
-	VM_ASSERT(0, "don't know how to invoke");
-      }
-
-      NEXT_INSTRUCTION;
+__pushvarargs__:
+  nvarargs = (int)n_args - ARG1;
+  result = g->empty_list;
+  push_root(&result);
+
+  for(ii = 0; ii < nvarargs; ++ii) {
+    VPOP(top, stack);
+    result = cons(top, result);
+  }
+
+  VPUSH(result, stack);
+  pop_root(&result);
+
+  VM_DEBUG("after_args environment", env);
+
+  NEXT_INSTRUCTION;
+
+__chainframe__:
+  /* generate a fresh frame for the callee */
+  top = make_vector(g->empty_list, ARG1);
+  env = cons(top, env);
+
+  NEXT_INSTRUCTION;
+
+__endframe__:
+  /* throw away the stack portion of this function's frame, except
+     the top N. */
+  dist = (stack->top - ARG1) - fn_first_arg;
+  if(dist > 0) {
+    for(ii = 0; ii < ARG1; ++ii) {
+      stack->data[fn_first_arg + ii] = stack->data[(stack->top - ARG1) + ii];
+    }
+  }
+  stack->top = fn_first_arg + ARG1;
+
+  NEXT_INSTRUCTION;
+
+__argcheck__:
+  /* verify that a function was given the correct number of
+     arguments */
+  if(ARG2 == 0) {
+    /* looking for an exact match */
+    VM_ASSERT(n_args == ARG1,
+	      "function expects exactly %ld arguments, got %ld", ARG1,
+	      n_args);
+  }
+  else {
+    /* looking for at least some value */
+    VM_ASSERT(n_args >= ARG1,
+	      "function expects at least %ld arguments, got %ld", ARG1,
+	      n_args);
+  }
+
+  NEXT_INSTRUCTION;
+
+__spush__:
+  /* push the Nth argument onto the stack */
+  top = stack->data[fn_first_arg + ARG1];
+  VPUSH(top, stack);
+
+  NEXT_INSTRUCTION;
+
+__sset__:
+  /* set stack position N to the value at the top of the
+     stack. leaves the stack unchanged */
+  stack->data[fn_first_arg + ARG1] = stack->data[stack->top - 1];
+
+  NEXT_INSTRUCTION;
+
+__swap__:
+  top = stack->data[stack->top - 1];
+  stack->data[stack->top - 1] = stack->data[stack->top - 2];
+  stack->data[stack->top - 2] = top;
+
+  NEXT_INSTRUCTION;
+
+__fjump__:
+  VPOP(top, stack);
+  if(is_falselike(top)) {
+    pc = ARG1 * 2;		/* offsets are in instructions */
+  }
+
+  NEXT_INSTRUCTION;
+
+__tjump__:
+  VPOP(top, stack);
+  if(!is_falselike(top)) {
+    pc = ARG1 * 2;
+  }
+
+  NEXT_INSTRUCTION;
+
+__jump__:
+  pc = ARG1 * 2;
+
+  NEXT_INSTRUCTION;
+
+__fn__:
+  fn_arg = VARRAY(const_array)[ARG1];
+  new_fn = make_compiled_proc(BYTECODE(fn_arg), env);
+  VPUSH(new_fn, stack);
+
+  NEXT_INSTRUCTION;
+
+__callj__:
+  VPOP(top, stack);
+
+  /* unwrap meta */
+  if(is_meta(top)) {
+    top = METAPROC(top);
+  }
+
+  args_for_call = ARG1;
+
+  /* special case for apply */
+  if(args_for_call == -1) {
+    /* the args are in a list next, expand those */
+    object *args;
+    VPOP(args, stack);
+    VM_ASSERT(is_pair(args)
+	      || is_the_empty_list(args), "cannot apply fn to non list");
+
+    args_for_call = 0;
+    while(!is_the_empty_list(args)) {
+      VM_ASSERT(is_pair(args), "cannot apply fn to improper list");
+
+      VPUSH(CAR(args), stack);
+      args = CDR(args);
+      ++args_for_call;
+    }
+  }
+
+  fn_first_arg = stack->top - args_for_call;
+
+  if(is_compiled_proc(top) || is_compiled_syntax_proc(top)) {
+    fn = top;
+    pc = 0;
+    n_args = args_for_call;
+    env = CENV(fn);
+    goto vm_fn_begin;
+  }
+  else if(is_primitive_proc(top)) {
+    /* build the list the target expects for the call */
+    long ii;
+    object *pfn = top;
+
+    top = pfn->data.primitive_proc.fn(stack, args_for_call);
+    /* unwind the stack since primitives don't clean up after
+       themselves */
+    object *temp;
+    for(ii = 0; ii < args_for_call; ++ii) {
+      VPOP(temp, stack);
+    }
+
+    if(is_primitive_exception(top)) {
+      object *temp = top;
+      VM_ERROR_RESTART(CDR(temp));
+    }
+
+    VPUSH(top, stack);
+
+    RETURN_OPCODE_INSTRUCTIONS;
+  }
+  else {
+    owrite(stderr_stream, top);
+    stream_fprintf(stderr_stream, "\n");
+    VM_ASSERT(0, "don't know how to invoke");
+  }
+
+  NEXT_INSTRUCTION;
+
+__lvar__:
+  env_num = ARG1;
+  idx = ARG2;
+
+  next = env;
+  while(env_num-- > 0) {
+    next = CDR(next);
+  }
+
+  data = VARRAY(CAR(next))[idx];
+  VPUSH(data, stack);
 
- __lvar__:
-      env_num = ARG1;
-      idx = ARG2;
+  NEXT_INSTRUCTION;
 
-      next = env;
-      while(env_num-- > 0) {
-	next = CDR(next);
-      }
-
-      data = VARRAY(CAR(next))[idx];
-      VPUSH(data, stack);
+__lset__:
+  env_num = ARG1;
+  idx = ARG2;
 
-      NEXT_INSTRUCTION;
+  next = env;
+  while(env_num-- > 0) {
+    next = CDR(next);
+  }
+
+  VARRAY(CAR(next))[idx] = stack->data[stack->top - 1];
 
- __lset__:
-      env_num = ARG1;
-      idx = ARG2;
+  NEXT_INSTRUCTION;
 
-      next = env;
-      while(env_num-- > 0) {
-	next = CDR(next);
-      }
+__gvar__:
+  var = VARRAY(const_array)[ARG1];
 
-      VARRAY(CAR(next))[idx] = stack->data[stack->top - 1];
+  /* see if we can get it from cache */
+  if(is_pair(var)) {
+    val = var;
+  }
+  else {
+    val = lookup_global_value(VARRAY(const_array)[ARG1], genv);
+    if(is_primitive_exception(val)) {
+      VM_ERROR_RESTART(CDR(val));
+    }
+    VARRAY(const_array)[ARG1] = val;
+  }
 
-      NEXT_INSTRUCTION;
+  VPUSH(CDR(val), stack);
 
- __gvar__:
-      var = VARRAY(const_array)[ARG1];
+  NEXT_INSTRUCTION;
 
-      /* see if we can get it from cache */
-      if(is_pair(var)) {
-	val = var;
-      }
-      else {
-	val = lookup_global_value(VARRAY(const_array)[ARG1], genv);
-	if(is_primitive_exception(val)) {
-	  VM_ERROR_RESTART(CDR(val));
-	}
-	VARRAY(const_array)[ARG1] = val;
-      }
-
-      VPUSH(CDR(val), stack);
+__gset__:
+  var = VARRAY(const_array)[ARG1];
+  val = stack->data[stack->top - 1];
+  slot = get_hashtab(genv, var, NULL);
+  if(slot) {
+    CDR(slot) = val;
+  }
+  else {
+    val = cons(var, val);
+    define_global_variable(var, val, genv);
+  }
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __gset__:
-      var = VARRAY(const_array)[ARG1];
-      val = stack->data[stack->top - 1];
-      slot = get_hashtab(genv, var, NULL);
-      if(slot) {
-	CDR(slot) = val;
-      }
-      else {
-	val = cons(var, val);
-	define_global_variable(var, val, genv);
-      }
+__setcc__:
 
-      NEXT_INSTRUCTION;
+  VPOP(top, stack);
+  VPOP(new_stack_top, stack);
 
- __setcc__:
+  /* need to copy the stack into the current stack */
+  stack->top = 0;
+  long new_top = LONG(new_stack_top);
 
-      VPOP(top, stack);
-      VPOP(new_stack_top, stack);
+  for(idx = 0; idx < new_top; ++idx) {
+    VPUSH(VARRAY(top)[idx], stack);
+  }
 
-      /* need to copy the stack into the current stack */
-      stack->top = 0;
-      long new_top = LONG(new_stack_top);
+  NEXT_INSTRUCTION;
 
-      for(idx = 0; idx < new_top; ++idx) {
-	VPUSH(VARRAY(top)[idx], stack);
-      }
+__cc__:
+  cc_env = make_vector(g->empty_list, 2);
+  push_root(&cc_env);
 
-      NEXT_INSTRUCTION;
+  /* copy the stack */
+  new_stack = make_vector(g->empty_list, stack->top);
 
- __cc__:
-      cc_env = make_vector(g->empty_list, 2);
-      push_root(&cc_env);
+  for(idx = 0; idx < stack->top; ++idx) {
+    VARRAY(new_stack)[idx] = stack->data[idx];
+  }
 
-      /* copy the stack */
-      new_stack = make_vector(g->empty_list, stack->top);
+  /* insert it into the environment */
+  VARRAY(cc_env)[0] = new_stack;
+  VARRAY(cc_env)[1] = make_fixnum(stack->top);
 
-      for(idx = 0; idx < stack->top; ++idx) {
-	VARRAY(new_stack)[idx] = stack->data[idx];
-      }
+  cc_env = cons(cc_env, g->empty_list);
 
-      /* insert it into the environment */
-      VARRAY(cc_env)[0] = new_stack;
-      VARRAY(cc_env)[1] = make_fixnum(stack->top);
+  cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
+  pop_root(&cc_env);
 
-      cc_env = cons(cc_env, g->empty_list);
+  VPUSH(cc_fn, stack);
 
-      cc_fn = make_compiled_proc(g->cc_bytecode, cc_env);
-      pop_root(&cc_env);
+  NEXT_INSTRUCTION;
 
-      VPUSH(cc_fn, stack);
+__pop__:
+  VPOP(top, stack);
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __pop__:
-      VPOP(top, stack);
+__cons__:
+  stack->data[stack->top - 2] =
+    cons(stack->data[stack->top - 2], stack->data[stack->top - 1]);
+  stack->top = stack->top - 1;
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __cons__:
-      stack->data[stack->top - 2] =
-	cons(stack->data[stack->top - 2],
-	     stack->data[stack->top - 1]);
-      stack->top = stack->top - 1;
+__car__:
+  top = stack->data[stack->top - 1];
+  VM_ASSERT(is_pair(top) || is_the_empty_list(top), "car expects pair");
+  stack->data[stack->top - 1] = CAR(top);
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __car__:
-      top = stack->data[stack->top - 1];
-      VM_ASSERT(is_pair(top) || is_the_empty_list(top), "car expects pair");
-      stack->data[stack->top - 1] = CAR(top);
+__cdr__:
+  top = stack->data[stack->top - 1];
+  VM_ASSERT(is_pair(top) || is_the_empty_list(top), "cdr expects pair");
+  stack->data[stack->top - 1] = CDR(top);
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __cdr__:
-      top = stack->data[stack->top - 1];
-      VM_ASSERT(is_pair(top) || is_the_empty_list(top), "cdr expects pair");
-      stack->data[stack->top - 1] = CDR(top);
+__setcar__:
+  top = stack->data[stack->top - 2];
+  VM_ASSERT(is_pair(top), "set-car! expects pair");
+  CAR(top) = stack->data[stack->top - 1];
+  stack->data[stack->top - 2] = stack->data[stack->top - 1];
+  stack->top = stack->top - 1;
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __setcar__:
-      top = stack->data[stack->top - 2];
-      VM_ASSERT(is_pair(top), "set-car! expects pair");
-      CAR(top) = stack->data[stack->top - 1];
-      stack->data[stack->top - 2] = stack->data[stack->top - 1];
-      stack->top = stack->top - 1;
+__setcdr__:
+  top = stack->data[stack->top - 2];
+  VM_ASSERT(is_pair(top), "set-cdr! expects pair");
+  CDR(top) = stack->data[stack->top - 1];
+  stack->data[stack->top - 2] = stack->data[stack->top - 1];
+  stack->top = stack->top - 1;
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __setcdr__:
-      top = stack->data[stack->top - 2];
-      VM_ASSERT(is_pair(top), "set-cdr! expects pair");
-      CDR(top) = stack->data[stack->top - 1];
-      stack->data[stack->top - 2] = stack->data[stack->top - 1];
-      stack->top = stack->top - 1;
+__save__:
+  VPUSH(env, stack);
+  VPUSH(fn, stack);
+  VPUSH(make_small_fixnum(ARG1 * 2), stack);
+  VPUSH(make_small_fixnum(fn_first_arg), stack);
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __save__:
-      VPUSH(env, stack);
-      VPUSH(fn, stack);
-      VPUSH(make_small_fixnum(ARG1 * 2), stack);
-      VPUSH(make_small_fixnum(fn_first_arg), stack);
+__return__:
+  RETURN_OPCODE_INSTRUCTIONS;
 
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
- __return__:
-      RETURN_OPCODE_INSTRUCTIONS;
+__cconst__:
+  idx = ARG1;
+  VPUSH(VARRAY(const_array)[idx], stack);
 
-      NEXT_INSTRUCTION;
-
- __cconst__:
-      idx = ARG1;
-      VPUSH(VARRAY(const_array)[idx], stack);
-
-      NEXT_INSTRUCTION;
+  NEXT_INSTRUCTION;
 
   VM_RETURN(g->error_sym);
 }
@@ -658,7 +660,8 @@ void vm_definer(char *sym, object * value) {
     // if it's a pointer to a primitive we slot it in manually
     if(is_primitive_proc(CDR(slot)) && is_primitive_proc(value)) {
       CDR(slot)->data.primitive_proc.fn = value->data.primitive_proc.fn;
-    } else {
+    }
+    else {
       set_cdr(slot, value);
     }
   }
@@ -675,7 +678,6 @@ void vm_boot(void) {
   opcode_table(generate_syminit)
 
     /* register for sigint */
-
   struct sigaction sa;
   sa.sa_handler = vm_sigint_handler;
   sigaction(SIGINT, &sa, NULL);
@@ -715,9 +717,11 @@ void vm_init_environment(definer defn) {
 
   defn("bytecode-set!", make_primitive_proc(set_bytecode_proc));
 
-  defn("bytecode-operands-ref", make_primitive_proc(get_bytecode_operands_proc));
+  defn("bytecode-operands-ref",
+       make_primitive_proc(get_bytecode_operands_proc));
 
-  defn("bytecode-operands-set!", make_primitive_proc(set_bytecode_operands_proc));
+  defn("bytecode-operands-set!",
+       make_primitive_proc(set_bytecode_operands_proc));
 }
 
 void wb(object * fn) {

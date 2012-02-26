@@ -26,26 +26,27 @@
 /* first implementing the classic tagged type. This specific
    inplementation is stolen from Peter Michaux's bootstrap-scheme. */
 
-typedef enum {NIL, BOOLEAN, SYMBOL, FLOATNUM,
-	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
-	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
-	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
-	      COMPILED_SYNTAX_PROC, VECTOR, COMPILED_PROC,
-	      HASH_TABLE, ALIEN, META_PROC, DIR_STREAM} object_type;
+typedef enum { NIL, BOOLEAN, SYMBOL, FLOATNUM,
+  CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
+  COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
+  EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
+  COMPILED_SYNTAX_PROC, VECTOR, COMPILED_PROC,
+  HASH_TABLE, ALIEN, META_PROC, DIR_STREAM
+} object_type;
 
 typedef struct object {
   char color;
   /* garbage collection data */
   object_type type;
-  struct object* next;
-  struct object* prev;
+  struct object *next;
+  struct object *prev;
 
   union {
     struct {
       char value;
     } boolean;
     struct {
-      char * value;
+      char *value;
     } symbol;
     struct {
       double value;
@@ -65,15 +66,15 @@ typedef struct object {
       long size;
     } vector;
     struct {
-      struct hashtab_t* hash_table;
+      struct hashtab_t *hash_table;
     } hash_table;
     struct {
-      struct object *(*fn)(fancystack *argstack, long n);
+      struct object *(*fn) (fancystack * argstack, long n);
     } primitive_proc;
     struct {
       struct object *parms_and_env;
       struct object *body;
-    } compound_proc; /* also syntax */
+    } compound_proc;		/* also syntax */
     struct {
       struct object *bytecode;
       struct object *env;
@@ -92,7 +93,7 @@ typedef struct object {
       struct object *releaser;
       union {
 	void *ptr;
-	void (*fn_ptr)(void);
+	void (*fn_ptr) (void);
       } data;
     } alien;
     struct {
@@ -105,7 +106,7 @@ typedef struct object {
   } data;
 } object;
 
-typedef struct object* (prim_proc)(fancystack*, long);
+typedef struct object *(prim_proc) (fancystack *, long);
 
 #define is_small_fixnum(obj) ((((unsigned long)obj) & 3) == 1)
 #define make_small_fixnum(val) (object*)(((unsigned long)val << 2) | 1)
@@ -127,27 +128,27 @@ object *alloc_object(char needs_finalization);
 
 object *make_uninterned_symbol();
 
-char is_lazy_symbol(object *obj);
+char is_lazy_symbol(object * obj);
 
 object *make_symbol(char *value);
 
-char is_the_empty_list(object *obj);
+char is_the_empty_list(object * obj);
 
-char is_boolean(object *obj);
+char is_boolean(object * obj);
 
-char is_false(object *obj);
+char is_false(object * obj);
 
-char is_true(object *obj);
+char is_true(object * obj);
 
-char is_symbol(object *obj);
+char is_symbol(object * obj);
 
 object *make_real(double value);
 
-char is_real(object *obj);
+char is_real(object * obj);
 
 object *make_character(char value);
 
-char is_character(object *obj);
+char is_character(object * obj);
 
 object *make_empty_string(long length);
 
@@ -155,47 +156,47 @@ object *make_filled_string(long len, char fill_char);
 
 object *make_string(char *value);
 
-char is_string(object *obj);
+char is_string(object * obj);
 
-object *cons(object *car, object *cdr);
+object *cons(object * car, object * cdr);
 
-char is_pair(object *obj);
+char is_pair(object * obj);
 
-object *car(object *pair);
+object *car(object * pair);
 
-void set_car(object *obj, object *value);
+void set_car(object * obj, object * value);
 
-object *cdr(object *pair);
+object *cdr(object * pair);
 
-void set_cdr(object *obj, object *value);
+void set_cdr(object * obj, object * value);
 
-object *make_vector(object *fill, long size);
+object *make_vector(object * fill, long size);
 
-object *list_to_vector(object *list);
+object *list_to_vector(object * list);
 
 object *make_hashtab(long size);
 
-char is_hashtab(object *obj);
+char is_hashtab(object * obj);
 
-void set_hashtab(object *table, object *key, object *value);
+void set_hashtab(object * table, object * key, object * value);
 
-object *get_hashtab(object *table, object *key, object *fail);
+object *get_hashtab(object * table, object * key, object * fail);
 
-object *get_hashtab_keys(object *table);
+object *get_hashtab_keys(object * table);
 
-void remkey_hashtab(object *table, object *key);
+void remkey_hashtab(object * table, object * key);
 
-char is_vector(object *obj);
+char is_vector(object * obj);
 
-char is_alien(object *obj);
+char is_alien(object * obj);
 
-object *make_alien(void * ptr, object * releaser);
+object *make_alien(void *ptr, object * releaser);
 
-object *make_alien_fn(void (*fn)(void), object * releaser);
+object *make_alien_fn(void (*fn) (void), object * releaser);
 
-char is_meta(object *obj);
+char is_meta(object * obj);
 
-object *make_meta_proc(object *proc, object *meta);
+object *make_meta_proc(object * proc, object * meta);
 
 #define caar(obj) car(car(obj))
 #define cadr(obj) car(cdr(obj))
@@ -251,38 +252,37 @@ object *make_meta_proc(object *proc, object *meta);
 #define unlikely(x) __builtin_expect((x), 0)
 
 object *make_primitive_proc(prim_proc fn);
-char is_primitive_proc(object *obj);
+char is_primitive_proc(object * obj);
 
-object *make_compound_proc(object *parameters, object *body,
-			   object *env);
+object *make_compound_proc(object * parameters, object * body, object * env);
 
-char is_compound_proc(object *obj);
-char is_syntax_proc(object *obj);
-char is_compiled_syntax_proc(object *obj);
+char is_compound_proc(object * obj);
+char is_syntax_proc(object * obj);
+char is_compiled_syntax_proc(object * obj);
 
-object *make_compiled_proc(object *bytecode, object *env);
+object *make_compiled_proc(object * bytecode, object * env);
 
-char is_compiled_proc(object *obj);
+char is_compiled_proc(object * obj);
 
-object *make_input_port(stream_reader *stream, char is_pipe);
-object *make_output_port(stream_writer *stream, char is_pipe);
-object *make_dir_stream(DIR *stream);
-char is_input_port(object *obj);
-char is_output_port(object *obj);
+object *make_input_port(stream_reader * stream, char is_pipe);
+object *make_output_port(stream_writer * stream, char is_pipe);
+object *make_dir_stream(DIR * stream);
+char is_input_port(object * obj);
+char is_output_port(object * obj);
 char is_output_port_pipe(object * obj);
 char is_input_port_pipe(object * obj);
 char is_output_port_opened(object * obj);
 char is_input_port_opened(object * obj);
 void set_output_port_opened(object * obj, char opened);
 void set_input_port_opened(object * obj, char opened);
-char is_dir_stream(object *obj);
-char is_eof_object(object *obj);
+char is_dir_stream(object * obj);
+char is_eof_object(object * obj);
 
-char is_atom(object *obj);
+char is_atom(object * obj);
 
-object *make_primitive_exception(object *contents);
+object *make_primitive_exception(object * contents);
 
-char is_primitive_exception(object *obj);
+char is_primitive_exception(object * obj);
 
 object *throw_message(char *msg, ...);
 
@@ -291,6 +291,6 @@ object *throw_message(char *msg, ...);
    establishes a corresponding binding. The interpreted environment
    and the compiled environment need all the same primitives but the
    compiled environment stores them differently. */
-typedef void (*definer)(char*, object*);
+typedef void (*definer) (char *, object *);
 
 #endif

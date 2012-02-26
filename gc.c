@@ -574,4 +574,3 @@ object *alloc_object(char needs_finalization) {
 
   return obj;
 }
-

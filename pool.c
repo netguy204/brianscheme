@@ -79,10 +79,11 @@ void *pool_alloc(pool_t * source_pool, size_t size) {
   /* next 8 byte aligned size */
   size = (size + 8 - 1) & ~(8 - 1);
 
-  void * storage = malloc_ex(size, source_pool->pools->free_start);
+  void *storage = malloc_ex(size, source_pool->pools->free_start);
   if(storage != NULL) {
     return storage;
-  } else {
+  }
+  else {
     subpool_t *last = source_pool->first;
 
     /* double the size of the last one */
@@ -94,7 +95,8 @@ void *pool_alloc(pool_t * source_pool, size_t size) {
     source_pool->first = last;
 
     /* add it to the managed set */
-    add_new_area(last->free_start, last->free_end - last->free_start, source_pool->pools->free_start);
+    add_new_area(last->free_start, last->free_end - last->free_start,
+		 source_pool->pools->free_start);
 
     /* call ourselves recursively to try again to satisfy the request */
     return pool_alloc(source_pool, size);

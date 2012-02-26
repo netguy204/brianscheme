@@ -472,18 +472,14 @@ DEFUN1(open_output_port_proc) {
   if(out == NULL) {
     return g->eof_object;
   }
-  return make_output_port(out, 0);
+  return make_output_port(make_file_writer(out), 0);
 }
 
 DEFUN1(close_output_port_proc) {
   object *obj = FIRST;
   if(!is_output_port_opened(obj))
     return g->false;
-  FILE *out = OUTPUT(obj);
-  if(is_output_port_pipe(obj))
-    pclose(out);
-  else
-    fclose(out);
+  release_stream(OUTPUT(obj));
   set_output_port_opened(obj, 0);
   return g->true;
 }
@@ -502,10 +498,7 @@ DEFUN1(close_input_port_proc) {
   if(!is_input_port_opened(obj))
     return g->false;
   stream_reader *in = INPUT(obj);
-  if(is_input_port_pipe(obj))
-    pclose(in);
-  else
-      release_stream(in);
+  release_stream(in);
   set_input_port_opened(obj, 0);
   return g->true;
 }
@@ -618,7 +611,7 @@ DEFUN1(save_image_proc) {
   return g->true;
 }
 
-object *apply(object * fn, object * evald_args, fancystack *stack) {
+object *apply(object * fn, object * evald_args, fancystack * stack) {
   /* essentially duplicated from interp but I'm not
    * sure how to implement this properly otherwise.*/
   object *env;
@@ -732,21 +725,21 @@ DEFUN1(unread_char_proc) {
 }
 
 DEFUN1(fileno_proc) {
-    file_stream_reader *reader = (file_stream_reader*)INPUT(FIRST);
+  file_stream_reader *reader = (file_stream_reader *) INPUT(FIRST);
   return make_fixnum(fileno(reader->source));
 }
 
-void list_to_fd_set(object *lst, fd_set *set) {
-  if (is_the_empty_list(lst))
+void list_to_fd_set(object * lst, fd_set * set) {
+  if(is_the_empty_list(lst))
     return;
   FD_SET(LONG(CAR(lst)), set);
   list_to_fd_set(CDR(lst), set);
 }
 
-object* fd_set_to_list(object **lst, fd_set *set) {
+object *fd_set_to_list(object ** lst, fd_set * set) {
   int i;
-  for (i = 0; i < FD_SETSIZE; i++) {
-    if (FD_ISSET(i, set)) {
+  for(i = 0; i < FD_SETSIZE; i++) {
+    if(FD_ISSET(i, set)) {
       *lst = cons(make_fixnum(i), *lst);
     }
   }
@@ -765,14 +758,14 @@ DEFUN1(select_proc) {
   timeout.tv_sec = LONG(FOURTH);
   timeout.tv_usec = LONG(FIFTH);
   struct timeval *timeptr = &timeout;
-  if (timeout.tv_sec == 0 && timeout.tv_usec == 0)
+  if(timeout.tv_sec == 0 && timeout.tv_usec == 0)
     timeptr = NULL;
-  while (select(FD_SETSIZE, &read, &write, &excp, timeptr) < 0) {
-    if (errno == EBADF)
+  while(select(FD_SETSIZE, &read, &write, &excp, timeptr) < 0) {
+    if(errno == EBADF)
       throw_message("invalid file descriptor");
-    else if (errno == EINVAL)
+    else if(errno == EINVAL)
       throw_message("invalid select() timeout");
-    else if (errno != EINTR)
+    else if(errno != EINTR)
       throw_message("select interrupted");
   }
   object *lst = g->empty_list;
@@ -1404,8 +1397,7 @@ interp_restart:
     }
     else {
       /* procedure application */
-      object *fn =
-	interp1(head, env, level + 1, prim_call_stack);
+      object *fn = interp1(head, env, level + 1, prim_call_stack);
       push_root(&fn);
 
       object *args = cdr(exp);
@@ -1430,8 +1422,7 @@ interp_restart:
 	pop_root(&fn);
 
 	push_root(&exp);
-	object *result =
-	  interp1(exp, env, level + 1, prim_call_stack);
+	object *result = interp1(exp, env, level + 1, prim_call_stack);
 	pop_root(&exp);
 	INTERP_RETURN(result);
       }
@@ -1442,16 +1433,14 @@ interp_restart:
 	long arg_count = 0;
 	object *result;
 	while(!is_the_empty_list(args)) {
-	  result =
-	    interp1(first(args), env, level + 1, prim_call_stack);
+	  result = interp1(first(args), env, level + 1, prim_call_stack);
 	  VPUSH(result, prim_call_stack);
 	  ++arg_count;
 	  args = cdr(args);
 	}
 
 	if(is_primitive_proc(fn)) {
-	  result =
-	    fn->data.primitive_proc.fn(prim_call_stack, arg_count);
+	  result = fn->data.primitive_proc.fn(prim_call_stack, arg_count);
 
 	  /* clear out the stack since primitives will not */
 	  long idx;
@@ -1476,8 +1465,7 @@ interp_restart:
 	push_root(&result);
 
 	while(!is_the_empty_list(args)) {
-	  result =
-	    interp1(first(args), env, level + 1, prim_call_stack);
+	  result = interp1(first(args), env, level + 1, prim_call_stack);
 
 	  if(evald_args == g->empty_list) {
 	    evald_args = cons(result, g->empty_list);
@@ -1692,14 +1680,15 @@ void interp_add_roots(void) {
   push_root(&(g->all_characters));
 }
 
-void init(stream_reader * reader, stream_writer * writer, stream_writer * error) {
+void init(stream_reader * reader, stream_writer * writer,
+	  stream_writer * error) {
   gc_init();
   fancystack_init();
 
   stdin_stream = reader;
   stdout_stream = writer;
   stderr_stream = error;
-    
+
   g->debug_enabled = 0;
 
   g->empty_list = alloc_object(0);

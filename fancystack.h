@@ -14,15 +14,15 @@ void fancystack_init();
 
 fancystack *fancystack_alloc(int pages);
 
-void fancystack_free(fancystack *stack);
+void fancystack_free(fancystack * stack);
 
 void fancystack_cleanup();
 
-void fancystack_push(fancystack* stack, void *object);
+void fancystack_push(fancystack * stack, void *object);
 
-void *fancystack_peek(fancystack* stack);
+void *fancystack_peek(fancystack * stack);
 
-void *fancystack_pop(fancystack* stack);
+void *fancystack_pop(fancystack * stack);
 
 fancystack *fancystack_first();
 

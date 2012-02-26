@@ -196,9 +196,9 @@ DEFUN1(ffi_set_long) {
 }
 
 DEFUN1(ffi_offset_pointer) {
-  char *ptr = (char*)ALIEN_PTR(FIRST);
+  char *ptr = (char *)ALIEN_PTR(FIRST);
   ptr += LONG(SECOND);
-  return make_alien((void*)ptr, g->empty_list);
+  return make_alien((void *)ptr, g->empty_list);
 }
 
 DEFUN1(ffi_deref) {

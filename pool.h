@@ -20,14 +20,12 @@
 
 extern size_t default_pool_size;
 
-typedef struct freed_t
-{
+typedef struct freed_t {
   void *p;			/* location of free memory. */
   size_t size;			/* size of free memory */
 } freed_t;
 
-typedef struct subpool_t
-{
+typedef struct subpool_t {
   void *mem_block;		/* beginning of the memory block */
   void *free_start;		/* start of free segment */
   void *free_end;		/* end of free segment */
@@ -35,8 +33,7 @@ typedef struct subpool_t
   struct subpool_t *next;	/* next subpool in this pool */
 } subpool_t;
 
-typedef struct pool_t
-{
+typedef struct pool_t {
   subpool_t *pools;		/* first element in linked list */
   subpool_t *first;		/* first good subpool in list */
 } pool_t;
@@ -45,23 +42,23 @@ typedef struct pool_t
  * positive init_alloc it will initially allocate that many bytes and
  * store it in init. When loading a pool, this same pointer is
  * returned. */
-pool_t *create_pool (size_t init_alloc, void **init);
+pool_t *create_pool(size_t init_alloc, void **init);
 
 /* Returns a pointer to the allocated size bytes from the given
  * pool. Returns NULL if malloc() fails. */
-void *pool_alloc (pool_t * source_pool, size_t size);
+void *pool_alloc(pool_t * source_pool, size_t size);
 
 /* Reallocate pool memory at location. */
-void *pool_realloc (pool_t * source_pool, void * p, size_t new);
+void *pool_realloc(pool_t * source_pool, void *p, size_t new);
 
 /* Free memory back into the pool. */
-void pool_free (pool_t * pool, void *p);
+void pool_free(pool_t * pool, void *p);
 
 /* Dump entire pool to file that can be read back in later to the same
  * place in memory. */
-int pool_dump (pool_t * pool, char *file, int compress);
+int pool_dump(pool_t * pool, char *file, int compress);
 
 /* Read the pool from the given file into memory. */
-void *pool_load (char * file, off_t offset);
+void *pool_load(char *file, off_t offset);
 
 #endif

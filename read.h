@@ -20,65 +20,65 @@
 struct stream_reader_;
 
 typedef struct stream_reader_ {
-    int (*reader)(struct stream_reader_*);
-    void (*unreader)(struct stream_reader_*, int);
-    int (*peeker)(struct stream_reader_*);
-    void (*releaser)(struct stream_reader_*);
+  int (*reader) (struct stream_reader_ *);
+  void (*unreader) (struct stream_reader_ *, int);
+  int (*peeker) (struct stream_reader_ *);
+  void (*releaser) (struct stream_reader_ *);
 } stream_reader;
 
 
-int read_stream(stream_reader* stream);
-void unread_stream(stream_reader* stream, int last_char);
-int peek_stream(stream_reader* stream);
-void release_stream(stream_reader* stream);
+int read_stream(stream_reader * stream);
+void unread_stream(stream_reader * stream, int last_char);
+int peek_stream(stream_reader * stream);
+void release_stream(stream_reader * stream);
 
 
 typedef struct file_stream_reader_ {
-    stream_reader reader;
-    FILE *source;
+  stream_reader reader;
+  FILE *source;
 } file_stream_reader;
 
-stream_reader *make_file_reader(FILE* file);
+stream_reader *make_file_reader(FILE * file);
 
 typedef struct string_stream_reader_ {
-    stream_reader reader;
-    char *source;
-    int position;
+  stream_reader reader;
+  char *source;
+  int position;
 } string_stream_reader;
 
-stream_reader *make_string_reader(const char * string);
+stream_reader *make_string_reader(const char *string);
 
 struct stream_writer_;
 
 typedef struct stream_writer_ {
-    void (*writer)(struct stream_writer_*, char);
+  void (*writer) (struct stream_writer_ *, char);
 } stream_writer;
 
-void write_stream(stream_writer* writer, char datum);
-void stream_fprintf(stream_writer* writer, char *msg, ...);
+void write_stream(stream_writer * writer, char datum);
+void stream_fprintf(stream_writer * writer, char *msg, ...);
 
 typedef struct file_stream_writer_ {
-    stream_writer writer;
-    FILE *destination;
+  stream_writer writer;
+  FILE *destination;
 } file_stream_writer;
 
-stream_writer* make_file_writer(FILE* file);
+stream_writer *make_file_writer(FILE * file);
 
 typedef struct string_stream_writer_ {
-    stream_writer writer;
-    char *destination;
-    int destination_capacity;
-    int position;
+  stream_writer writer;
+  char *destination;
+  int destination_capacity;
+  int position;
 } string_stream_writer;
 
-stream_writer* make_string_writer(char *buffer, int length);
+stream_writer *make_string_writer(char *buffer, int length);
 
 struct object;
 
-struct object *obj_read(stream_reader *in);
-struct object *string_to_number(char * str);
+struct object *obj_read(stream_reader * in);
+struct object *string_to_number(char *str);
 
-extern char* prompt;
+extern char *prompt;
 
 
 #endif

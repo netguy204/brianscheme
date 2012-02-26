@@ -34,20 +34,19 @@ int bootstrap = 1;
 int print_help = 0;
 char *image = NULL;
 
-stream_reader * reader;
+stream_reader *reader;
 
 void print_usage(int ret) {
-  printf ("Usage: %s [options] [script [arguments]]\n", progname);
-  printf ("\t-b           Do not bootstrap\n");
-  printf ("\t-l           Load an image\n");
-  printf ("\t-v           Print version information\n");
-  printf ("\t-h           Print this usage text\n");
+  printf("Usage: %s [options] [script [arguments]]\n", progname);
+  printf("\t-b           Do not bootstrap\n");
+  printf("\t-l           Load an image\n");
+  printf("\t-v           Print version information\n");
+  printf("\t-h           Print this usage text\n");
   exit(ret);
 }
 
-void print_version ()
-{
-  printf ("BrianScheme, version %s.\n", version);
+void print_version() {
+  printf("BrianScheme, version %s.\n", version);
   exit(EXIT_SUCCESS);
 }
 
@@ -56,9 +55,9 @@ char **split_path(const char *path) {
   char del = ':';
   int count = 1;
   char *copy = xmalloc(strlen(path) + 1), *cp = copy, *p = path;
-  while (*p != '\0') {
+  while(*p != '\0') {
     *cp = *p;
-    if (*p == del)
+    if(*p == del)
       count++;
     cp++;
     p++;
@@ -66,12 +65,12 @@ char **split_path(const char *path) {
   *cp = '\0';
 
   cp = copy;
-  char **r = xmalloc((count + 1) * sizeof(char**));
+  char **r = xmalloc((count + 1) * sizeof(char **));
   int i;
-  for (i = 0; i < count; i++) {
+  for(i = 0; i < count; i++) {
     r[i] = cp;
     cp = strchr(cp, del);
-    if (cp != NULL)
+    if(cp != NULL)
       *cp = '\0';
     cp++;
   }
@@ -93,12 +92,13 @@ char *pathcat(char *a, char *b) {
 
 void insert_strlist(char **strv, char *name, int use_interp) {
   char **strs = strv;
-  object* list = g->empty_list;
-  object* str = g->empty_list;
+  object *list = g->empty_list;
+  object *str = g->empty_list;
   push_root(&list);
   push_root(&str);
-  while (*strs != NULL) strs++;
-  while (strs > strv) {
+  while(*strs != NULL)
+    strs++;
+  while(strs > strv) {
     /* Build up list in reverse. */
     strs--;
     str = make_string(*strs);
@@ -106,18 +106,18 @@ void insert_strlist(char **strv, char *name, int use_interp) {
   }
   pop_root(&str);
 
-  if (use_interp)
+  if(use_interp)
     interp_definer(name, list);
   vm_definer(name, list);
   pop_root(&list);
 }
 
-object * load_library(char *libname) {
+object *load_library(char *libname) {
   char *filename;
   char **paths = bs_paths;
-  while (*paths != NULL) {
+  while(*paths != NULL) {
     filename = pathcat(*paths, libname);
-    if (access(filename, R_OK) == 0)
+    if(access(filename, R_OK) == 0)
       break;
     free(filename);
     filename = NULL;
@@ -127,7 +127,7 @@ object * load_library(char *libname) {
     fprintf(stderr, "Failed to load %s. Is BS_PATH right?\n", libname);
     exit(3);
   }
-  FILE * stdlib = fopen(filename, "r");
+  FILE *stdlib = fopen(filename, "r");
   if(stdlib == NULL) {
     fprintf(stderr, "Somehow failed to load %s after it existed.\n", libname);
     exit(3);
@@ -136,24 +136,25 @@ object * load_library(char *libname) {
 
   object *form;
   object *result = NULL;
-    stream_reader * file_reader = make_file_reader(stdlib);
+  stream_reader *file_reader = make_file_reader(stdlib);
   while((form = obj_read(file_reader)) != NULL) {
     push_root(&form);
     result = interp(form, g->empty_env);
     pop_root(&form);
   }
-    release_stream(file_reader);
+  release_stream(file_reader);
 
   return result;
 }
 
-object * compile_library(char *libname) {
+object *compile_library(char *libname) {
   object *compile_file = make_symbol("compile-file");
   object *compiler = get_hashtab(g->vm_env, compile_file, NULL);
   if(compiler == NULL) {
     fprintf(stderr, "compile-file is not defined\n");
     exit(4);
-  } else {
+  }
+  else {
     compiler = cdr(compiler);
   }
 
@@ -175,13 +176,15 @@ off_t find_image(char *selfexe) {
   FILE *self = fopen(selfexe, "r");
   uint32_t sample;
   off_t loc = 0;
-  while (1) {
+  while(1) {
     int r = fseek(self, ps - 4, SEEK_CUR);
-    if (r < 0) break;
+    if(r < 0)
+      break;
     r = fread(&sample, 4, 1, self);
-    if (r == 0) break;
+    if(r == 0)
+      break;
     loc += ps;
-    if (sample == 0xdeadbeef) {
+    if(sample == 0xdeadbeef) {
       fclose(self);
       return loc;
     }
@@ -189,54 +192,57 @@ off_t find_image(char *selfexe) {
   fclose(self);
   return 0;
 }
+
 /* End SFX stuff. */
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
   int ii;
   progname = argv[0];
 
   /* Handle BS_PATH */
   char *path = getenv("BS_PATH");
-  if (path == NULL)
+  if(path == NULL)
     path = ".";
   bs_paths = split_path(path);
 
   /* Handle command line arguments. */
   int c;
-  while ((c = getopt(argc, argv, "+bhvl:")) != -1)
-    switch (c)
-      {
-      case 'b':
-	bootstrap = 0;
-	break;
-      case 'l':
-	image = optarg;
-	break;
-      case 'v':
-	print_version ();
-	break;
-      case 'h':
-	print_help = 1;
-	break;
-      case '?':
-	print_usage (EXIT_FAILURE);
-	break;
-      }
-  if (print_help)
-    print_usage (EXIT_SUCCESS);
+  while((c = getopt(argc, argv, "+bhvl:")) != -1)
+    switch (c) {
+    case 'b':
+      bootstrap = 0;
+      break;
+    case 'l':
+      image = optarg;
+      break;
+    case 'v':
+      print_version();
+      break;
+    case 'h':
+      print_help = 1;
+      break;
+    case '?':
+      print_usage(EXIT_FAILURE);
+      break;
+    }
+  if(print_help)
+    print_usage(EXIT_SUCCESS);
 
   off_t img_off = 0;
 #ifdef SFX
-  if (image == NULL && bootstrap) {
+  if(image == NULL && bootstrap) {
     /* Always load an image. */
     image = "/proc/self/exe";
     img_off = find_image(image);
   }
 #endif
+  stream_reader *stdin_stream = make_file_reader(stdin);
+  stream_writer *stdout_stream = make_file_writer(stdout);
+  stream_writer *stderr_stream = make_file_writer(stderr);
 
-  if (image) {
+  if(image) {
     int r = load_image(image, img_off);
-    if (r != 0) {
+    if(r != 0) {
       exit(EXIT_FAILURE);
     }
 
@@ -250,9 +256,9 @@ int main(int argc, char ** argv) {
     vm_boot();
 
     /* need to patch up some things that move between boots */
-    patch_object(g->stdin_symbol, make_input_port(stdin, 0));
-    patch_object(g->stdout_symbol, make_output_port(stdout, 0));
-    patch_object(g->stderr_symbol, make_output_port(stderr, 0));
+    patch_object(g->stdin_symbol, make_input_port(stdin_stream, 0));
+    patch_object(g->stdout_symbol, make_output_port(stdout_stream, 0));
+    patch_object(g->stderr_symbol, make_output_port(stderr_stream, 0));
 
     /* Stick arguments and BS_PATH in global environment. */
     insert_strlist(bs_paths, "*load-path*", 0);
@@ -264,7 +270,7 @@ int main(int argc, char ** argv) {
     exit(0);
   }
 
-  init();
+  init(stdin_stream, stdout_stream, stderr_stream);
 
   /* Stick arguments and BS_PATH in global environment. */
   insert_strlist(bs_paths, "*load-path*", 1);
@@ -281,7 +287,7 @@ int main(int argc, char ** argv) {
   }
 
   /* fist we want to bootstrap the compiled environment */
-  object * result = load_library("boot.sch");
+  object *result = load_library("boot.sch");
 
   /* if everything went well we should get back a special symbol */
   if(result != make_symbol("finished-compile")) {

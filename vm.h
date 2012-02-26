@@ -24,9 +24,10 @@ void vm_add_roots(void);
 void vm_boot(void);
 void vm_init_environment(definer defn);
 
-object *vm_execute(object *fn, fancystack *stack, long n_args, object *genv);
+object *vm_execute(object * fn, fancystack * stack, long n_args,
+		   object * genv);
 
-void vm_definer(char *sym, object *value);
+void vm_definer(char *sym, object * value);
 
 #define VPUSH(obj, stack)				\
   do {							\
