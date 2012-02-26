@@ -22,7 +22,11 @@ void fancystack_init() {
   sa.sa_flags = SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
   sa.sa_sigaction = fancystack_handler;
+#ifdef __MACH__
   if(sigaction(SIGBUS, &sa, NULL) == -1) {
+#else
+  if(sigaction(SIGSEGV, &sa, NULL) == -1) {
+#endif
     fprintf(stderr, "failed to install signal handler\n");
     exit(1);
   }
@@ -35,7 +39,11 @@ void *fancystack_guard(fancystack* stack) {
 fancystack *fancystack_alloc(int pages) {
   // allocate one extra page so that we can detect overflow
   long size = pagesize * pages;
+#ifdef __MACH__
   void *stack_data = malloc(size + pagesize);
+#else
+  void *stack_data = memalign(pagesize, size + pagesize);
+#endif
   
   // allocate the stack record
   fancystack *stack = malloc(sizeof(fancystack));
@@ -77,7 +85,11 @@ void fancystack_free(fancystack *stack) {
 void fancystack_grow(fancystack *stack) {
   // always double the size
   long new_size = stack->size * 2;
+#ifdef __MACH__
   void *new_data = malloc(new_size + pagesize);
+#else
+  void *new_data = memalign(pagesize, new_size + pagesize);
+#endif
 
   memcpy(new_data, stack->data, stack->size + pagesize);
   free(stack->data);
