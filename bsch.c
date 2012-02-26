@@ -157,7 +157,7 @@ object * compile_library(char *libname) {
   object *form = g->empty_list;
   push_root(&form);
   form = cons(make_string(libname), form);
-  object *result = apply(compiler, form);
+  object *result = apply(compiler, form, NULL);
   pop_root(&form);
   return result;
 }
@@ -241,7 +241,7 @@ int main(int argc, char ** argv) {
     gc_boot();
     interp_add_roots();
     vm_add_roots();
-    ffi_add_roots();
+    //ffi_add_roots();
 
     /* the vm needs to build some tables */
     vm_boot();
@@ -257,7 +257,7 @@ int main(int argc, char ** argv) {
 
     /* Fire up a REPL, or whatever the user had in mind. */
     apply(cdr(get_hashtab(g->vm_env, make_symbol("*image-start*"), NULL)),
-	  g->empty_list);
+	  g->empty_list, NULL);
     exit(0);
   }
 

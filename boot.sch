@@ -103,7 +103,6 @@
 ;; macro bootstrap complete. we can use quasiquoting syntax from here
 ;; on out!
 
-
 (set! define-syntax
   (lambda (name-and-vars . body)
     `(begin

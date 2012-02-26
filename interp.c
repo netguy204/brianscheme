@@ -31,6 +31,7 @@
 #include "vm.h"
 #include "ffi.h"
 #include "socket.h"
+#include "fancystack.h"
 
 static const int DEBUG_LEVEL = 1;
 
@@ -247,7 +248,8 @@ DEFUN1(is_compiled_proc_proc) {
 }
 
 DEFUN1(add_fixnum_proc) {
-  return make_fixnum(LONG(FIRST) + LONG(SECOND));
+  long result = LONG(FIRST) + LONG(SECOND);
+  return make_fixnum(result);
 }
 
 DEFUN1(add_real_proc) {
@@ -255,7 +257,8 @@ DEFUN1(add_real_proc) {
 }
 
 DEFUN1(sub_fixnum_proc) {
-  return make_fixnum(LONG(FIRST) - LONG(SECOND));
+  long result = LONG(FIRST) - LONG(SECOND);
+  return make_fixnum(result);
 }
 
 DEFUN1(sub_real_proc) {
@@ -295,15 +298,24 @@ DEFUN1(pow_real_proc) {
 }
 
 DEFUN1(logand_proc) {
-  return make_fixnum(LONG(FIRST) & LONG(SECOND));
+  const long arg1 = LONG(FIRST);
+  const long arg2 = LONG(SECOND);
+  const long result = arg1 & arg2;
+  return make_fixnum(result);
 }
 
 DEFUN1(logor_proc) {
-  return make_fixnum(LONG(FIRST) | LONG(SECOND));
+  const long arg1 = LONG(FIRST);
+  const long arg2 = LONG(SECOND);
+  const long result = arg1 | arg2;
+  return make_fixnum(result);
 }
 
 DEFUN1(logxor_proc) {
-  return make_fixnum(LONG(FIRST) ^ LONG(SECOND));
+  const long arg1 = LONG(FIRST);
+  const long arg2 = LONG(SECOND);
+  const long result = arg1 ^ arg2;
+  return make_fixnum(result);
 }
 
 DEFUN1(ash_proc) {
@@ -405,20 +417,28 @@ DEFUN1(set_cdr_proc) {
 }
 
 DEFUN1(is_eq_proc) {
+  if(FIRST == SECOND) {
+    return g->true;
+  }
+
+  if(TAGGED(FIRST) || TAGGED(SECOND)) {
+    /* all tagged values should have passed the first check if
+       equal */
+    return g->false;
+  }
+
   if(FIRST->type != SECOND->type) {
     return g->false;
   }
   switch (FIRST->type) {
-  case FIXNUM:
-    return (LONG(FIRST) == LONG(SECOND)) ? g->true : g->false;
   case FLOATNUM:
-    return (DOUBLE(FIRST) == DOUBLE(SECOND)) ? g->true : g->false;
+    return AS_BOOL(DOUBLE(FIRST) == DOUBLE(SECOND));
   case CHARACTER:
-    return (CHAR(FIRST) == CHAR(SECOND)) ? g->true : g->false;
+    return AS_BOOL(CHAR(FIRST) == CHAR(SECOND));
   case STRING:
-    return (strcmp(STRING(FIRST), STRING(SECOND)) == 0) ? g->true : g->false;
+    return AS_BOOL(strcmp(STRING(FIRST), STRING(SECOND)) == 0);
   default:
-    return (FIRST == SECOND) ? g->true : g->false;
+    return g->false;
   }
 }
 
@@ -598,12 +618,17 @@ DEFUN1(save_image_proc) {
   return g->true;
 }
 
-object *apply(object * fn, object * evald_args) {
+object *apply(object * fn, object * evald_args, fancystack *stack) {
   /* essentially duplicated from interp but I'm not
    * sure how to implement this properly otherwise.*/
   object *env;
   object *exp;
   object *result;
+
+  char make_stack = stack == NULL;
+  if(make_stack) {
+    stack = fancystack_alloc(1);
+  }
 
   /* unwrap meta */
   if(is_meta(fn)) {
@@ -613,27 +638,25 @@ object *apply(object * fn, object * evald_args) {
   if(is_primitive_proc(fn) || is_compiled_proc(fn) ||
      is_compiled_syntax_proc(fn)) {
 
-    object *stack = make_vector(g->empty_list, 30);
-    long stack_top = 0;
-
-    push_root(&stack);
-
     long num_args = 0;
     while(!is_the_empty_list(evald_args)) {
-      VPUSH(car(evald_args), stack, stack_top);
+      VPUSH(car(evald_args), stack);
       ++num_args;
       evald_args = cdr(evald_args);
     }
 
     if(is_primitive_proc(fn)) {
-      result = fn->data.primitive_proc.fn(stack, num_args, stack_top);
+      result = fn->data.primitive_proc.fn(stack, num_args);
       /* no need to unwind the stack since it's just going to be
          gc'd */
     }
     else {
-      result = vm_execute(fn, stack, stack_top, num_args, g->vm_env);
+      result = vm_execute(fn, stack, num_args, g->vm_env);
     }
-    pop_root(&stack);
+
+    if(make_stack) {
+      fancystack_free(stack);
+    }
     return result;
   }
   else if(is_compound_proc(fn) || is_syntax_proc(fn)) {
@@ -641,8 +664,12 @@ object *apply(object * fn, object * evald_args) {
 			     evald_args, COMPOUND_ENV(fn));
     push_root(&env);
     exp = COMPOUND_BODY(fn);
-    result = interp(exp, env);
+    result = interp1(exp, env, 0, stack);
     pop_root(&env);
+
+    if(make_stack) {
+      fancystack_free(stack);
+    }
     return result;
   }
 
@@ -653,7 +680,7 @@ object *apply(object * fn, object * evald_args) {
 DEFUN1(apply_proc) {
   object *fn = FIRST;
   object *evald_args = SECOND;
-  return apply(fn, evald_args);
+  return apply(fn, evald_args, args);
 }
 
 object *obj_read(FILE * in);
@@ -1049,6 +1076,11 @@ object *owrite(FILE * out, object * obj) {
     return throw_message("object is primitive #<NULL>");
   }
 
+  if(is_fixnum(obj)) {
+    fprintf(out, "%ld", LONG(obj));
+    return g->true;
+  }
+
   if(is_small_fixnum(obj)) {
     fprintf(out, "#<small %ld >", SMALL_FIXNUM(obj));
     return g->true;
@@ -1056,6 +1088,11 @@ object *owrite(FILE * out, object * obj) {
 
   if(is_hashtab(obj) && obj == g->env) {
     fprintf(out, "#<global-environment-hashtab>");
+    return g->true;
+  }
+
+  if(is_lazy_symbol(obj)) {
+    fprintf(out, "#G%ld", PRIM_UNINTERNED_SYMBOL(obj));
     return g->true;
   }
 
@@ -1068,12 +1105,6 @@ object *owrite(FILE * out, object * obj) {
     break;
   case SYMBOL:
     fprintf(out, "%s", obj->data.symbol.value);
-    break;
-  case LAZY_SYMBOL:
-    fprintf(out, "#G%ld", LONG(obj));
-    break;
-  case FIXNUM:
-    fprintf(out, "%ld", LONG(obj));
     break;
   case FLOATNUM:
     fprintf(out, "%lf", DOUBLE(obj));
@@ -1250,14 +1281,11 @@ object *interp(object * exp, object * env) {
   push_root(&exp);
   push_root(&env);
 
-  object *prim_call_stack = make_vector(g->empty_list, 10);
-  long prim_stack_top = 0;
+  fancystack *prim_call_stack = fancystack_alloc(1);
 
-  push_root(&prim_call_stack);
+  object *result = interp1(exp, env, 0, prim_call_stack);
 
-  object *result = interp1(exp, env, 0, prim_call_stack, prim_stack_top);
-
-  pop_root(&prim_call_stack);
+  fancystack_free(prim_call_stack);
 
   pop_root(&env);
   pop_root(&exp);
@@ -1265,13 +1293,13 @@ object *interp(object * exp, object * env) {
 }
 
 object *expand_macro(object * macro, object * args, object * env, int level,
-		     object * stack, long stack_top) {
+		     fancystack * stack) {
   object *new_env = extend_environment(COMPOUND_PARAMS(macro),
 				       args,
 				       env);
   push_root(&new_env);
   object *expanded = interp1(COMPOUND_BODY(macro),
-			     new_env, level, stack, stack_top);
+			     new_env, level, stack);
   pop_root(&new_env);
 
   return expanded;
@@ -1292,7 +1320,7 @@ object *expand_macro(object * macro, object * args, object * env, int level,
 
 
 object *interp1(object * exp, object * env, int level,
-		object * prim_call_stack, long prim_stack_top) {
+		fancystack * prim_call_stack) {
   if(g->empty_list->type != THE_EMPTY_LIST) {
     fprintf(stderr, "all sanity lost\n");
     exit(1);
@@ -1324,7 +1352,7 @@ interp_restart:
       }
 
       while(!is_the_empty_list(cdr(exp))) {
-	interp1(car(exp), env, level + 1, prim_call_stack, prim_stack_top);
+	interp1(car(exp), env, level + 1, prim_call_stack);
 	exp = cdr(exp);
       }
 
@@ -1333,8 +1361,7 @@ interp_restart:
     }
     else if(head == g->set_symbol) {
       object *args = cdr(exp);
-      object *val = interp1(second(args), env, level + 1, prim_call_stack,
-			    prim_stack_top);
+      object *val = interp1(second(args), env, level + 1, prim_call_stack);
       push_root(&val);
 
       define_variable(first(args), val, env);
@@ -1346,7 +1373,7 @@ interp_restart:
     else if(head == g->if_symbol) {
       object *args = cdr(exp);
       object *predicate =
-	interp1(first(args), env, level + 1, prim_call_stack, prim_stack_top);
+	interp1(first(args), env, level + 1, prim_call_stack);
 
       if(is_falselike(predicate)) {
 	/* else is optional, if none return #f */
@@ -1376,7 +1403,7 @@ interp_restart:
     else {
       /* procedure application */
       object *fn =
-	interp1(head, env, level + 1, prim_call_stack, prim_stack_top);
+	interp1(head, env, level + 1, prim_call_stack);
       push_root(&fn);
 
       object *args = cdr(exp);
@@ -1389,7 +1416,7 @@ interp_restart:
       if(is_syntax_proc(fn)) {
 	/* expand the macro and evaluate that */
 	object *expansion =
-	  expand_macro(fn, args, env, level, prim_call_stack, prim_stack_top);
+	  expand_macro(fn, args, env, level, prim_call_stack);
 	if(is_pair(expansion)) {
 	  /* replace the macro call with the result */
 	  set_car(exp, car(expansion));
@@ -1402,7 +1429,7 @@ interp_restart:
 
 	push_root(&exp);
 	object *result =
-	  interp1(exp, env, level + 1, prim_call_stack, prim_stack_top);
+	  interp1(exp, env, level + 1, prim_call_stack);
 	pop_root(&exp);
 	INTERP_RETURN(result);
       }
@@ -1414,27 +1441,25 @@ interp_restart:
 	object *result;
 	while(!is_the_empty_list(args)) {
 	  result =
-	    interp1(first(args), env, level + 1, prim_call_stack,
-		    prim_stack_top);
-	  VPUSH(result, prim_call_stack, prim_stack_top);
+	    interp1(first(args), env, level + 1, prim_call_stack);
+	  VPUSH(result, prim_call_stack);
 	  ++arg_count;
 	  args = cdr(args);
 	}
 
 	if(is_primitive_proc(fn)) {
 	  result =
-	    fn->data.primitive_proc.fn(prim_call_stack, arg_count,
-				       prim_stack_top);
+	    fn->data.primitive_proc.fn(prim_call_stack, arg_count);
 
 	  /* clear out the stack since primitives will not */
 	  long idx;
 	  object *temp;
 	  for(idx = 0; idx < arg_count; ++idx) {
-	    VPOP(temp, prim_call_stack, prim_stack_top);
+	    VPOP(temp, prim_call_stack);
 	  }
 	}
 	else {
-	  result = vm_execute(fn, prim_call_stack, prim_stack_top, arg_count, g->vm_env);
+	  result = vm_execute(fn, prim_call_stack, arg_count, g->vm_env);
 	}
 
 	pop_root(&fn);
@@ -1450,8 +1475,7 @@ interp_restart:
 
 	while(!is_the_empty_list(args)) {
 	  result =
-	    interp1(first(args), env, level + 1, prim_call_stack,
-		    prim_stack_top);
+	    interp1(first(args), env, level + 1, prim_call_stack);
 
 	  if(evald_args == g->empty_list) {
 	    evald_args = cons(result, g->empty_list);
@@ -1668,6 +1692,7 @@ void interp_add_roots(void) {
 
 void init() {
   gc_init();
+  fancystack_init();
 
   g->debug_enabled = 0;
 
@@ -1739,12 +1764,12 @@ void init() {
 
   init_prim_environment(interp_definer);
   vm_init_environment(interp_definer);
-  init_ffi(interp_definer);
+  //init_ffi(interp_definer);
   init_socket(interp_definer);
 
   init_prim_environment(vm_definer);
   vm_init_environment(vm_definer);
-  init_ffi(vm_definer);
+  //init_ffi(vm_definer);
   init_socket(vm_definer);
 
   vm_init();

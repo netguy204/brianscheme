@@ -64,6 +64,14 @@ already. ignores non-alpha"
 already. ignores non-alpha"
   (char-case-switch char #f))
 
+(define (alpha? char)
+  "true if char is a letter"
+  (let ((ord (char->integer (char-lowercase char)))
+	(a (char->integer #\a))
+	(z (char->integer #\z)))
+    (and (>= ord a)
+	 (<= ord z))))
+
 (define (uppercase str)
   "convert a string to uppercase"
   (string-map char-uppercase str))

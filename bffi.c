@@ -372,7 +372,6 @@ void init_ffi(definer defn) {
   g->ffi_type_uint64_sym = make_symbol("ffi-uint64");
 
   /* setup offset values */
-  fixnum_offset = (unsigned int)(long)&(((object *) 0)->data.fixnum.value);
   car_offset = (unsigned int)(long)&(((object *) 0)->data.pair.car);
   cdr_offset = (unsigned int)(long)&(((object *) 0)->data.pair.cdr);
 

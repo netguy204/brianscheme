@@ -20,8 +20,13 @@
 #include <stdio.h>
 #include <dirent.h>
 #include "hashtab.h"
+#include "fancystack.h"
 
-typedef enum {NIL, BOOLEAN, SYMBOL, LAZY_SYMBOL, FIXNUM, FLOATNUM,
+
+/* first implementing the classic tagged type. This specific
+   inplementation is stolen from Peter Michaux's bootstrap-scheme. */
+
+typedef enum {NIL, BOOLEAN, SYMBOL, FLOATNUM,
 	      CHARACTER, STRING, PAIR, PRIMITIVE_PROC,
 	      COMPOUND_PROC, INPUT_PORT, OUTPUT_PORT,
 	      EOF_OBJECT, THE_EMPTY_LIST, SYNTAX_PROC,
@@ -43,9 +48,6 @@ typedef struct object {
       char * value;
     } symbol;
     struct {
-      long value;
-    } fixnum;
-    struct {
       double value;
     } floatnum;
     struct {
@@ -66,8 +68,7 @@ typedef struct object {
       struct hashtab_t* hash_table;
     } hash_table;
     struct {
-      struct object *(*fn)(struct object *argstack,
-			   long n, long top);
+      struct object *(*fn)(fancystack *argstack, long n);
     } primitive_proc;
     struct {
       struct object *parms_and_env;
@@ -104,13 +105,21 @@ typedef struct object {
   } data;
 } object;
 
-typedef struct object* (prim_proc)(struct object*,
-				   long, long);
+typedef struct object* (prim_proc)(fancystack*, long);
 
-#define is_small_fixnum(obj) ((((unsigned long)obj) & 0x0001) == 1)
-#define make_small_fixnum(val) (object*)(((unsigned long)val << 1) | 0x0001)
-#define SMALL_FIXNUM(obj) (((unsigned long)obj) >> 1)
-#define TAGGED(obj) ((((unsigned long)obj) & 0x0001) == 1)
+#define is_small_fixnum(obj) ((((unsigned long)obj) & 3) == 1)
+#define make_small_fixnum(val) (object*)(((unsigned long)val << 2) | 1)
+#define SMALL_FIXNUM(obj) (((unsigned long)obj) >> 2)
+#define TAGGED(obj) ((((unsigned long)obj) & 3) != 0)
+#define GET_TAG(obj) (((unsigned long)obj) & 3)
+
+#define is_fixnum(obj) ((((unsigned long)obj) & 3) == 3)
+#define make_fixnum(val) (object*)(((long)val << 2) | 3)
+#define LONG(obj) ((((long)obj) >> 2))
+
+#define make_prim_uninterned_symbol(val) (object*)(((unsigned long)val << 2) | 2)
+#define is_prim_uninterned_symbol(obj) ((((unsigned long)obj) & 3) == 2)
+#define PRIM_UNINTERNED_SYMBOL(obj) ((((unsigned long)obj) >> 2))
 
 /* some basic functions for dealing with tagged types */
 
@@ -131,10 +140,6 @@ char is_false(object *obj);
 char is_true(object *obj);
 
 char is_symbol(object *obj);
-
-object *make_fixnum(long value);
-
-char is_fixnum(object *obj);
 
 object *make_real(double value);
 
@@ -216,7 +221,6 @@ object *make_meta_proc(object *proc, object *meta);
 
 #define CAR(x) (x->data.pair.car)
 #define CDR(x) (x->data.pair.cdr)
-#define LONG(x) (x->data.fixnum.value)
 #define DOUBLE(x) (x->data.floatnum.value)
 #define CHAR(x) (x->data.character.value)
 #define STRING(x) (x->data.string.value)
