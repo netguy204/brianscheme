@@ -27,6 +27,10 @@ You can read more about the implementation at these links:
 * [BrianScheme](http://nullprogram.com/blog/2011/01/11/)
 * [Bootstrapping and Images](http://nullprogram.com/blog/2011/01/30/)
 
+The primary implementors maintain blogs at:
+
+* [50Ply](http://50ply.com)
+* [NullProgram](http://www.nullprogram.com)
 
 LICENSE:
 
