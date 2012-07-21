@@ -250,9 +250,10 @@ int main(int argc, char **argv) {
     gc_boot();
     interp_add_roots();
     vm_add_roots();
-    //ffi_add_roots();
+    ffi_add_roots();
 
     /* the vm needs to build some tables */
+    fancystack_init();
     vm_boot();
 
     /* need to patch up some things that move between boots */
